@@ -176,7 +176,10 @@ h2 {
 }
 
 button.primary {
-  color: var(--accent-ink);
+  /* The ember frame is a dark wood-grain texture, not a flat gold fill, so
+     the dark ink colour used elsewhere against solid --accent reads poorly
+     here: white holds contrast against the whole frame. */
+  color: #fff;
   font-weight: bold;
   border-image-source: var(--ui-btn-ember);
 }
