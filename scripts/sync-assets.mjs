@@ -12,9 +12,10 @@
  * git-ignored, and the game shows placeholders for any asset it cannot find.
  * Re-running only converts files that are new or changed.
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Mp3Encoder } from '@breezystack/lamejs';
 import sharp from 'sharp';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -97,7 +98,7 @@ const RULES = [
     ['wind', 'animationsselect_wind/30FPS', 'Animations Select: Wind'],
     ['thaumaturgy', 'animationscollection3_thaumaturgy/30FPS', 'Animations Collection 3: Thaumaturgy'],
   ].map(([name, dir, pack]) => ({ root: 'local', category: `animations/${name}`, pack, dir: `_unpacked/animations/${dir}`, animation: true })),
-  // Sound effects, copied as they are (wav or ogg).
+  // Sound effects: WAVs are compressed to MP3, OGGs copied as they are.
   ...[
     ['sfx/magic', 'Simple Magic Sound FX Pack Vol. 1/Simple Magic Sound FX Pack Vol. 1', 'Simple Magic Sound FX'],
     ['sfx/medieval', 'Medieval Fantasy Sound FX Pack Vol. 2/Medieval Fantasy Sound FX Pack Vol. 2', 'Medieval Fantasy Sound FX'],
@@ -198,11 +199,91 @@ function expand(rule) {
     }));
 }
 
+// ---------- sound: WAV to MP3 ----------
+
+/** Reads a WAV file into 16-bit samples per channel. Handles 8/16/24/32-bit PCM and 32-bit float. */
+function readWav(file) {
+  const b = readFileSync(file);
+  if (b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE') throw new Error(`${file} is not a WAV file`);
+  let fmt = null;
+  let data = null;
+  for (let o = 12; o + 8 <= b.length; ) {
+    const id = b.toString('ascii', o, o + 4);
+    const size = b.readUInt32LE(o + 4);
+    if (id === 'fmt ') {
+      let format = b.readUInt16LE(o + 8);
+      // WAVE_FORMAT_EXTENSIBLE: the real format is in the sub-format GUID.
+      if (format === 0xfffe && size >= 26) format = b.readUInt16LE(o + 32);
+      fmt = { format, channels: b.readUInt16LE(o + 10), sampleRate: b.readUInt32LE(o + 12), bits: b.readUInt16LE(o + 22) };
+    } else if (id === 'data') {
+      data = b.subarray(o + 8, Math.min(b.length, o + 8 + size));
+    }
+    o += 8 + size + (size % 2);
+  }
+  if (!fmt || !data) throw new Error(`${file} has no audio data`);
+  const { format, channels, sampleRate, bits } = fmt;
+  const bytes = bits / 8;
+  const frames = Math.floor(data.length / (bytes * channels));
+  const out = Array.from({ length: channels }, () => new Int16Array(frames));
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < channels; c++) {
+      const at = (i * channels + c) * bytes;
+      let v;
+      if (format === 3 && bits === 32) v = Math.max(-1, Math.min(1, data.readFloatLE(at))) * 32767;
+      else if (bits === 16) v = data.readInt16LE(at);
+      else if (bits === 24) v = data.readIntLE(at, 3) >> 8;
+      else if (bits === 32) v = data.readInt32LE(at) >> 16;
+      else if (bits === 8) v = (data.readUInt8(at) - 128) << 8;
+      else throw new Error(`${file}: ${bits}-bit audio is not supported`);
+      out[c][i] = v;
+    }
+  }
+  return { sampleRate, channels: out };
+}
+
+/** Encodes a WAV as MP3: stereo at 128 kbps, mono at 96. More than two channels are mixed down to stereo. */
+function wavToMp3(source, target) {
+  const wav = readWav(source);
+  let channels = wav.channels;
+  if (channels.length > 2) {
+    const mix = (pick) => {
+      const out = new Int16Array(channels[0].length);
+      for (let i = 0; i < out.length; i++) {
+        const picked = pick.map((c) => channels[c][i]);
+        out[i] = Math.round(picked.reduce((a, v) => a + v, 0) / picked.length);
+      }
+      return out;
+    };
+    const left = channels.map((_, c) => c).filter((c) => c % 2 === 0);
+    const right = channels.map((_, c) => c).filter((c) => c % 2 === 1);
+    channels = [mix(left), mix(right)];
+  }
+  const stereo = channels.length === 2;
+  const encoder = new Mp3Encoder(channels.length, wav.sampleRate, stereo ? 128 : 96);
+  const parts = [];
+  const block = 1152;
+  for (let i = 0; i < channels[0].length; i += block) {
+    const l = channels[0].subarray(i, i + block);
+    const chunk = stereo ? encoder.encodeBuffer(l, channels[1].subarray(i, i + block)) : encoder.encodeBuffer(l);
+    if (chunk.length > 0) parts.push(Buffer.from(chunk));
+  }
+  const end = encoder.flush();
+  if (end.length > 0) parts.push(Buffer.from(end));
+  writeFileSync(target, Buffer.concat(parts));
+}
+
 async function convert(source, target, rule) {
   if (existsSync(target) && statSync(target).mtimeMs >= statSync(source).mtimeMs) return false;
   mkdirSync(dirname(target), { recursive: true });
   if (rule.audio) {
-    copyFileSync(source, target);
+    if (/\.wav$/i.test(source)) {
+      wavToMp3(source, target);
+      // An uncompressed copy from an earlier sync is no longer needed.
+      const stale = target.replace(/\.mp3$/, '.wav');
+      if (existsSync(stale)) rmSync(stale);
+    } else {
+      copyFileSync(source, target);
+    }
   } else if (rule.animation) {
     await sharp(source).png({ compressionLevel: 9 }).toFile(target);
   } else {
@@ -244,7 +325,8 @@ async function main() {
       let id = `${rule.category}/${slug(rule.deep ? rel.replace(/[\\/]/g, '-') : rel)}`;
       while (seen.has(id)) id += '-x';
       seen.add(id);
-      const ext = rule.audio ? source.slice(source.lastIndexOf('.')).toLowerCase() : rule.animation ? '.png' : '.webp';
+      // Sounds: WAVs are compressed to MP3; anything else (OGG) is kept as it is.
+      const ext = rule.audio ? (/\.wav$/i.test(source) ? '.mp3' : source.slice(source.lastIndexOf('.')).toLowerCase()) : rule.animation ? '.png' : '.webp';
       const file = `${id}${ext}`;
       if (await convert(source, join(outDir, file), rule)) converted++;
       const meta = rule.animation && !rule.audio ? await sharp(source).metadata() : null;
