@@ -166,8 +166,13 @@ export function DungeonScreen() {
           <button type="button" onClick={() => setPanel('party')}>
             Party
           </button>
-          <button type="button" disabled={dungeon.rested} title={dungeon.rested ? 'You have already made camp on this level.' : undefined} onClick={() => setPanel('rest')}>
-            {dungeon.rested ? 'Camp used' : 'Make camp'}
+          <button
+            type="button"
+            disabled={dungeon.rested && !dungeon.camping}
+            title={dungeon.rested && !dungeon.camping ? 'You have already made camp on this level.' : undefined}
+            onClick={() => setPanel('rest')}
+          >
+            {dungeon.camping ? 'Back to camp' : dungeon.rested ? 'Camp used' : 'Make camp'}
           </button>
           <button type="button" onClick={() => viewRef.current?.centreOnParty()}>
             Centre on party

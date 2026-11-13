@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { ADVENTURES, getDialogue } from '../content';
 import { formatCoins, goToScreen, isAdventureComplete, startAdventure } from '../engine';
 import { useGameStore } from '../state/store';
+import { mercsWithPoints, TrainingDialog } from './TrainingPanel';
 
 export function AdventureSelect() {
   const game = useGameStore((s) => s.game);
   const apply = useGameStore((s) => s.apply);
   const testPlay = useGameStore((s) => s.testPlay);
   const backToMenu = useGameStore((s) => s.backToMenu);
+  const [training, setTraining] = useState(false);
+  const ready = mercsWithPoints(game.party);
 
   const open = ADVENTURES.filter((a) => !isAdventureComplete(game, a.id));
   const done = ADVENTURES.filter((a) => isAdventureComplete(game, a.id));
@@ -55,6 +59,9 @@ export function AdventureSelect() {
       </div>
 
       <footer className="screen-footer">
+        <button type="button" className={ready.length > 0 ? 'primary' : ''} onClick={() => setTraining(true)}>
+          Train{ready.length > 0 && ` (${ready.length} ready)`}
+        </button>
         {testPlay ? (
           <button type="button" className="primary" onClick={backToMenu}>
             Back to the dungeon maker
@@ -65,6 +72,7 @@ export function AdventureSelect() {
           </button>
         )}
       </footer>
+      {training && <TrainingDialog onClose={() => setTraining(false)} />}
     </main>
   );
 }

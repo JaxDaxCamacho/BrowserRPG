@@ -263,6 +263,15 @@ describe('ending a fight', () => {
     expect(after.party[0]!.wounds).toBe(13 - 5);
   });
 
+  it('a victory with enough XP levels the party up and says so', () => {
+    let s = fight(room).state;
+    const c = combatOf(s);
+    s = { ...s, encounter: { ...s.encounter!, combat: { ...c, xp: 2000, outcome: 'victory', combatants: c.combatants.map((x) => (x.side === 'enemy' ? { ...x, hp: 0 } : x)) } } };
+    const after = finishCombat(s, ctxFor(room));
+    expect(after.party.every((m) => m.level >= 2)).toBe(true);
+    expect(after.dungeon!.log.some((l) => /reaches level/.test(l))).toBe(true);
+  });
+
   it('after a defeat the fight can be tried again', () => {
     let s = fight(room).state;
     const c = combatOf(s);

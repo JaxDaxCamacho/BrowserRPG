@@ -13,6 +13,7 @@ export * from './gameState';
 export * from './injuries';
 export * from './inventory';
 export * from './items';
+export * from './levels';
 export * from './merc';
 export * from './monsters';
 export * from './party';

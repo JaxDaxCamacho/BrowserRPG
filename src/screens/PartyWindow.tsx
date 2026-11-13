@@ -18,12 +18,15 @@ import {
   type GearRules,
   type GameState,
   type Merc,
+  unspentStatPoints,
+  unspentTalentPoints,
 } from '../engine';
 import { currentHp } from '../state/context';
 import { useGameStore } from '../state/store';
 import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
 import { formatModifier, initials, Token } from './MercCard';
+import { XpBar } from './TrainingPanel';
 
 const RULES: GearRules = {
   getItem,
@@ -153,8 +156,9 @@ export function PartyWindow({ onClose }: { onClose: () => void }) {
               <div>
                 <h2>{merc.name}</h2>
                 <p className="dim">
-                  {race.name} {cls.name} · level {merc.level} · {merc.xp} XP
+                  {race.name} {cls.name} · level {merc.level}
                 </p>
+                <XpBar merc={merc} />
                 {merc.dead ? (
                   <p className="error">Dead</p>
                 ) : (
@@ -217,7 +221,12 @@ export function PartyWindow({ onClose }: { onClose: () => void }) {
               {merc.injuries.length} of 3 injuries. A fourth is fatal. Heal them with a healing kit during a long rest.
             </p>
             <h3>Talents</h3>
-            <p className="dim note">The talent tree arrives with levelling up.</p>
+            <p className="dim note">
+              {unspentTalentPoints(merc) > 0 || unspentStatPoints(merc) > 0
+                ? `${unspentStatPoints(merc)} stat and ${unspentTalentPoints(merc)} talent points unspent. Spend them at camp or in town.`
+                : 'No unspent points.'}{' '}
+              The talent trees arrive soon.
+            </p>
           </section>
 
           <section className="gear-panel" aria-label="Equipment and pack">

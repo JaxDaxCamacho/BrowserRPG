@@ -7,7 +7,7 @@ import type { Merc } from './merc';
  * loading is reading it back (after migrations keyed on `version`).
  */
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 export const SCREENS = [
   'menu',

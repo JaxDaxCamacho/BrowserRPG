@@ -78,5 +78,11 @@ export function longRest(state: GameState, plan: RestPlan, getItem: ItemLookup):
   // Everyone alive wakes up whole, injuries aside.
   next = { ...next, party: next.party.map((m) => (m.dead ? m : { ...m, wounds: 0, down: false })) };
   const dungeon = next.dungeon!;
-  return { ...next, dungeon: { ...dungeon, rested: true, log: [...dungeon.log, ...lines].slice(-30) } };
+  return { ...next, dungeon: { ...dungeon, rested: true, camping: true, log: [...dungeon.log, ...lines].slice(-30) } };
+}
+
+/** The party packs up and moves on; points can no longer be spent. */
+export function breakCamp(state: GameState): GameState {
+  if (!state.dungeon?.camping) return state;
+  return { ...state, dungeon: { ...state.dungeon, camping: false } };
 }

@@ -2488,3 +2488,93 @@ button.portrait-choice:hover {
 .rest-list .row {
   align-items: center;
 }
+
+/* ---------- levelling: XP bar and training ---------- */
+
+.xp-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+}
+
+.xp-bar {
+  display: block;
+  height: 6px;
+  background: #3a2a24;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.xp-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.xp-text {
+  font-size: 0.75rem;
+}
+
+.training-dialog {
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  font-family: system-ui, sans-serif;
+}
+
+.training-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.training-merc {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.training-merc .row {
+  align-items: center;
+}
+
+.training-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.training-points {
+  margin: 8px 0 4px;
+}
+
+.training-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+
+.training-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.training-stat.raised {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.training-stat button {
+  min-width: 28px;
+  padding: 0 6px;
+  line-height: 1.6;
+}

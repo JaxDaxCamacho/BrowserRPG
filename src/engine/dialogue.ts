@@ -1,5 +1,6 @@
 import { closeAdventure, completeAdventure } from './adventure';
 import { makeCheck, type CheckResult } from './checks';
+import { awardXp } from './levels';
 import { COPPER_PER_GOLD, formatCoins } from './currency';
 import { rollDice } from './dice';
 import type { DungeonDefinition } from './dungeon';
@@ -238,10 +239,12 @@ function applyEffects(
         );
         break;
       }
-      case 'xp':
-        next = { ...next, party: next.party.map((m) => (m.dead ? m : { ...m, xp: m.xp + effect.amount })) };
-        notes.push(`Everyone gains ${effect.amount} XP.`);
+      case 'xp': {
+        const awarded = awardXp(next.party, Object.fromEntries(next.party.map((m) => [m.id, effect.amount])));
+        next = { ...next, party: awarded.party };
+        notes.push(`Everyone gains ${effect.amount} XP.`, ...awarded.lines);
         break;
+      }
       case 'completeAdventure':
         next = completeAdventure(next);
         notes.push('Contract complete. Back in town, the party recovers its strength.');

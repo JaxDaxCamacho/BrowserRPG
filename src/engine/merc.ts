@@ -62,18 +62,23 @@ export interface Merc extends Omit<MercDraft, 'loadout'> {
   injuries: Injury[];
   /** Killed by a fourth injury. Dead mercs stay on the roster but take no part. */
   dead: boolean;
+  /** Stat points spent from levelling, added on top of the base stats. */
+  levelStats: StatChanges;
+  /** Talent id to ranks taken. */
+  talents: Record<string, number>;
 }
 
 /** Base stats with the race's fixed changes, chosen bonuses and any injuries applied (no gear). */
 export function finalStats(
-  merc: Pick<MercDraft, 'baseStats' | 'raceChoices'> & { injuries?: Injury[] },
+  merc: Pick<MercDraft, 'baseStats' | 'raceChoices'> & { injuries?: Injury[]; levelStats?: StatChanges },
   race: RaceDefinition,
 ): Stats {
   const chosen: StatChanges = {};
   for (const name of merc.raceChoices) {
     chosen[name] = (chosen[name] ?? 0) + (race.statChoices?.amount ?? 0);
   }
-  const withRace = applyStatChanges(applyStatChanges(merc.baseStats, race.statChanges), chosen);
+  const trained = merc.levelStats ? applyStatChanges(merc.baseStats, merc.levelStats) : merc.baseStats;
+  const withRace = applyStatChanges(applyStatChanges(trained, race.statChanges), chosen);
   return merc.injuries?.length ? applyStatChanges(withRace, injuryStatChanges(merc.injuries)) : withRace;
 }
 
@@ -116,10 +121,10 @@ export function validateDraft(draft: MercDraft, race: RaceDefinition, gear: Gear
 /** Turns a validated draft into the starting equipment, inventory and purse of a new merc. */
 export function startingKit(
   draft: MercDraft,
-): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down' | 'potionEffects' | 'injuries' | 'dead'> {
+): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down' | 'potionEffects' | 'injuries' | 'dead' | 'levelStats' | 'talents'> {
   const equipment: Equipment = { ...draft.loadout };
   const inventory: InventoryStack[] = draft.loadout.ammo ? [{ itemId: draft.loadout.ammo, quantity: STARTING_AMMO }] : [];
-  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false, potionEffects: [], injuries: [], dead: false };
+  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false, potionEffects: [], injuries: [], dead: false, levelStats: {}, talents: {} };
 }
 
 export interface MercSheet {

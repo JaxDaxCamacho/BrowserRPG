@@ -4,6 +4,7 @@ import { rollD20, type RollMode } from './dice';
 import { featureById, type DungeonDefinition, type ObstacleFeature, type Pos } from './dungeon';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
+import { awardXp } from './levels';
 import { weaponAttack, type AmmoItem, type DamageStyle, type ItemEffect, type ItemLookup } from './items';
 import type { Merc as MercType, MercSheet } from './merc';
 import type { AbilityDefinition, EnemyArchetype, MonsterDefinition } from './monsters';
@@ -1109,20 +1110,22 @@ export function finishCombat(state: GameState, ctx: CombatContext): GameState {
     const potionEffects = (merc.potionEffects ?? [])
       .map((p) => ({ ...p, encounters: p.encounters - 1 }))
       .filter((p) => p.encounters > 0);
-    return { ...merc, wounds: x.maxHp - hp, down, xp: merc.xp + (xp[merc.id] ?? 0), potionEffects };
+    return { ...merc, wounds: x.maxHp - hp, down, potionEffects };
   });
+  // Levelling up raises max HP; wounds stay as they are, so the new hit points come in full.
+  const awarded = awardXp(party, xp);
 
   const gained = Object.values(xp)[0];
   const line = c.outcome === 'victory' ? `Victory${gained ? `: +${gained} XP each` : ''}.` : 'You escape the fight.';
   return ensureLiveLeader({
     ...state,
-    party,
+    party: awarded.party,
     screen: 'dungeon',
     encounter: null,
     dungeon: {
       ...dungeon,
       ...(c.outcome === 'victory' ? { resolved: [...dungeon.resolved, c.featureId] } : { pos: state.encounter.returnTo, path: [] }),
-      log: [...dungeon.log, line].slice(-30),
+      log: [...dungeon.log, line, ...awarded.lines].slice(-30),
     },
   });
 }

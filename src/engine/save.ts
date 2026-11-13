@@ -1,4 +1,5 @@
 import { COPPER_PER_GOLD, STARTING_PURSE } from './currency';
+import { levelForXp } from './levels';
 import { SAVE_VERSION, SCREENS, type GameState } from './gameState';
 
 type Loose = Record<string, unknown>;
@@ -67,6 +68,20 @@ const MIGRATIONS: Record<number, (save: Loose) => Loose> = {
   },
   // v7 records finished adventures.
   6: (save) => ({ ...save, version: 7, completedAdventures: [] }),
+  // v8 added levelling: stat points spent and talent ranks. Levels are recomputed from XP.
+  7: (save) => {
+    const party = Array.isArray(save.party) ? (save.party as Loose[]) : [];
+    return {
+      ...save,
+      version: 8,
+      party: party.map((merc) => ({
+        ...merc,
+        level: Math.max(typeof merc.level === 'number' ? merc.level : 1, levelForXp(typeof merc.xp === 'number' ? merc.xp : 0)),
+        levelStats: {},
+        talents: {},
+      })),
+    };
+  },
 };
 
 /**

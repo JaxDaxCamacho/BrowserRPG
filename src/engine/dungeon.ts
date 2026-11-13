@@ -131,6 +131,8 @@ export interface DungeonState {
   log: string[];
   /** The one long rest allowed on this level has been taken. */
   rested: boolean;
+  /** The party is at camp right now: points can be spent until it moves on. */
+  camping?: boolean;
 }
 
 export interface EncounterState {
@@ -357,6 +359,7 @@ export function setDestination(state: GameState, def: DungeonDefinition, target:
   const dungeon = state.dungeon;
   if (!dungeon) return state;
   const path = findPath(dungeon, def, target);
+  if (path && path.length > 0 && dungeon.camping) return { ...state, dungeon: { ...dungeon, path, camping: false } };
   if (!path) {
     const message = isSeen(dungeon, def, target) ? 'You cannot find a way there.' : 'You have not explored a way there yet.';
     return { ...state, dungeon: withLog(dungeon, message) };

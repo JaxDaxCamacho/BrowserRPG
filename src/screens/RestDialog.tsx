@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { getItem } from '../content';
-import { healingKitsHeld, longRest, restBlocker } from '../engine';
+import { breakCamp, healingKitsHeld, longRest, restBlocker } from '../engine';
 import { useGameStore } from '../state/store';
 import { Token } from './MercCard';
+import { TrainingPanel } from './TrainingPanel';
 
 /** Making camp: once per dungeon level, recover HP and spend healing kits on injuries. */
 export function RestDialog({ onClose }: { onClose: () => void }) {
@@ -13,6 +14,28 @@ export function RestDialog({ onClose }: { onClose: () => void }) {
   const blocker = restBlocker(game);
   const chosen = (mercId: string, injuryId: string) => cure.some((c) => c.mercId === mercId && c.injuryId === injuryId);
   const injured = game.party.filter((m) => !m.dead && m.injuries.length > 0);
+
+  // After resting, the party stays at camp to train until it packs up.
+  if (game.dungeon?.camping) {
+    const packUp = () => {
+      apply(breakCamp);
+      onClose();
+    };
+    return (
+      <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Camp" onClick={packUp}>
+        <div className="modal rest-dialog training-dialog" onClick={(e) => e.stopPropagation()}>
+          <h2>Camp</h2>
+          <p>The party is rested. While the fire burns, your mercenaries can spend what their levels have earned them.</p>
+          <TrainingPanel />
+          <div className="row">
+            <button type="button" onClick={packUp}>
+              Break camp
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Make camp" onClick={onClose}>
@@ -64,10 +87,7 @@ export function RestDialog({ onClose }: { onClose: () => void }) {
             type="button"
             className="primary"
             disabled={!!blocker}
-            onClick={() => {
-              apply((g) => longRest(g, { cure }, getItem));
-              onClose();
-            }}
+            onClick={() => apply((g) => longRest(g, { cure }, getItem))}
           >
             Rest
           </button>
