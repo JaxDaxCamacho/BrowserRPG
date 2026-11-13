@@ -1,6 +1,7 @@
 [
   {
     "id": "bandit-thug",
+    "movement": 3,
     "name": "Bandit Thug",
     "portrait": "portraits/male/m-25",
     "archetype": "brawler",
@@ -20,6 +21,7 @@
   },
   {
     "id": "bandit-archer",
+    "movement": 3,
     "name": "Bandit Archer",
     "portrait": "portraits/male/m-08",
     "archetype": "archer",
@@ -30,7 +32,7 @@
     "armour": { "physical": 1, "magic": 0 },
     "attack": {
       "name": "Shortbow",
-      "range": 3,
+      "range": 8,
       "profile": { "kind": "ranged", "damageType": "physical", "graze": "1", "hit": "6" },
       "animation": "animations/quantum/ac2q003-shot"
     },
@@ -39,6 +41,7 @@
   },
   {
     "id": "war-hound",
+    "movement": 5,
     "name": "War Hound",
     "portrait": "monsters/mobs/hound",
     "archetype": "savage",
@@ -58,6 +61,7 @@
   },
   {
     "id": "hedge-mage",
+    "movement": 3,
     "name": "Hedge Mage",
     "portrait": "portraits/male/cultist-02",
     "archetype": "caster",
@@ -76,6 +80,7 @@
   },
   {
     "id": "bandit-captain",
+    "movement": 3,
     "name": "Bandit Captain",
     "portrait": "monsters/mobs/dark-knight-01",
     "archetype": "tank",

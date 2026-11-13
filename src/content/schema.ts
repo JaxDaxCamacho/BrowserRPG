@@ -76,6 +76,7 @@ export const raceSchema = z.strictObject({
   id,
   name: z.string().min(1),
   icon: assetId.optional(),
+  movement: z.number().int().min(1).max(8),
   statChanges,
   statChoices: z
     .strictObject({ count: z.number().int().min(1).max(STAT_NAMES.length), amount: z.number().int() })
@@ -124,9 +125,10 @@ const weaponItem = z.strictObject({
   weaponType: z.enum(WEAPON_TYPES),
   style: z.enum(DAMAGE_STYLES),
   hands: z.union([z.literal(1), z.literal(2)]),
-  range: z.number().int().min(0).max(4),
+  range: z.number().int().min(0).max(12),
   attack: attackProfileSchema,
   ammo: z.enum(AMMO_TYPES).optional(),
+  animation: assetId.optional(),
   effects,
 });
 
@@ -228,7 +230,7 @@ export const abilitySchema = z.strictObject({
   activation: z.enum(['action', 'passive']),
   usableBy: z.enum(['mercs', 'monsters', 'both']),
   target: z.enum(ABILITY_TARGETS),
-  range: z.number().int().min(0).max(4),
+  range: z.number().int().min(0).max(12),
   cooldown: z.number().int().min(1).optional(),
   attack: attackProfileSchema.optional(),
   effects,
@@ -240,6 +242,7 @@ export const monsterSchema = z.strictObject({
   name: z.string().min(1),
   portrait: assetId.optional(),
   archetype: z.enum(ENEMY_ARCHETYPES),
+  movement: z.number().int().min(1).max(8).optional(),
   level: z.number().int().min(1),
   stats: fullStats,
   hp: z.number().int().positive(),
@@ -247,7 +250,7 @@ export const monsterSchema = z.strictObject({
   armour: z.strictObject({ physical: z.number().int().min(0), magic: z.number().int().min(0) }),
   attack: z.strictObject({
     name: z.string().min(1),
-    range: z.number().int().min(0).max(4),
+    range: z.number().int().min(0).max(12),
     profile: attackProfileSchema,
     animation: assetId.optional(),
   }),
@@ -397,6 +400,8 @@ export const dungeonSchema = z
           type: z.literal('encounter'),
           monsters: z.array(z.strictObject({ monsterId: id, count: z.number().int().min(1) })).min(1),
           ambush: z.boolean().optional(),
+          detection: z.number().int().min(0).max(12).optional(),
+          stealthDifficulty: z.number().int().min(1).max(30).optional(),
         }),
         z.strictObject({ ...featureBase, type: z.literal('event'), dialogueId: id, node: id.optional() }),
         z.strictObject({ ...featureBase, type: z.literal('goal'), dialogueId: id, node: id.optional() }),
@@ -409,6 +414,23 @@ export const dungeonSchema = z
     if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'feature ids must be unique' });
   });
 
+// ---------- portraits ----------
+
+export const GENDERS = ['female', 'male'] as const;
+export type Gender = (typeof GENDERS)[number];
+
+/** A portrait mercs can use, tagged so the merc builder can offer only fitting ones. */
+export const portraitSchema = z.strictObject({
+  id,
+  /** The picture, from the asset library. */
+  asset: assetId,
+  gender: z.enum(GENDERS),
+  /** Races this face suits. */
+  races: z.array(id).min(1),
+});
+
+export type PortraitDefinition = z.infer<typeof portraitSchema>;
+
 // ---------- pre-built mercs ----------
 
 export const premadeSchema = z.strictObject({
@@ -416,6 +438,7 @@ export const premadeSchema = z.strictObject({
   name: z.string().min(1),
   raceId: id,
   classId: id,
+  gender: z.enum(GENDERS).optional(),
   portrait: assetId.optional(),
   baseStats: fullStats,
   raceChoices: z.array(statName),

@@ -1,7 +1,7 @@
 import { makeCheck } from './checks';
 import type { CombatState } from './combat';
 import { checkMaker, startDialogue, type DialogueContext, type DialogueDefinition } from './dialogue';
-import type { GameState } from './gameState';
+import { announceRolls, type GameState, type ShownRoll } from './gameState';
 
 /**
  * Dungeons are square grids stored as rows of characters, so they stay easy to
@@ -61,9 +61,16 @@ export interface TrapFeature extends FeatureBase {
 export interface EncounterFeature extends FeatureBase {
   type: 'encounter';
   monsters: { monsterId: string; count: number }[];
-  /** In a 5-row room, the enemies attack from above and below with the party in the middle. */
+  /** The enemies attack from all sides with the party in the middle. */
   ambush?: boolean;
+  /** Tiles within which the enemies may notice the party. Default 4. */
+  detection?: number;
+  /** Agility check to move unnoticed inside the detection range. Default 12. */
+  stealthDifficulty?: number;
 }
+
+export const DEFAULT_DETECTION = 4;
+export const DEFAULT_STEALTH_DIFFICULTY = 12;
 
 /** A chest, a prisoner, a sentry: anything that opens a dialogue when stepped on. */
 export interface EventFeature extends FeatureBase {
@@ -192,14 +199,16 @@ function lineOfSight(def: DungeonDefinition, from: Pos, to: Pos): boolean {
 /** Tiles the party can see from here: two tiles around it in line of sight, plus all of any room it stands in. */
 export function visibleFrom(def: DungeonDefinition, p: Pos): Set<number> {
   const seen = new Set<number>();
+  // A round patch of sight, so the edge of what is lit is not a hard square.
+  const reach = SIGHT_RADIUS + 0.5;
   for (let y = p.y - SIGHT_RADIUS; y <= p.y + SIGHT_RADIUS; y++) {
     for (let x = p.x - SIGHT_RADIUS; x <= p.x + SIGHT_RADIUS; x++) {
       if (x < 0 || y < 0 || x >= def.width || y >= def.height) continue;
+      if (Math.hypot(x - p.x, y - p.y) > reach) continue;
       if (lineOfSight(def, p, { x, y })) seen.add(y * def.width + x);
     }
   }
-  const room = roomAt(def, p);
-  if (room) {
+  for (const room of roomsLitFrom(def, p)) {
     // The walls around the room are revealed with it.
     for (let y = room.y - 1; y <= room.y + room.height; y++) {
       for (let x = room.x - 1; x <= room.x + room.width; x++) {
@@ -208,6 +217,25 @@ export function visibleFrom(def: DungeonDefinition, p: Pos): Set<number> {
     }
   }
   return seen;
+}
+
+/** The room the party stands in, or, from a doorway, the rooms that doorway opens into. */
+export function roomsLitFrom(def: DungeonDefinition, p: Pos): RoomDefinition[] {
+  const here = roomAt(def, p);
+  if (here) return [here];
+  const t = tileAt(def, p.x, p.y);
+  if (t !== 'door' && t !== 'lockedDoor') return [];
+  const rooms = new Set<RoomDefinition>();
+  for (const [dx, dy] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    const r = roomAt(def, { x: p.x + dx, y: p.y + dy });
+    if (r) rooms.add(r);
+  }
+  return [...rooms];
 }
 
 function reveal(def: DungeonDefinition, seen: string, p: Pos): string {
@@ -318,6 +346,17 @@ function describeGroup(f: EncounterFeature, ctx: DungeonContext): string {
   return f.monsters.map((m) => (m.count > 1 ? `${ctx.monsterName(m.monsterId)} ×${m.count}` : ctx.monsterName(m.monsterId))).join(', ');
 }
 
+/** The party sneaks only as well as its noisiest member: the standing merc with the lowest Agility. */
+function quietestMerc(state: GameState, ctx: DungeonContext) {
+  let worst: { merc: GameState['party'][number]; modifier: number } | null = null;
+  for (const merc of state.party) {
+    if (merc.down || merc.dead) continue;
+    const modifier = Math.floor((ctx.statsOf(merc).agility - 10) / 2);
+    if (!worst || modifier < worst.modifier) worst = { merc, modifier };
+  }
+  return worst;
+}
+
 function openFeatureDialogue(state: GameState, f: FeatureDefinition, nodeId: string | undefined, ctx: DungeonContext): GameState {
   if (f.type === 'encounter') return state;
   return startDialogue(state, ctx.getDialogue(f.dialogueId), { nodeId, source: f.id });
@@ -371,11 +410,47 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
     return { ...game, screen: 'combat', encounter: { featureId: foes.id, returnTo: dungeon.previous } };
   }
 
+  // 2b. Sneaking: inside a group's detection range and in its sight, every step needs a stealth check.
+  const watchers = def.features.filter(
+    (f): f is EncounterFeature =>
+      f.type === 'encounter' &&
+      !dungeon.resolved.includes(f.id) &&
+      Math.hypot(f.x - next.x, f.y - next.y) <= (f.detection ?? DEFAULT_DETECTION) + 0.5 &&
+      lineOfSight(def, f, next),
+  );
+  for (const group of watchers) {
+    const sneak = quietestMerc(game, ctx);
+    if (!sneak) break;
+    const difficulty = group.stealthDifficulty ?? DEFAULT_STEALTH_DIFFICULTY;
+    const rolled = makeCheck(game.rngSeed, sneak.modifier, difficulty);
+    const shown: ShownRoll = {
+      who: sneak.merc.name,
+      what: 'Stealth (Agility)',
+      sides: 20,
+      dice: rolled.value.roll.dice,
+      kept: rolled.value.roll.natural,
+      total: rolled.value.total,
+      target: difficulty,
+      result: rolled.value.success ? 'Unseen' : 'Spotted!',
+      good: rolled.value.success,
+    };
+    game = announceRolls({ ...game, rngSeed: rolled.seed }, [shown]);
+    dungeon = game.dungeon!;
+    if (!rolled.value.success) {
+      halt(
+        { noticed: [...new Set([...dungeon.noticed, group.id])] },
+        `${describeGroup(group, ctx)} spot ${sneak.merc.name} and attack!`,
+      );
+      return { ...game, screen: 'combat', encounter: { featureId: group.id, returnTo: dungeon.previous } };
+    }
+  }
+
   // 3. Hidden traps close enough to spot: each one gets a single hidden Intellect check.
   let seed = game.rngSeed;
   const newlyChecked: string[] = [];
   const newlySpotted: string[] = [];
   const spotLines: string[] = [];
+  const spotRolls: ShownRoll[] = [];
   for (const f of def.features) {
     if (f.type !== 'trap' || dungeon.resolved.includes(f.id) || dungeon.checkedTraps.includes(f.id)) continue;
     if (chebyshev(f, next) > 1) continue;
@@ -386,6 +461,18 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
     if (rolled.value.success) {
       newlySpotted.push(f.id);
       spotLines.push(`${maker.merc.name} spots a ${f.name}.`);
+      // Only a successful spot shows its die: a failed hidden check would give the trap away.
+      spotRolls.push({
+        who: maker.merc.name,
+        what: 'Spotting (Intellect)',
+        sides: 20,
+        dice: rolled.value.roll.dice,
+        kept: rolled.value.roll.natural,
+        total: rolled.value.total,
+        target: f.detectDifficulty,
+        result: 'Spotted',
+        good: true,
+      });
     }
   }
   if (newlyChecked.length > 0) {
@@ -394,7 +481,7 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
   }
   if (newlySpotted.length > 0) {
     halt({ spotted: [...dungeon.spotted, ...newlySpotted] }, ...spotLines);
-    return game;
+    return announceRolls(game, spotRolls);
   }
 
   // 4. Enemy groups coming into view for the first time.

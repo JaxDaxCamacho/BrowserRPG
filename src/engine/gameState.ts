@@ -43,6 +43,33 @@ export interface GameState {
   dungeon: DungeonState | null;
   /** The fight in progress, or null. */
   encounter: EncounterState | null;
+  /** The dice just rolled, for the dice tray to animate. `seq` goes up with each new batch. */
+  rollFeed?: { seq: number; rolls: ShownRoll[] };
+}
+
+/** One die roll as the player should see it. */
+export interface ShownRoll {
+  /** Who rolled, e.g. "Aldric Vane". */
+  who: string;
+  /** What for, e.g. "Charisma check" or "Arming Sword". */
+  what: string;
+  sides: number;
+  /** Every die thrown: two with advantage or disadvantage. */
+  dice: number[];
+  /** The die that counts. */
+  kept: number;
+  /** The total with modifiers, and what it had to reach, when there was a target. */
+  total?: number;
+  target?: number;
+  /** Plain-word result, e.g. "Success", "Hit", "Spared". */
+  result?: string;
+  good?: boolean;
+}
+
+/** Puts a batch of rolls on the dice tray. */
+export function announceRolls(state: GameState, rolls: ShownRoll[]): GameState {
+  if (rolls.length === 0) return state;
+  return { ...state, rollFeed: { seq: (state.rollFeed?.seq ?? 0) + 1, rolls } };
 }
 
 export function createInitialState(rngSeed: number = 1): GameState {

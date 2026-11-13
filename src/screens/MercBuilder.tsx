@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CLASSES, getClass, getItem, getRace, ITEMS, PREMADES, RACES } from '../content';
+import { useEffect, useMemo, useState } from 'react';
+import { CLASSES, getClass, getItem, getRace, ITEMS, portraitsFor, PREMADES, RACES, type Gender } from '../content';
 import {
   canWearArmour,
   CREATION_POINTS,
@@ -24,7 +24,7 @@ import {
   type Stats,
   type WeaponItem,
 } from '../engine';
-import { AssetImage, useAssetIndex } from './assets';
+import { AssetImage, assetUrl } from './assets';
 import { formatModifier, STAT_LABELS, Token } from './MercCard';
 
 const STAT_FULL_NAMES: Record<StatName, string> = {
@@ -157,14 +157,9 @@ interface Props {
 
 /** The custom merc form: name, portrait, race, class, 12 stat points and starting gear. */
 export function MercBuilder({ disabled, onAdd }: Props) {
-  const assets = useAssetIndex();
-  const portraits = useMemo(
-    () => (assets ?? []).filter((a) => a.category.startsWith('portraits/')).map((a) => a.id),
-    [assets],
-  );
-
   const [name, setName] = useState('');
-  const [portraitIndex, setPortraitIndex] = useState(0);
+  const [gender, setGender] = useState<Gender>('female');
+  const [chosenPortrait, setChosenPortrait] = useState<string | null>(null);
   const [raceId, setRaceId] = useState(RACES[0]!.id);
   const [classId, setClassId] = useState(CLASSES[0]!.id);
   const [baseStats, setBaseStats] = useState<Stats>(createStartingStats);
@@ -173,8 +168,18 @@ export function MercBuilder({ disabled, onAdd }: Props) {
 
   const race = getRace(raceId);
   const cls = getClass(classId);
-  const portrait = portraits.length > 0 ? portraits[portraitIndex % portraits.length] : undefined;
-  const draft: MercDraft = { name, raceId, classId, baseStats, raceChoices, loadout, ...(portrait ? { portrait } : {}) };
+  // Only faces that suit the chosen gender and race; keep the pick while it still fits.
+  const portraits = useMemo(() => portraitsFor(gender, raceId).map((p) => p.asset), [gender, raceId]);
+  const portrait = chosenPortrait && portraits.includes(chosenPortrait) ? chosenPortrait : portraits[0];
+  const draft: MercDraft = { name, gender, raceId, classId, baseStats, raceChoices, loadout, ...(portrait ? { portrait } : {}) };
+
+  // Load every choice up front so picking one shows it straight away.
+  useEffect(() => {
+    for (const id of portraits) {
+      const img = new Image();
+      img.src = assetUrl(id);
+    }
+  }, [portraits]);
   const sheet = mercSheet(draft, race, cls, getItem);
   const pointsLeft = CREATION_POINTS - creationPointsSpent(baseStats);
   const problems = validateDraft(draft, race, { armourProficiency: cls.armour, getItem });
@@ -192,9 +197,6 @@ export function MercBuilder({ disabled, onAdd }: Props) {
   const setSlot = (slot: keyof Loadout, id: string | undefined) =>
     setLoadout((current) => tidyLoadout(race, classId, { ...current, [slot]: id }));
 
-  const stepPortrait = (by: number) =>
-    setPortraitIndex((i) => (portraits.length === 0 ? 0 : (i + by + portraits.length) % portraits.length));
-
   const add = () => {
     onAdd(draft);
     setName('');
@@ -208,21 +210,35 @@ export function MercBuilder({ disabled, onAdd }: Props) {
   return (
     <div className="builder">
       <div className="row builder-identity">
-        <div className="portrait-picker">
-          <Token name={name || '?'} portrait={portrait} size={72} />
-          <span className="row">
-            <button type="button" aria-label="Previous portrait" disabled={portraits.length === 0} onClick={() => stepPortrait(-1)}>
-              ‹
-            </button>
-            <button type="button" aria-label="Next portrait" disabled={portraits.length === 0} onClick={() => stepPortrait(1)}>
-              ›
-            </button>
-          </span>
-        </div>
+        <Token name={name || '?'} portrait={portrait} size={72} />
         <label className="field">
           <span>Name</span>
           <input type="text" value={name} maxLength={MAX_NAME_LENGTH} onChange={(e) => setName(e.target.value)} />
         </label>
+        <div className="field gender-field" role="radiogroup" aria-label="Gender">
+          <span>Gender</span>
+          <span className="row">
+            {(['female', 'male'] as const).map((g) => (
+              <button key={g} type="button" role="radio" aria-checked={gender === g} className={gender === g ? 'active' : ''} onClick={() => setGender(g)}>
+                {g === 'female' ? 'Female' : 'Male'}
+              </button>
+            ))}
+          </span>
+        </div>
+      </div>
+      <div className="portrait-grid" role="radiogroup" aria-label="Portrait">
+        {portraits.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={id === portrait}
+            className={`portrait-choice${id === portrait ? ' active' : ''}`}
+            onClick={() => setChosenPortrait(id)}
+          >
+            <AssetImage id={id} size={52} alt="" fallback="?" />
+          </button>
+        ))}
       </div>
 
       <div className="row">

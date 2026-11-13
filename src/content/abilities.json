@@ -22,7 +22,7 @@
     "activation": "action",
     "usableBy": "both",
     "target": "enemy",
-    "range": 3,
+    "range": 8,
     "cooldown": 2,
     "attack": { "kind": "ranged", "damageType": "physical", "graze": "1", "hit": "7", "critThreshold": 19 },
     "effects": []
@@ -36,7 +36,7 @@
     "activation": "action",
     "usableBy": "both",
     "target": "enemy",
-    "range": 3,
+    "range": 6,
     "attack": { "kind": "magic", "damageType": "magic", "graze": "2", "hit": "6" },
     "effects": []
   },
@@ -49,7 +49,7 @@
     "activation": "action",
     "usableBy": "both",
     "target": "allAllies",
-    "range": 4,
+    "range": 6,
     "cooldown": 4,
     "effects": [{ "type": "stat", "stat": "strength", "amount": 1 }],
     "duration": 3

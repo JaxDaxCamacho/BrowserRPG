@@ -31,6 +31,7 @@ export interface MercDraft {
   name: string;
   raceId: string;
   classId: string;
+  gender?: 'female' | 'male';
   /** Asset id of the portrait shown on the merc's token. */
   portrait?: string;
   /** Stats after spending creation points, before race changes. */

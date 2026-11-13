@@ -1,5 +1,15 @@
-import { Application, Assets, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
-import { tileAt, visibleFrom, type DungeonDefinition, type DungeonState, type FeatureDefinition, type Pos, type TileType } from '../engine';
+import { Application, Assets, BlurFilter, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
+import {
+  roomsLitFrom,
+  SIGHT_RADIUS,
+  tileAt,
+  visibleFrom,
+  type DungeonDefinition,
+  type DungeonState,
+  type FeatureDefinition,
+  type Pos,
+  type TileType,
+} from '../engine';
 
 /** Size of one map tile in world pixels. */
 export const TILE = 40;
@@ -51,6 +61,8 @@ export class DungeonView {
   private app = new Application();
   private world = new Container();
   private tiles = new Graphics();
+  /** Darkness over the map, blurred so the edges of sight are soft. */
+  private fog = new Graphics();
   private pathLayer = new Graphics();
   private markers = new Container();
   private token = new Container();
@@ -85,7 +97,9 @@ export class DungeonView {
     this.host.appendChild(this.app.canvas);
     this.app.canvas.style.touchAction = 'none';
 
-    this.world.addChild(this.tiles, this.pathLayer, this.markers, this.token);
+    this.fog.filters = [new BlurFilter({ strength: TILE * 0.35, quality: 4 })];
+    // Markers sit above the fog so the goal can be seen from the start; only seen markers are drawn otherwise.
+    this.world.addChild(this.tiles, this.fog, this.pathLayer, this.markers, this.token);
     this.app.stage.addChild(this.world);
     this.app.stage.eventMode = 'static';
     this.app.stage.hitArea = new Rectangle(-1e6, -1e6, 2e6, 2e6);
@@ -163,23 +177,67 @@ export class DungeonView {
   }
 
   private drawTiles({ def, dungeon }: ViewState): void {
-    const visible = visibleFrom(def, dungeon.pos);
     const g = this.tiles.clear();
+    const walkable = (x: number, y: number) => tileAt(def, x, y) !== 'wall';
     for (let y = 0; y < def.height; y++) {
       for (let x = 0; x < def.width; x++) {
         const i = y * def.width + x;
         if (dungeon.seen[i] !== '1') continue;
         const type = tileAt(def, x, y);
-        g.rect(x * TILE, y * TILE, TILE, TILE).fill(TILE_COLOURS[type]);
-        if (type !== 'wall') g.rect(x * TILE + 0.5, y * TILE + 0.5, TILE - 1, TILE - 1).stroke({ width: 1, color: 0x000000, alpha: 0.18 });
+        const px = x * TILE;
+        const py = y * TILE;
+        if (type === 'wall') {
+          // Stone blocks: a dark face with a lighter edge wherever the wall meets open floor.
+          g.rect(px, py, TILE, TILE).fill(TILE_COLOURS.wall);
+          g.rect(px + 3, py + 3, TILE - 6, TILE - 6).fill({ color: 0x000000, alpha: 0.25 });
+          const edge = { color: 0x8a7a66, alpha: 0.55, width: 3 };
+          if (walkable(x, y + 1)) g.moveTo(px, py + TILE - 1.5).lineTo(px + TILE, py + TILE - 1.5).stroke(edge);
+          if (walkable(x, y - 1)) g.moveTo(px, py + 1.5).lineTo(px + TILE, py + 1.5).stroke(edge);
+          if (walkable(x + 1, y)) g.moveTo(px + TILE - 1.5, py).lineTo(px + TILE - 1.5, py + TILE).stroke(edge);
+          if (walkable(x - 1, y)) g.moveTo(px + 1.5, py).lineTo(px + 1.5, py + TILE).stroke(edge);
+          continue;
+        }
+        g.rect(px, py, TILE, TILE).fill(TILE_COLOURS[type]);
+        g.rect(px + 0.5, py + 0.5, TILE - 1, TILE - 1).stroke({ width: 1, color: 0x000000, alpha: 0.18 });
         if (type === 'door' || type === 'lockedDoor') {
-          g.rect(x * TILE + TILE * 0.3, y * TILE + TILE * 0.3, TILE * 0.4, TILE * 0.4).fill({ color: 0x000000, alpha: 0.25 });
+          g.rect(px + TILE * 0.3, py + TILE * 0.3, TILE * 0.4, TILE * 0.4).fill({ color: 0x000000, alpha: 0.25 });
         }
         if (type === 'stairs') {
-          for (let k = 0; k < 4; k++) g.rect(x * TILE + 6, y * TILE + 6 + k * 8, TILE - 12 - k * 6, 4).fill({ color: 0xffffff, alpha: 0.25 });
+          for (let k = 0; k < 4; k++) g.rect(px + 6, py + 6 + k * 8, TILE - 12 - k * 6, 4).fill({ color: 0xffffff, alpha: 0.25 });
         }
-        // Remembered but not currently in sight: dimmed.
-        if (!visible.has(i)) g.rect(x * TILE, y * TILE, TILE, TILE).fill({ color: 0x000000, alpha: 0.5 });
+      }
+    }
+    this.drawFog(def, dungeon);
+  }
+
+  /**
+   * Darkness over the map: black where unseen, half-dark where remembered,
+   * and fading light around the party (or a whole lit room). Blurred, so edges are soft.
+   */
+  private drawFog(def: DungeonDefinition, dungeon: DungeonState): void {
+    const visible = visibleFrom(def, dungeon.pos);
+    const litRooms = roomsLitFrom(def, dungeon.pos);
+    const inLitRoom = (x: number, y: number) =>
+      litRooms.some((r) => x >= r.x - 1 && x <= r.x + r.width && y >= r.y - 1 && y <= r.y + r.height);
+    const f = this.fog.clear();
+    // A margin of solid dark around the map so the blur does not leave a bright rim.
+    f.rect(-TILE * 2, -TILE * 2, (def.width + 4) * TILE, TILE * 2).fill(0x0b0908);
+    f.rect(-TILE * 2, def.height * TILE, (def.width + 4) * TILE, TILE * 2).fill(0x0b0908);
+    f.rect(-TILE * 2, 0, TILE * 2, def.height * TILE).fill(0x0b0908);
+    f.rect(def.width * TILE, 0, TILE * 2, def.height * TILE).fill(0x0b0908);
+    for (let y = 0; y < def.height; y++) {
+      for (let x = 0; x < def.width; x++) {
+        const i = y * def.width + x;
+        let alpha: number;
+        if (dungeon.seen[i] !== '1') alpha = 1;
+        else if (!visible.has(i)) alpha = 0.58;
+        else if (inLitRoom(x, y)) alpha = 0.04;
+        else {
+          // Light fades with distance from the party.
+          const d = Math.hypot(x - dungeon.pos.x, y - dungeon.pos.y) / (SIGHT_RADIUS + 0.5);
+          alpha = Math.min(0.45, d * d * 0.45);
+        }
+        if (alpha > 0.01) f.rect(x * TILE, y * TILE, TILE, TILE).fill({ color: 0x0b0908, alpha });
       }
     }
   }

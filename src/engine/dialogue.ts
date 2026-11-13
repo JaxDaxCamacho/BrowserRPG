@@ -2,8 +2,8 @@ import { makeCheck, type CheckResult } from './checks';
 import { rollDice } from './dice';
 import type { DungeonDefinition } from './dungeon';
 import { enterDungeon } from './dungeon';
-import type { GameState, Screen } from './gameState';
-import { ensureLiveLeader, knockDown } from './injuries';
+import { announceRolls, type GameState, type Screen, type ShownRoll } from './gameState';
+import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import type { RaceDefinition } from './race';
 import type { Merc } from './merc';
 import { getLeader } from './party';
@@ -199,9 +199,10 @@ function applyEffects(
   effects: Effect[] = [],
   rollerId: string | null,
   ctx: DialogueContext,
-): { state: GameState; notes: string[] } {
+): { state: GameState; notes: string[]; rolls: ShownRoll[] } {
   let next = state;
   const notes: string[] = [];
+  const rolls: ShownRoll[] = [];
   const updateMerc = (id: string, change: (m: Merc) => Merc) => {
     next = { ...next, party: next.party.map((m) => (m.id === id ? change(m) : m)) };
   };
@@ -232,6 +233,7 @@ function applyEffects(
               next = { ...next, rngSeed: fall.seed };
               updateMerc(merc.id, () => ({ ...fall.merc, wounds }));
               notes.push(fall.line);
+              if (fall.save) rolls.push(saveRoll(merc.name, fall.save));
             } else {
               updateMerc(merc.id, (m) => ({ ...m, wounds }));
             }
@@ -264,7 +266,7 @@ function applyEffects(
       }
     }
   }
-  return { state: ensureLiveLeader(next), notes };
+  return { state: ensureLiveLeader(next), notes, rolls };
 }
 
 /** Moves to the outcome's next node, or ends the dialogue. */
@@ -323,9 +325,28 @@ export function chooseOption(
       ...(outcome.end ? { end: outcome.end } : {}),
       ...(outcome.dungeon ? { dungeon: outcome.dungeon } : {}),
     };
-    return { ...next, dialogue: { ...next.dialogue!, result } };
+    next = { ...next, dialogue: { ...next.dialogue!, result } };
+    if (check) {
+      next = announceRolls(next, [
+        {
+          who: check.mercName,
+          what: `${check.stat.charAt(0).toUpperCase()}${check.stat.slice(1)} check`,
+          sides: 20,
+          dice: check.roll.dice,
+          kept: check.roll.natural,
+          total: check.total,
+          target: check.difficulty,
+          result: check.success ? 'Success' : 'Failure',
+          good: check.success,
+        },
+        ...applied.rolls,
+      ]);
+    } else {
+      next = announceRolls(next, applied.rolls);
+    }
+    return next;
   }
-  return advance(next, outcome, ctx);
+  return advance(announceRolls(next, applied.rolls), outcome, ctx);
 }
 
 /** The player has read the result and moves on. */

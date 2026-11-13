@@ -12,6 +12,7 @@ const EDITABLE_CONTENT = new Set([
   'classes.json',
   'races.json',
   'premades.json',
+  'portraits.json',
 ]);
 /** One file per dungeon or adventure, named by its id. */
 const PER_ENTRY_FILE = /^(dungeons|adventures)\/[a-z][a-z0-9-]*\.json$/;

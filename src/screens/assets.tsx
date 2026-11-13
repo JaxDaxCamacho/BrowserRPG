@@ -107,7 +107,6 @@ export function AssetImage({ id, fallback = '?', alt = '', className = '', size,
       src={assetUrl(id)}
       alt={alt}
       style={box}
-      loading="lazy"
       draggable={false}
       onError={() => setFailed(true)}
     />

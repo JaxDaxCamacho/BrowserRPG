@@ -3,7 +3,8 @@ import type { ItemEffect } from './items';
 import type { Stats } from './stats';
 
 /** Who an ability can be aimed at. */
-export const ABILITY_TARGETS = ['self', 'ally', 'enemy', 'row', 'allAllies', 'allEnemies'] as const;
+/** `area` hits the chosen enemy and every enemy next to them. */
+export const ABILITY_TARGETS = ['self', 'ally', 'enemy', 'area', 'allAllies', 'allEnemies'] as const;
 export type AbilityTarget = (typeof ABILITY_TARGETS)[number];
 
 /**
@@ -20,7 +21,7 @@ export interface AbilityDefinition {
   activation: 'action' | 'passive';
   usableBy: 'mercs' | 'monsters' | 'both';
   target: AbilityTarget;
-  /** Reach in combat rows; 0 means the same row. */
+  /** Reach in tiles; 0 means melee, the eight tiles around the user. */
   range: number;
   /** Turns before it can be used again. */
   cooldown?: number;
@@ -55,6 +56,8 @@ export interface MonsterDefinition {
   name: string;
   portrait?: string;
   archetype: EnemyArchetype;
+  /** Tiles it can move each turn in a fight. */
+  movement?: number;
   level: number;
   stats: Stats;
   hp: number;

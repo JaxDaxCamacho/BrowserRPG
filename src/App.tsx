@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { DiceTray } from './screens/DiceTray';
 import { ScreenRouter } from './screens/ScreenRouter';
 import { useGameStore } from './state/store';
 
@@ -16,5 +17,10 @@ export function App() {
       </Suspense>
     );
   }
-  return <ScreenRouter />;
+  return (
+    <>
+      <ScreenRouter />
+      <DiceTray />
+    </>
+  );
 }

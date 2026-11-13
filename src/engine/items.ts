@@ -21,6 +21,9 @@ export type Loadout = Partial<Record<StartingSlot, string>>;
 export interface InventoryStack {
   itemId: string;
   quantity: number;
+  /** Top-left cell in the merc's pack grid. Set when the item is placed. */
+  x?: number;
+  y?: number;
 }
 
 /** Arrows or bolts given with a starting ranged weapon. */
@@ -65,11 +68,13 @@ export interface WeaponItem extends ItemBase {
   weaponType: WeaponType;
   style: DamageStyle;
   hands: 1 | 2;
-  /** Reach in combat rows; 0 means melee, same row only. */
+  /** Reach in tiles; 0 means melee, the eight tiles around the wielder. */
   range: number;
   attack: AttackProfile;
   /** Ranged weapons that shoot need this ammunition. */
   ammo?: AmmoType;
+  /** Sprite-sheet animation for its attacks; a default by style is used when missing. */
+  animation?: string;
   effects: ItemEffect[];
 }
 

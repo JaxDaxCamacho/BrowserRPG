@@ -13,6 +13,7 @@ import abilitiesJson from './abilities.json';
 import classesJson from './classes.json';
 import itemsJson from './items.json';
 import monstersJson from './monsters.json';
+import portraitsJson from './portraits.json';
 import premadesJson from './premades.json';
 import racesJson from './races.json';
 import {
@@ -23,9 +24,11 @@ import {
   itemSchema,
   monsterSchema,
   parseList,
+  portraitSchema,
   premadeSchema,
   raceSchema,
   type AdventureDefinition,
+  type PortraitDefinition,
   type ClassDefinition,
   type PremadeDefinition,
 } from './schema';
@@ -37,6 +40,7 @@ export interface ContentSet {
   abilities: AbilityDefinition[];
   monsters: MonsterDefinition[];
   premades: PremadeDefinition[];
+  portraits: PortraitDefinition[];
   adventures: AdventureDefinition[];
   dungeons: DungeonDefinition[];
 }
@@ -62,7 +66,7 @@ export interface CollectionInfo {
   file: string;
   schema: z.ZodType<{ id: string }>;
   /** The field holding the entry's picture. */
-  imageField: 'icon' | 'portrait';
+  imageField: 'icon' | 'portrait' | 'asset';
 }
 
 /** Every collection the content editor can change. */
@@ -73,6 +77,7 @@ export const COLLECTIONS: CollectionInfo[] = [
   { key: 'classes', label: 'Classes', file: 'classes.json', schema: classSchema, imageField: 'icon' },
   { key: 'races', label: 'Races', file: 'races.json', schema: raceSchema, imageField: 'icon' },
   { key: 'premades', label: 'Pre-built mercs', file: 'premades.json', schema: premadeSchema, imageField: 'portrait' },
+  { key: 'portraits', label: 'Portraits', file: 'portraits.json', schema: portraitSchema, imageField: 'asset' },
 ];
 
 export function parseCollection(key: CollectionKey, data: unknown): { id: string }[] {
@@ -124,6 +129,12 @@ export function crossCheck(set: ContentSet): string[] {
   for (const monster of set.monsters) {
     for (const abilityId of monster.abilityIds) {
       if (!has(set.abilities, abilityId)) problems.push(`Monster "${monster.id}" has unknown ability "${abilityId}".`);
+    }
+  }
+
+  for (const portrait of set.portraits) {
+    for (const raceId of portrait.races) {
+      if (!has(set.races, raceId)) problems.push(`Portrait "${portrait.id}" names unknown race "${raceId}".`);
     }
   }
 
@@ -237,6 +248,7 @@ export const CONTENT: ContentSet = {
   abilities: parseList(abilitySchema, abilitiesJson, 'ability'),
   monsters: parseList(monsterSchema, monstersJson, 'monster'),
   premades: parseList(premadeSchema, premadesJson, 'pre-built merc'),
+  portraits: parseList(portraitSchema, portraitsJson, 'portrait'),
   adventures: parseList(adventureSchema, byFileName(adventureFiles), 'adventure'),
   dungeons: parseList(dungeonSchema, byFileName(dungeonFiles), 'dungeon'),
 };
@@ -245,7 +257,14 @@ const contentProblems = crossCheck(CONTENT);
 if (contentProblems.length > 0) throw new Error(`Invalid game content:\n${contentProblems.join('\n')}`);
 
 export const { classes: CLASSES, races: RACES, items: ITEMS, abilities: ABILITIES, monsters: MONSTERS } = CONTENT;
-export const { premades: PREMADES, adventures: ADVENTURES, dungeons: DUNGEONS } = CONTENT;
+export const { premades: PREMADES, adventures: ADVENTURES, dungeons: DUNGEONS, portraits: PORTRAITS } = CONTENT;
+
+/** Portraits for a merc builder choice. Falls back to every portrait of that gender if none suit the race. */
+export function portraitsFor(gender: string, raceId: string): PortraitDefinition[] {
+  const ofGender = PORTRAITS.filter((p) => p.gender === gender);
+  const fitting = ofGender.filter((p) => p.races.includes(raceId));
+  return fitting.length > 0 ? fitting : ofGender;
+}
 
 export const getClass = lookup(CLASSES, 'class');
 export const getRace = lookup(RACES, 'race');

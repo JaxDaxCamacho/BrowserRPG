@@ -3,6 +3,7 @@
     "id": "human",
     "name": "Human",
     "icon": "badges/races/humans",
+    "movement": 3,
     "statChanges": {},
     "statChoices": { "count": 2, "amount": 1 },
     "passives": [{ "type": "xpRate", "bonus": 0.03 }]
@@ -11,6 +12,7 @@
     "id": "dwarf",
     "name": "Dwarf",
     "icon": "badges/races/dwarves",
+    "movement": 2,
     "statChanges": { "toughness": 2, "strength": 1 },
     "passives": [{ "type": "baseArmour", "armour": "magic", "amount": 3 }]
   },
@@ -18,6 +20,7 @@
     "id": "elf",
     "name": "Elf",
     "icon": "badges/races/elves",
+    "movement": 4,
     "statChanges": { "agility": 2, "intellect": 1 },
     "passives": [{ "type": "critThreshold", "threshold": 19, "weaponTypes": ["bow", "sword", "dagger"] }]
   },
@@ -25,6 +28,7 @@
     "id": "goliath",
     "name": "Goliath",
     "icon": "badges/races/orcs",
+    "movement": 3,
     "statChanges": { "strength": 2, "toughness": 1, "agility": -1 },
     "passives": [{ "type": "bonusHp", "amount": 5 }, { "type": "giantGrip" }]
   },
@@ -32,6 +36,7 @@
     "id": "cursed",
     "name": "Cursed",
     "icon": "badges/races/undead",
+    "movement": 3,
     "statChanges": { "spirit": 2, "intellect": 1, "charisma": -1 },
     "passives": [{ "type": "deathSave", "difficulty": 11 }]
   }

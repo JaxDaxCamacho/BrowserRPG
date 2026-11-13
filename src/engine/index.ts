@@ -10,6 +10,7 @@ export * from './dice';
 export * from './dungeon';
 export * from './gameState';
 export * from './injuries';
+export * from './inventory';
 export * from './items';
 export * from './merc';
 export * from './monsters';

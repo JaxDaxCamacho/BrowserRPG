@@ -36,6 +36,8 @@ export interface RaceDefinition {
   id: string;
   name: string;
   icon?: string;
+  /** Base tiles moved per turn in a fight, before the Agility modifier. */
+  movement?: number;
   statChanges: StatChanges;
   /** For races that let the player pick: `count` different stats each get `amount`. */
   statChoices?: { count: number; amount: number };

@@ -49,6 +49,7 @@ const ASSET_HOME: Record<CollectionKey, string> = {
   classes: 'badges',
   races: 'badges',
   premades: 'portraits',
+  portraits: 'portraits',
 };
 
 function uniqueId(base: string, taken: Set<string>): string {
@@ -162,6 +163,7 @@ export default function ContentEditor() {
       case 'classId':
         return list(data.classes);
       case 'raceId':
+      case 'race':
         return list(data.races);
       case 'abilityId':
         return list(data.abilities);
@@ -181,7 +183,7 @@ export default function ContentEditor() {
   const assetCategoryFor = (field: string): string | null => {
     if (field === 'animation') return 'animations';
     if (field === 'portrait') return view === 'monsters' ? 'monsters' : 'portraits';
-    if (field === 'icon') return info ? ASSET_HOME[info.key] : 'weapons';
+    if (field === 'icon' || field === 'asset') return info ? ASSET_HOME[info.key] : 'weapons';
     return null;
   };
 

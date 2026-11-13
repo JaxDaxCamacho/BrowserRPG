@@ -14,7 +14,9 @@ import {
   featureById,
   finishCombat,
   flee,
-  moveCombatant,
+  isEngaged,
+  moveTo,
+  reachableTiles,
   retryCombat,
   runEnemyTurn,
   shareXp,
@@ -263,7 +265,7 @@ export function CombatScreen() {
   if (yourTurn && targeting && actor) {
     if (targeting.kind === 'attack') {
       for (const t of attackTargets(combat, actor)) {
-        const dis = t.row === actor.row && actor.attack.range > 0;
+        const dis = actor.attack.range > 0 && isEngaged(combat, actor);
         targets.set(t.id, `hit on ${hitOn(actor, t, actor.attack.profile.kind)}+${dis ? ', disadvantage' : ''}`);
       }
     } else {
@@ -281,7 +283,9 @@ export function CombatScreen() {
     setTargeting(null);
   };
 
-  const rowsTopDown = Array.from({ length: combat.rows }, (_, i) => combat.rows - 1 - i);
+  // Tiles the active merc can walk to, when not choosing a target.
+  const reachable = yourTurn && actor && !targeting ? reachableTiles(combat, actor) : new Map<string, unknown>();
+  const cells = Array.from({ length: combat.height }, (_, y) => Array.from({ length: combat.width }, (_, x) => ({ x, y })));
   const abilities = actor ? actor.abilityIds.map((id) => getAbility(id)).filter((a) => a.activation === 'action') : [];
   const potions = (merc?.inventory ?? []).filter((s) => getItem(s.itemId).kind === 'potion');
   const shots = actor ? ammoLeft(combat, actor) : null;
@@ -307,29 +311,41 @@ export function CombatScreen() {
       </header>
 
       <section className="battlefield" aria-label="Battlefield">
-        {rowsTopDown.map((row) => (
-          <div key={row} className={`combat-row${actor && actor.row === row ? ' actor-row' : ''}`}>
-            <span className="row-label dim">Row {row + 1}</span>
-            {(['party', 'enemy'] as const).map((side) => (
-              <div key={side} className={`row-side side-${side}`}>
-                {combat.combatants
-                  .filter((x) => x.row === row && x.side === side)
-                  .map((x) => (
-                    <CombatToken
-                      key={x.id}
-                      x={x}
-                      active={actor?.id === x.id}
-                      targetable={targets.has(x.id)}
-                      hint={targets.get(x.id)}
-                      flashes={flashes.filter((f) => f.targetId === x.id)}
-                      frames={frames}
-                      onPick={() => pick(x.id)}
-                    />
-                  ))}
+        <div
+          className="combat-grid"
+          style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
+        >
+          {cells.flat().map((p) => {
+            // Someone standing here, or failing that someone lying here.
+            const here =
+              combat.combatants.find((x) => x.hp > 0 && x.pos.x === p.x && x.pos.y === p.y) ??
+              combat.combatants.find((x) => x.pos.x === p.x && x.pos.y === p.y);
+            const canWalk = reachable.has(`${p.x},${p.y}`);
+            return (
+              <div key={`${p.x},${p.y}`} className={`combat-cell${canWalk ? ' walkable' : ''}`}>
+                {canWalk && !here && (
+                  <button
+                    type="button"
+                    className="cell-move"
+                    aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
+                    onClick={() => apply((g) => moveTo(g, p))}
+                  />
+                )}
+                {here && (
+                  <CombatToken
+                    x={here}
+                    active={actor?.id === here.id}
+                    targetable={targets.has(here.id)}
+                    hint={targets.get(here.id)}
+                    flashes={flashes.filter((f) => f.targetId === here.id)}
+                    frames={frames}
+                    onPick={() => pick(here.id)}
+                  />
+                )}
               </div>
-            ))}
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </section>
 
       <footer className="combat-footer">
@@ -341,7 +357,8 @@ export function CombatScreen() {
               <p className="turn-title">
                 <strong>{actor.name}</strong>
                 <span className="dim">
-                  {combat.moved ? 'moved' : 'can move'} · {combat.acted ? 'acted' : 'can act'}
+                  {combat.moveLeft} of {actor.movement} moves left · {combat.acted ? 'acted' : 'can act'}
+                  {combat.moveLeft > 0 && !targeting && ' · click a lit tile to move'}
                 </span>
               </p>
               {targeting ? (
@@ -351,7 +368,7 @@ export function CombatScreen() {
                       ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.ability.name}.`
                       : 'No target in reach.'}
                   </span>
-                  {targeting.kind === 'ability' && !['enemy', 'ally', 'row'].includes(targeting.ability.target) && (
+                  {targeting.kind === 'ability' && !['enemy', 'ally', 'area'].includes(targeting.ability.target) && (
                     <button type="button" className="primary" onClick={() => {
                       apply((g) => castAbility(g, targeting.ability.id, null, combatContext));
                       setTargeting(null);
@@ -365,12 +382,6 @@ export function CombatScreen() {
                 </div>
               ) : (
                 <div className="row action-buttons">
-                  <button type="button" disabled={combat.moved || actor.row >= combat.rows - 1} onClick={() => apply((g) => moveCombatant(g, 1))}>
-                    Move up
-                  </button>
-                  <button type="button" disabled={combat.moved || actor.row <= 0} onClick={() => apply((g) => moveCombatant(g, -1))}>
-                    Move down
-                  </button>
                   <button
                     type="button"
                     className="primary"

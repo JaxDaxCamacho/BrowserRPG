@@ -1,5 +1,5 @@
 import { rollD20 } from './dice';
-import type { GameState } from './gameState';
+import type { GameState, ShownRoll } from './gameState';
 import type { Merc } from './merc';
 import { raceDeathSaveDifficulty, type RaceDefinition } from './race';
 import { rollDie, type Rolled } from './rng';
@@ -74,26 +74,36 @@ export function knockDown(
   merc: Merc,
   race: RaceDefinition | { deathSave: number | null },
   seed: number,
-): { merc: Merc; seed: number; outcome: KnockDownOutcome; line: string } {
+): { merc: Merc; seed: number; outcome: KnockDownOutcome; line: string; save?: { roll: number; needed: number } } {
   let next = seed;
-  const save = 'deathSave' in race ? race.deathSave : raceDeathSaveDifficulty(race);
-  if (save !== null) {
+  const needed = 'deathSave' in race ? race.deathSave : raceDeathSaveDifficulty(race);
+  let save: { roll: number; needed: number } | undefined;
+  if (needed !== null) {
     const r = rollD20(next);
     next = r.seed;
-    if (r.value.natural >= save) {
+    save = { roll: r.value.natural, needed };
+    if (r.value.natural >= needed) {
       return {
         merc: { ...merc, down: true },
         seed: next,
         outcome: { kind: 'spared', roll: r.value.natural },
-        line: `${merc.name} is knocked down, but the curse holds death back (rolled ${r.value.natural}, needed ${save}): no injury.`,
+        line: `${merc.name} is knocked down, but the curse holds death back (rolled ${r.value.natural}, needed ${needed}): no injury.`,
+        save,
       };
     }
   }
   if (merc.injuries.length >= MAX_INJURIES) {
-    return { merc: { ...merc, down: true, dead: true }, seed: next, outcome: { kind: 'dead' }, line: `${merc.name} has taken one wound too many and dies.` };
+    return {
+      merc: { ...merc, down: true, dead: true },
+      seed: next,
+      outcome: { kind: 'dead' },
+      line: `${merc.name} has taken one wound too many and dies.`,
+      ...(save ? { save } : {}),
+    };
   }
   const injury = rollInjury(next, merc.injuries);
   return {
+    ...(save ? { save } : {}),
     merc: { ...merc, down: true, injuries: [...merc.injuries, injury.value] },
     seed: injury.seed,
     outcome: { kind: 'injured', injury: injury.value },
@@ -101,6 +111,12 @@ export function knockDown(
       .map(([s, a]) => `${a} ${s}`)
       .join(', ')}).`,
   };
+}
+
+/** The Cursed death save, as the dice tray shows it. */
+export function saveRoll(name: string, save: { roll: number; needed: number }): ShownRoll {
+  const ok = save.roll >= save.needed;
+  return { who: name, what: 'Death save', sides: 20, dice: [save.roll], kept: save.roll, target: save.needed, total: save.roll, result: ok ? 'Spared' : 'Injured', good: ok };
 }
 
 /** Makes sure the leader is alive, handing the role to the first living merc if not. */

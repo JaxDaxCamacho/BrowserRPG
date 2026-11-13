@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getDungeon, getMonster } from '../content';
 import { getLeader, setDestination, stepParty, stopWalking, type FeatureDefinition } from '../engine';
 import { DungeonView, type MarkerInfo } from '../render/DungeonView';
@@ -6,6 +6,8 @@ import { currentHp, dungeonContext } from '../state/context';
 import { useGameStore } from '../state/store';
 import { assetUrl } from './assets';
 import { initials, Token } from './MercCard';
+import { PartyWindow } from './PartyWindow';
+import { RestDialog } from './RestDialog';
 
 /** Time between steps while the party walks a path. */
 const STEP_MS = 160;
@@ -24,6 +26,7 @@ export function DungeonScreen() {
   const apply = useGameStore((s) => s.apply);
   const backToMenu = useGameStore((s) => s.backToMenu);
   const testPlay = useGameStore((s) => s.testPlay);
+  const [panel, setPanel] = useState<'party' | 'rest' | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<DungeonView | null>(null);
   const applyRef = useRef(apply);
@@ -111,7 +114,8 @@ export function DungeonScreen() {
                     <span style={{ width: `${(hp.current / hp.max) * 100}%` }} />
                   </span>
                   <span className="dim hp-text">
-                    {m.down ? 'Down' : `${hp.current} / ${hp.max}`}
+                    {m.dead ? 'Dead' : m.down ? 'Down' : `${hp.current} / ${hp.max}`}
+                    {!m.dead && m.injuries.length > 0 && ` · ${m.injuries.length} injur${m.injuries.length === 1 ? 'y' : 'ies'}`}
                   </span>
                 </span>
               </li>
@@ -139,11 +143,19 @@ export function DungeonScreen() {
               Stop
             </button>
           )}
+          <button type="button" onClick={() => setPanel('party')}>
+            Party
+          </button>
+          <button type="button" disabled={dungeon.rested} title={dungeon.rested ? 'You have already made camp on this level.' : undefined} onClick={() => setPanel('rest')}>
+            {dungeon.rested ? 'Camp used' : 'Make camp'}
+          </button>
           <button type="button" onClick={() => viewRef.current?.centreOnParty()}>
             Centre on party
           </button>
         </div>
       </footer>
+      {panel === 'party' && <PartyWindow onClose={() => setPanel(null)} />}
+      {panel === 'rest' && <RestDialog onClose={() => setPanel(null)} />}
     </main>
   );
 }
