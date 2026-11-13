@@ -1,4 +1,6 @@
+import { closeAdventure, completeAdventure } from './adventure';
 import { makeCheck, type CheckResult } from './checks';
+import { COPPER_PER_GOLD, formatCoins } from './currency';
 import { rollDice } from './dice';
 import type { DungeonDefinition } from './dungeon';
 import { enterDungeon } from './dungeon';
@@ -37,7 +39,13 @@ export type Effect =
   /** Puts items into the leader's pack. */
   | { type: 'giveItem'; itemId: string; quantity: number }
   /** Marks the trap, event or chest that opened this dialogue as done, so it never fires again. */
-  | { type: 'resolveFeature' };
+  | { type: 'resolveFeature' }
+  /** Pays the leader as many gold crowns as a number flag holds, such as the fee agreed in the debrief. */
+  | { type: 'payFlag'; flag: string }
+  /** Experience for every merc still alive. */
+  | { type: 'xp'; amount: number }
+  /** Marks the adventure finished; the party recovers its hit points back in town. */
+  | { type: 'completeAdventure' };
 
 export interface Outcome {
   /** Shown to the player before moving on. Without it the dialogue advances straight away. */
@@ -45,7 +53,10 @@ export interface Outcome {
   effects?: Effect[];
   /** Continue to this node of the same dialogue. */
   goto?: string;
-  /** End the dialogue and show this screen. Exactly one of `goto` and `end` is set. */
+  /**
+   * End the dialogue and show this screen. Exactly one of `goto` and `end` is set.
+   * Ending on adventure select leaves the adventure behind.
+   */
   end?: Screen;
   /** With `end: "dungeon"`: enter this dungeon, from its start. */
   dungeon?: string;
@@ -212,11 +223,29 @@ function applyEffects(
       case 'setFlag':
         next = { ...next, flags: { ...next.flags, [effect.flag]: effect.value } };
         break;
-      case 'money': {
+      case 'money':
+      case 'payFlag': {
         const payee = getLeader(next) ?? next.party[0];
-        if (payee) updateMerc(payee.id, (m) => ({ ...m, purse: Math.max(0, m.purse + effect.amount) }));
+        const flag = effect.type === 'payFlag' ? next.flags[effect.flag] : undefined;
+        const amount = effect.type === 'money' ? effect.amount : typeof flag === 'number' ? flag * COPPER_PER_GOLD : 0;
+        if (!payee || amount === 0) break;
+        const purse = Math.max(0, payee.purse + amount);
+        updateMerc(payee.id, (m) => ({ ...m, purse }));
+        notes.push(
+          amount > 0
+            ? `${payee.name} receives ${formatCoins(amount)}.`
+            : `${payee.name} pays ${formatCoins(payee.purse - purse)}.`,
+        );
         break;
       }
+      case 'xp':
+        next = { ...next, party: next.party.map((m) => (m.dead ? m : { ...m, xp: m.xp + effect.amount })) };
+        notes.push(`Everyone gains ${effect.amount} XP.`);
+        break;
+      case 'completeAdventure':
+        next = completeAdventure(next);
+        notes.push('Contract complete. Back in town, the party recovers its strength.');
+        break;
       case 'damage':
       case 'heal': {
         for (const merc of targetsOf(next, effect.target, rollerId)) {
@@ -273,6 +302,7 @@ function applyEffects(
 function advance(state: GameState, to: Pick<Outcome, 'goto' | 'end' | 'dungeon'>, ctx: DialogueContext): GameState {
   if (!state.dialogue) return state;
   if (to.goto) return { ...state, dialogue: { ...state.dialogue, nodeId: to.goto, result: null } };
+  if (to.end === 'adventureSelect') return closeAdventure(state);
   const closed: GameState = { ...state, dialogue: null, screen: to.end ?? 'dungeon' };
   // Ending on the map with no map in progress enters a dungeon: the one named, or the adventure's first.
   const target = to.dungeon ?? (closed.screen === 'dungeon' && !closed.dungeon ? ctx.defaultDungeon(closed) : undefined);

@@ -543,6 +543,10 @@ select:disabled {
   max-width: 640px;
 }
 
+.adventure-done {
+  opacity: 0.6;
+}
+
 .adventure-difficulty,
 .adventure-summary {
   margin: 0;

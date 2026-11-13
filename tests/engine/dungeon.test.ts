@@ -88,7 +88,8 @@ const tiny: DungeonDefinition = {
   rooms: [],
   features: [
     { type: 'trap', id: 'wire', name: 'tripwire', x: 6, y: 1, detectDifficulty: 99, dialogueId: 'trap-tripwire', triggerNode: 'sprung', disarmNode: 'spotted' },
-    { type: 'encounter', id: 'dogs', name: 'Dogs', x: 10, y: 3, monsters: [{ monsterId: 'war-hound', count: 2 }] },
+    // Stealth always succeeds here, so these tests are about sighting, not sneaking.
+    { type: 'encounter', id: 'dogs', name: 'Dogs', x: 10, y: 3, monsters: [{ monsterId: 'war-hound', count: 2 }], stealthDifficulty: 0 },
     { type: 'goal', id: 'box', name: 'Box', x: 10, y: 1, dialogueId: 'goal-strongbox' },
   ],
 };
@@ -216,13 +217,18 @@ describe('traps', () => {
 
 describe('enemy groups', () => {
   it('stops the walk when a group first comes into view', () => {
-    let state = enterDungeon(party(), tower);
-    for (let i = 0; i < 5 && !state.dialogue; i++) state = travel(state, tower, { x: 14, y: 3 });
+    // Sneaking always succeeds, so this is about sighting alone.
+    const quiet: DungeonDefinition = {
+      ...tower,
+      features: tower.features.map((f) => (f.type === 'encounter' ? { ...f, stealthDifficulty: 0 } : f)),
+    };
+    let state = enterDungeon(party(), quiet);
+    for (let i = 0; i < 5 && !state.dialogue; i++) state = travel(state, quiet, { x: 14, y: 3 });
     // The sentry is in the way; deal with him first.
     expect(state.dialogue?.dialogueId).toBe('event-sentry');
     state = finishDialogue(state);
     for (let i = 0; i < 5 && !(state.dungeon!.pos.x === 15 && state.dungeon!.pos.y === 3); i++) {
-      state = travel(state, tower, { x: 15, y: 3 });
+      state = travel(state, quiet, { x: 15, y: 3 });
     }
     expect(state.dungeon!.pos).toEqual({ x: 15, y: 3 });
     expect(state.dungeon!.noticed).toContain('guards');

@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { getDungeon, getMonster } from '../content';
-import { getLeader, setDestination, stepParty, stopWalking, type FeatureDefinition } from '../engine';
+import {
+  canLeave,
+  getLeader,
+  goalReached,
+  leaveDungeon,
+  setDestination,
+  stepParty,
+  stopWalking,
+  type FeatureDefinition,
+} from '../engine';
 import { DungeonView, type MarkerInfo } from '../render/DungeonView';
 import { currentHp, dungeonContext } from '../state/context';
 import { useGameStore } from '../state/store';
@@ -92,8 +101,14 @@ export function DungeonScreen() {
     );
   }
 
-  const goal = def.features.find((f) => f.type === 'goal');
-  const goalDone = goal ? dungeon.resolved.includes(goal.id) : false;
+  const goalDone = goalReached(dungeon, def);
+  const atExit = canLeave(game, def);
+  const headOut = () =>
+    apply((g) => {
+      if (!g.dungeon) return g;
+      const d = getDungeon(g.dungeon.dungeonId);
+      return canLeave(g, d) ? leaveDungeon(g, d, dungeonContext(g)) : setDestination(g, d, d.start);
+    });
 
   return (
     <main className="dungeon">
@@ -137,7 +152,12 @@ export function DungeonScreen() {
         </ol>
         <div className="row">
           {testPlay && <span className="goal-banner">Test play: nothing is saved.</span>}
-          {goalDone && <span className="goal-banner">Goal reached. The journey back comes in a later milestone.</span>}
+          {goalDone && <span className="goal-banner">Goal reached. Make your way back to the entrance.</span>}
+          {goalDone && (
+            <button type="button" className="primary" disabled={walking} onClick={headOut}>
+              {atExit ? 'Leave the dungeon' : 'Head for the exit'}
+            </button>
+          )}
           {walking && (
             <button type="button" onClick={() => apply(stopWalking)}>
               Stop

@@ -278,6 +278,9 @@ const effectSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('heal'), amount: dice, target: effectTarget }),
   z.strictObject({ type: z.literal('giveItem'), itemId: id, quantity: z.number().int().positive() }),
   z.strictObject({ type: z.literal('resolveFeature') }),
+  z.strictObject({ type: z.literal('payFlag'), flag: z.string().min(1) }),
+  z.strictObject({ type: z.literal('xp'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('completeAdventure') }),
 ]);
 
 const outcomeSchema = z
@@ -347,12 +350,17 @@ export const adventureSchema = z
     difficulty: z.string().min(1),
     /** The dialogue that opens the adventure. */
     debrief: id,
+    /** The dialogue played when the party leaves its last dungeon with the goal done. Without one, the adventure just ends. */
+    ending: id.optional(),
     /** Dungeons this adventure uses, by id, in the order they are explored. */
     dungeons: z.array(id),
     dialogues: z.array(dialogueSchema).min(1),
   })
   .refine((a) => a.dialogues.some((d) => d.id === a.debrief), {
     message: "the debrief must be one of the adventure's dialogues",
+  })
+  .refine((a) => !a.ending || a.dialogues.some((d) => d.id === a.ending), {
+    message: "the ending must be one of the adventure's dialogues",
   });
 
 // ---------- dungeons ----------

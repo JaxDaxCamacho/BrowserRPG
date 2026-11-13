@@ -253,6 +253,7 @@ describe('save migration', () => {
       version: SAVE_VERSION,
       flags: {},
       adventureId: null,
+      completedAdventures: [],
       dialogue: null,
       dungeon: null,
       encounter: null,

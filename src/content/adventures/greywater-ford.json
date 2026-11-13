@@ -4,6 +4,7 @@
   "summary": "Bandits hold the old watchtower above the river crossing and have taken the merchant guild's strongbox. Clear them out and bring it back.",
   "difficulty": "Starter",
   "debrief": "debrief",
+  "ending": "return",
   "dungeons": [
     "greywater-tower"
   ],
@@ -617,6 +618,138 @@
                   }
                 ],
                 "end": "dungeon"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "return",
+      "start": "office",
+      "nodes": [
+        {
+          "id": "office",
+          "speaker": "Factor Ilse Maren",
+          "image": "guild-office",
+          "text": "Dusk has settled over Greywater by the time you climb the guild stairs. Factor Maren is still at her ledger. Her eyes go straight to the strongbox.\n\n\"Well. It seems your company does solve problems of this kind.\"",
+          "options": [
+            {
+              "id": "hand-over",
+              "text": "Set the strongbox on her desk, seal unbroken.",
+              "outcome": {
+                "text": "She turns it in the lamplight, checks the wax against a stamp from her drawer, and nods once. A clerk brings a heavy purse.\n\n\"As agreed.\"",
+                "effects": [
+                  {
+                    "type": "payFlag",
+                    "flag": "fee"
+                  },
+                  {
+                    "type": "xp",
+                    "amount": 150
+                  },
+                  {
+                    "type": "setFlag",
+                    "flag": "strongboxDelivered",
+                    "value": true
+                  }
+                ],
+                "goto": "paid"
+              }
+            }
+          ]
+        },
+        {
+          "id": "paid",
+          "speaker": "Factor Ilse Maren",
+          "image": "guild-office",
+          "text": "\"The river road will be open by the end of the week. The guild remembers who opened it.\"",
+          "options": [
+            {
+              "id": "mention-guard",
+              "text": "Tell her you freed one of her guards in the tower cellars.",
+              "requires": [
+                {
+                  "type": "flag",
+                  "flag": "warnedAboutHall",
+                  "equals": true
+                },
+                {
+                  "type": "flag",
+                  "flag": "mentionedGuard",
+                  "equals": false
+                }
+              ],
+              "outcome": {
+                "text": "For the first time, she looks up properly.\n\n\"Corporal Bren limped through the gate this morning, swearing he owed his life to sellswords. I did not believe him.\" She adds twenty crowns to the purse.",
+                "effects": [
+                  {
+                    "type": "money",
+                    "amount": 200000
+                  },
+                  {
+                    "type": "setFlag",
+                    "flag": "mentionedGuard",
+                    "value": true
+                  }
+                ],
+                "goto": "paid"
+              }
+            },
+            {
+              "id": "more-work",
+              "text": "Ask if the guild has more work.",
+              "requires": [
+                {
+                  "type": "flag",
+                  "flag": "askedForWork",
+                  "equals": false
+                }
+              ],
+              "check": {
+                "stat": "charisma",
+                "difficulty": 13,
+                "by": "leader"
+              },
+              "success": {
+                "text": "\"Perhaps. There are always roads that need opening.\" She writes your company's name in a smaller ledger, the one she keeps in her own drawer.",
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "askedForWork",
+                    "value": true
+                  },
+                  {
+                    "type": "setFlag",
+                    "flag": "guildFavour",
+                    "value": true
+                  }
+                ],
+                "goto": "paid"
+              },
+              "failure": {
+                "text": "\"When there is, you will hear of it.\" Her pen is already moving again.",
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "askedForWork",
+                    "value": true
+                  }
+                ],
+                "goto": "paid"
+              }
+            },
+            {
+              "id": "leave",
+              "text": "Take your leave.",
+              "outcome": {
+                "text": "You step out into the evening with heavier purses and lighter hearts. Word of the Greywater job will travel.",
+                "effects": [
+                  {
+                    "type": "completeAdventure"
+                  }
+                ],
+                "end": "adventureSelect"
               }
             }
           ]

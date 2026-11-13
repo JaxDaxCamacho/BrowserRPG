@@ -7,7 +7,7 @@ import type { Merc } from './merc';
  * loading is reading it back (after migrations keyed on `version`).
  */
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export const SCREENS = [
   'menu',
@@ -37,6 +37,8 @@ export interface GameState {
   flags: Record<string, FlagValue>;
   /** The adventure being played, or null before one is picked. */
   adventureId: string | null;
+  /** Adventures the company has finished, in the order it finished them. */
+  completedAdventures: string[];
   /** The conversation in progress, or null when there is none. */
   dialogue: DialogueState | null;
   /** The map being explored, including its fog of war. */
@@ -82,6 +84,7 @@ export function createInitialState(rngSeed: number = 1): GameState {
     nextMercId: 1,
     flags: {},
     adventureId: null,
+    completedAdventures: [],
     dialogue: null,
     dungeon: null,
     encounter: null,

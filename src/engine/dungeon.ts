@@ -1,3 +1,4 @@
+import { closeAdventure, completeAdventure } from './adventure';
 import { makeCheck } from './checks';
 import type { CombatState } from './combat';
 import { checkMaker, startDialogue, type DialogueContext, type DialogueDefinition } from './dialogue';
@@ -329,6 +330,28 @@ export function findPath(dungeon: DungeonState, def: DungeonDefinition, target: 
   return path;
 }
 
+// ---------- leaving ----------
+
+/** True once the dungeon's goal is done: its entrance then becomes the way out. */
+export function goalReached(dungeon: DungeonState, def: DungeonDefinition): boolean {
+  return def.features.some((f) => f.type === 'goal' && dungeon.resolved.includes(f.id));
+}
+
+/** The party may leave: the goal is done and it stands at the entrance. */
+export function canLeave(state: GameState, def: DungeonDefinition): boolean {
+  const d = state.dungeon;
+  return !!d && state.screen === 'dungeon' && goalReached(d, def) && samePos(d.pos, def.start);
+}
+
+/** Walks out with the goal done: plays the adventure's ending, or finishes it at once if it has none. */
+export function leaveDungeon(state: GameState, def: DungeonDefinition, ctx: DungeonContext): GameState {
+  if (!canLeave(state, def)) return state;
+  const left: GameState = { ...state, dungeon: { ...state.dungeon!, path: [] } };
+  const ending = ctx.endingDialogue(left);
+  if (ending) return startDialogue(left, ending);
+  return closeAdventure(completeAdventure(left));
+}
+
 /** The player clicked a tile: plan the walk there. */
 export function setDestination(state: GameState, def: DungeonDefinition, target: Pos): GameState {
   const dungeon = state.dungeon;
@@ -348,6 +371,8 @@ export function stopWalking(state: GameState): GameState {
 
 export interface DungeonContext extends DialogueContext {
   getDialogue: (dialogueId: string) => DialogueDefinition;
+  /** The dialogue played on leaving with the goal done, or null to finish the adventure straight away. */
+  endingDialogue: (state: GameState) => DialogueDefinition | null;
   /** Display name of a monster, for messages. */
   monsterName: (monsterId: string) => string;
 }
@@ -409,6 +434,12 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
       halt();
       return openFeatureDialogue(game, here, here.node, ctx);
     }
+  }
+
+  // 1b. Back at the entrance with the goal done: the way out.
+  if (rest.length === 0 && goalReached(dungeon, def) && samePos(next, def.start)) {
+    halt({}, 'You reach the way out.');
+    return leaveDungeon(game, def, ctx);
   }
 
   // 2. An enemy group in reach: on any of the eight tiles around the party.

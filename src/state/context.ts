@@ -32,6 +32,10 @@ export function dungeonContext(state: GameState): DungeonContext {
       return getDialogue(state.adventureId, dialogueId);
     },
     monsterName: (monsterId) => getMonster(monsterId).name,
+    endingDialogue: (s) => {
+      const adventure = s.adventureId ? getAdventure(s.adventureId) : null;
+      return adventure?.ending ? getDialogue(adventure.id, adventure.ending) : null;
+    },
   };
 }
 

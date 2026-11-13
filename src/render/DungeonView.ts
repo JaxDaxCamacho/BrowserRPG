@@ -276,6 +276,14 @@ export class DungeonView {
     this.markers.removeChildren().forEach((c) => c.destroy({ children: true }));
     const seen = (f: FeatureDefinition) => dungeon.seen[f.y * def.width + f.x] === '1';
 
+    // With the goal done, the entrance is the way out.
+    const goalDone = def.features.some((f) => f.type === 'goal' && dungeon.resolved.includes(f.id));
+    if (goalDone) {
+      const exit = this.disc(undefined, '⇧', TILE * 0.38, GOLD);
+      exit.position.set((def.start.x + 0.5) * TILE, (def.start.y + 0.5) * TILE);
+      this.markers.addChild(exit);
+    }
+
     for (const f of def.features) {
       const done = dungeon.resolved.includes(f.id);
       const cx = (f.x + 0.5) * TILE;

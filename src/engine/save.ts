@@ -65,6 +65,8 @@ const MIGRATIONS: Record<number, (save: Loose) => Loose> = {
       encounter: encounter ? { featureId: encounter.featureId, returnTo: encounter.returnTo } : null,
     };
   },
+  // v7 records finished adventures.
+  6: (save) => ({ ...save, version: 7, completedAdventures: [] }),
 };
 
 /**

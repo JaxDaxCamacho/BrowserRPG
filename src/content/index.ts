@@ -182,6 +182,17 @@ export function crossCheck(set: ContentSet): string[] {
       }
     }
 
+    const ending = adventure.ending ? dialogues.get(adventure.ending) : undefined;
+    if (ending) {
+      const outcomes = ending.nodes.flatMap((n) => n.options).flatMap((o) => [o.outcome, o.success, o.failure]);
+      if (!outcomes.some((o) => o?.effects?.some((e) => e.type === 'completeAdventure'))) {
+        problems.push(`${where}: the ending "${ending.id}" never marks the adventure complete.`);
+      }
+      if (!outcomes.some((o) => o?.end === 'adventureSelect')) {
+        problems.push(`${where}: the ending "${ending.id}" never returns to adventure select.`);
+      }
+    }
+
     for (const dialogue of adventure.dialogues) {
       for (const option of dialogue.nodes.flatMap((n) => n.options)) {
         for (const outcome of [option.outcome, option.success, option.failure]) {
