@@ -94,20 +94,20 @@
   ],
   "features": [
     {
-      "type": "event",
       "id": "sentry",
       "name": "Bandit sentry",
       "x": 10,
       "y": 3,
       "icon": "portraits/male/m-15",
+      "type": "event",
       "dialogueId": "event-sentry"
     },
     {
-      "type": "encounter",
       "id": "guards",
       "name": "Guardroom bandits",
       "x": 18,
       "y": 3,
+      "type": "encounter",
       "monsters": [
         {
           "monsterId": "bandit-thug",
@@ -115,17 +115,32 @@
         }
       ],
       "obstacles": [
-        { "id": "guards-pillar", "kind": "pillar", "x": 2, "y": 2 },
-        { "id": "guards-barrel", "kind": "barrel", "x": 4, "y": 1 },
-        { "id": "guards-barricade", "kind": "barricade", "x": 1, "y": 3 }
+        {
+          "id": "guards-pillar",
+          "kind": "pillar",
+          "x": 2,
+          "y": 2
+        },
+        {
+          "id": "guards-barrel",
+          "kind": "barrel",
+          "x": 4,
+          "y": 1
+        },
+        {
+          "id": "guards-barricade",
+          "kind": "barricade",
+          "x": 1,
+          "y": 3
+        }
       ]
     },
     {
-      "type": "encounter",
       "id": "hounds",
       "name": "War hounds",
       "x": 26,
       "y": 4,
+      "type": "encounter",
       "monsters": [
         {
           "monsterId": "war-hound",
@@ -134,51 +149,51 @@
       ]
     },
     {
-      "type": "trap",
       "id": "tripwire",
       "name": "tripwire",
       "x": 3,
       "y": 9,
+      "type": "trap",
       "detectDifficulty": 12,
       "dialogueId": "trap-tripwire",
       "triggerNode": "sprung",
       "disarmNode": "spotted"
     },
     {
-      "type": "event",
       "id": "captive",
       "name": "Captive guard",
       "x": 5,
       "y": 14,
       "icon": "portraits/male/m-19",
+      "type": "event",
       "dialogueId": "event-captive"
     },
     {
-      "type": "event",
       "id": "supply-crate",
       "name": "Supply crate",
       "x": 2,
       "y": 16,
       "icon": "loot/action/actionloot-12",
+      "type": "event",
       "dialogueId": "event-crate"
     },
     {
-      "type": "trap",
       "id": "rotten-floor",
       "name": "rotten floor",
       "x": 8,
       "y": 15,
+      "type": "trap",
       "detectDifficulty": 14,
       "dialogueId": "trap-floor",
       "triggerNode": "sprung",
       "disarmNode": "spotted"
     },
     {
-      "type": "encounter",
       "id": "hall-band",
       "name": "Bandits in the hall",
       "x": 17,
       "y": 13,
+      "type": "encounter",
       "monsters": [
         {
           "monsterId": "bandit-thug",
@@ -195,22 +210,22 @@
       ]
     },
     {
-      "type": "trap",
       "id": "cursed-lock",
       "name": "cursed lock",
       "x": 17,
       "y": 20,
+      "type": "trap",
       "detectDifficulty": 13,
       "dialogueId": "trap-lock",
       "triggerNode": "sprung",
       "disarmNode": "spotted"
     },
     {
-      "type": "encounter",
       "id": "captain",
       "name": "The bandit captain",
       "x": 17,
       "y": 24,
+      "type": "encounter",
       "monsters": [
         {
           "monsterId": "bandit-captain",
@@ -223,12 +238,12 @@
       ]
     },
     {
-      "type": "goal",
       "id": "strongbox",
       "name": "Guild strongbox",
       "x": 17,
       "y": 25,
       "icon": "loot/action/actionloot-30",
+      "type": "goal",
       "dialogueId": "goal-strongbox"
     }
   ]
