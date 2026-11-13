@@ -59,9 +59,14 @@ export function MainMenu() {
             Continue
           </button>
           {import.meta.env.DEV && (
-            <button type="button" className="tool-button" onClick={() => openTool('contentEditor')}>
-              Content Editor
-            </button>
+            <>
+              <button type="button" className="tool-button" onClick={() => openTool('contentEditor')}>
+                Content Editor
+              </button>
+              <button type="button" className="tool-button" onClick={() => openTool('dungeonMaker')}>
+                Dungeon Maker
+              </button>
+            </>
           )}
         </nav>
         {saveError && <p className="error">{saveError}</p>}

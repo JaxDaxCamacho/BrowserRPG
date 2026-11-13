@@ -4,7 +4,9 @@
   "summary": "Bandits hold the old watchtower above the river crossing and have taken the merchant guild's strongbox. Clear them out and bring it back.",
   "difficulty": "Starter",
   "debrief": "debrief",
-  "dungeons": ["greywater-tower"],
+  "dungeons": [
+    "greywater-tower"
+  ],
   "dialogues": [
     {
       "id": "debrief",
@@ -16,8 +18,20 @@
           "image": "guild-office",
           "text": "The counting room of the Greywater Merchants' Guild smells of ink and lamp oil. Factor Ilse Maren does not look up from her ledger until the door closes.\n\n\"Three caravans in a month. All of them lost at Greywater Ford. I am told your company solves problems of this kind.\"",
           "options": [
-            { "id": "ask-ford", "text": "Ask what happened at the ford.", "outcome": { "goto": "ford" } },
-            { "id": "ask-pay", "text": "Ask what the job pays.", "outcome": { "goto": "pay" } }
+            {
+              "id": "ask-ford",
+              "text": "Ask what happened at the ford.",
+              "outcome": {
+                "goto": "ford"
+              }
+            },
+            {
+              "id": "ask-pay",
+              "text": "Ask what the job pays.",
+              "outcome": {
+                "goto": "pay"
+              }
+            }
           ]
         },
         {
@@ -29,10 +43,20 @@
             {
               "id": "study-map",
               "text": "Study her map of the watchtower.",
-              "check": { "stat": "intellect", "difficulty": 12, "by": "best" },
+              "check": {
+                "stat": "intellect",
+                "difficulty": 12,
+                "by": "best"
+              },
               "success": {
                 "text": "There are mason's marks along the cellar passages: the lower floors were built with trapped flagstones. You will know to look for them.",
-                "effects": [{ "type": "setFlag", "flag": "knowsTraps", "value": true }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "knowsTraps",
+                    "value": true
+                  }
+                ],
                 "goto": "pay"
               },
               "failure": {
@@ -40,7 +64,13 @@
                 "goto": "pay"
               }
             },
-            { "id": "to-pay", "text": "Ask what the job pays.", "outcome": { "goto": "pay" } }
+            {
+              "id": "to-pay",
+              "text": "Ask what the job pays.",
+              "outcome": {
+                "goto": "pay"
+              }
+            }
           ]
         },
         {
@@ -52,36 +82,82 @@
             {
               "id": "accept",
               "text": "Accept the offer.",
-              "outcome": { "effects": [{ "type": "setFlag", "flag": "fee", "value": 100 }], "goto": "agreed" }
+              "outcome": {
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "fee",
+                    "value": 100
+                  }
+                ],
+                "goto": "agreed"
+              }
             },
             {
               "id": "negotiate",
               "text": "Argue that three lost caravans make this dangerous work.",
-              "check": { "stat": "charisma", "difficulty": 12, "by": "leader" },
+              "check": {
+                "stat": "charisma",
+                "difficulty": 12,
+                "by": "leader"
+              },
               "success": {
                 "text": "She weighs you for a long moment, then dips her pen.\n\n\"One hundred and fifty. Do not make me regret it.\"",
-                "effects": [{ "type": "setFlag", "flag": "fee", "value": 150 }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "fee",
+                    "value": 150
+                  }
+                ],
                 "goto": "agreed"
               },
               "failure": {
                 "text": "\"The price is the price.\" Her pen does not pause.",
-                "effects": [{ "type": "setFlag", "flag": "fee", "value": 100 }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "fee",
+                    "value": 100
+                  }
+                ],
                 "goto": "agreed"
               }
             },
             {
               "id": "intimidate",
               "text": "Have your Barbarian lean on the desk.",
-              "requires": [{ "type": "partyHasClass", "classId": "barbarian" }],
-              "check": { "stat": "strength", "difficulty": 16, "by": "best" },
+              "requires": [
+                {
+                  "type": "partyHasClass",
+                  "classId": "barbarian"
+                }
+              ],
+              "check": {
+                "stat": "strength",
+                "difficulty": 16,
+                "by": "best"
+              },
               "success": {
                 "text": "The desk creaks. So does her composure.\n\n\"One hundred and seventy-five. And you will leave the furniture alone.\"",
-                "effects": [{ "type": "setFlag", "flag": "fee", "value": 175 }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "fee",
+                    "value": 175
+                  }
+                ],
                 "goto": "agreed"
               },
               "failure": {
                 "text": "She rings a small bell. Two guild guards step into the room.\n\n\"Ninety. For the insult.\"",
-                "effects": [{ "type": "setFlag", "flag": "fee", "value": 90 }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "fee",
+                    "value": 90
+                  }
+                ],
                 "goto": "agreed"
               }
             }
@@ -97,9 +173,14 @@
               "id": "set-out",
               "text": "Set out for Greywater Ford.",
               "outcome": {
-                "effects": [{ "type": "setFlag", "flag": "debriefDone", "value": true }],
-                "end": "dungeon",
-                "dungeon": "greywater-tower"
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "debriefDone",
+                    "value": true
+                  }
+                ],
+                "end": "dungeon"
               }
             }
           ]
@@ -121,29 +202,56 @@
               "text": "Press five silver into his hand.",
               "outcome": {
                 "text": "The coins vanish. So does the sentry, down a side stair, whistling.",
-                "effects": [{ "type": "money", "amount": -500 }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "money",
+                    "amount": -500
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             },
             {
               "id": "bluff",
               "text": "Tell him the captain sent for fresh blades.",
-              "check": { "stat": "charisma", "difficulty": 12, "by": "leader" },
+              "check": {
+                "stat": "charisma",
+                "difficulty": 12,
+                "by": "leader"
+              },
               "success": {
                 "text": "\"About time.\" He waves you through and wanders off toward the gate.",
-                "effects": [{ "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               },
               "failure": {
                 "text": "He shouts for help and lunges. You put him down, but the noise carries.",
-                "effects": [{ "type": "damage", "amount": "1d4", "target": "leader" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d4",
+                    "target": "leader"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             },
             {
               "id": "back-off",
               "text": "Step back and think again.",
-              "outcome": { "end": "dungeon" }
+              "outcome": {
+                "end": "dungeon"
+              }
             }
           ]
         }
@@ -161,11 +269,32 @@
             {
               "id": "dive",
               "text": "Dive flat.",
-              "check": { "stat": "agility", "difficulty": 12, "by": "leader" },
-              "success": { "text": "Bolts hiss over your back and shatter on the stones.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "check": {
+                "stat": "agility",
+                "difficulty": 12,
+                "by": "leader"
+              },
+              "success": {
+                "text": "Bolts hiss over your back and shatter on the stones.",
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
+                "end": "dungeon"
+              },
               "failure": {
                 "text": "Too slow. A bolt finds its mark.",
-                "effects": [{ "type": "damage", "amount": "1d6", "target": "roller" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d6",
+                    "target": "roller"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }
@@ -179,18 +308,42 @@
             {
               "id": "cut",
               "text": "Cut the wire slowly.",
-              "check": { "stat": "agility", "difficulty": 10, "by": "best" },
-              "success": { "text": "The wire parts with a soft ping. The crossbows stay still.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "check": {
+                "stat": "agility",
+                "difficulty": 10,
+                "by": "best"
+              },
+              "success": {
+                "text": "The wire parts with a soft ping. The crossbows stay still.",
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
+                "end": "dungeon"
+              },
               "failure": {
                 "text": "Your blade slips. The rack fires.",
-                "effects": [{ "type": "damage", "amount": "1d4", "target": "roller" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d4",
+                    "target": "roller"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             },
             {
               "id": "step-over",
               "text": "Step over it carefully.",
-              "outcome": { "text": "One by one you step over the wire and leave it behind, still armed.", "end": "dungeon" }
+              "outcome": {
+                "text": "One by one you step over the wire and leave it behind, still armed.",
+                "end": "dungeon"
+              }
             }
           ]
         }
@@ -208,11 +361,32 @@
             {
               "id": "brace",
               "text": "Brace for the fall.",
-              "check": { "stat": "toughness", "difficulty": 12, "by": "leader" },
-              "success": { "text": "You land hard but whole, and climb back up.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "check": {
+                "stat": "toughness",
+                "difficulty": 12,
+                "by": "leader"
+              },
+              "success": {
+                "text": "You land hard but whole, and climb back up.",
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
+                "end": "dungeon"
+              },
               "failure": {
                 "text": "You land badly on the rubble.",
-                "effects": [{ "type": "damage", "amount": "1d8", "target": "roller" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d8",
+                    "target": "roller"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }
@@ -226,11 +400,32 @@
             {
               "id": "edge",
               "text": "Edge along the wall.",
-              "check": { "stat": "agility", "difficulty": 10, "by": "leader" },
-              "success": { "text": "You cross with your back to the stones.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "check": {
+                "stat": "agility",
+                "difficulty": 10,
+                "by": "leader"
+              },
+              "success": {
+                "text": "You cross with your back to the stones.",
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
+                "end": "dungeon"
+              },
               "failure": {
                 "text": "A board snaps and you drop to the cellar below.",
-                "effects": [{ "type": "damage", "amount": "1d6", "target": "roller" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d6",
+                    "target": "roller"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }
@@ -250,11 +445,32 @@
             {
               "id": "resist",
               "text": "Hold on and force the door.",
-              "check": { "stat": "spirit", "difficulty": 13, "by": "leader" },
-              "success": { "text": "The voice breaks against your will. The lock falls open.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "check": {
+                "stat": "spirit",
+                "difficulty": 13,
+                "by": "leader"
+              },
+              "success": {
+                "text": "The voice breaks against your will. The lock falls open.",
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
+                "end": "dungeon"
+              },
               "failure": {
                 "text": "The curse takes its toll on everyone near the door before the lock gives.",
-                "effects": [{ "type": "damage", "amount": "1d4", "target": "party" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d4",
+                    "target": "party"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }
@@ -268,11 +484,32 @@
             {
               "id": "break-hex",
               "text": "Break the hex before touching the lock.",
-              "check": { "stat": "spirit", "difficulty": 11, "by": "best" },
-              "success": { "text": "The marks smoke and fade. The lock opens to an ordinary key.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "check": {
+                "stat": "spirit",
+                "difficulty": 11,
+                "by": "best"
+              },
+              "success": {
+                "text": "The marks smoke and fade. The lock opens to an ordinary key.",
+                "effects": [
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
+                "end": "dungeon"
+              },
               "failure": {
                 "text": "The hex lashes back at you before it breaks.",
-                "effects": [{ "type": "damage", "amount": "1d6", "target": "roller" }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "damage",
+                    "amount": "1d6",
+                    "target": "roller"
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }
@@ -295,11 +532,26 @@
               "text": "Free him.",
               "outcome": {
                 "text": "\"Three of them in the hall, archers and a hedge wizard who calls down lightning. Hit the wizard first.\" He limps off toward the gate.",
-                "effects": [{ "type": "setFlag", "flag": "warnedAboutHall", "value": true }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "warnedAboutHall",
+                    "value": true
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             },
-            { "id": "later", "text": "Tell him you will be back.", "outcome": { "end": "dungeon" } }
+            {
+              "id": "later",
+              "text": "Tell him you will be back.",
+              "outcome": {
+                "end": "dungeon"
+              }
+            }
           ]
         }
       ]
@@ -318,7 +570,16 @@
               "text": "Take the bottles.",
               "outcome": {
                 "text": "Two healing draughts.",
-                "effects": [{ "type": "giveItem", "itemId": "healing-draught", "quantity": 2 }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "giveItem",
+                    "itemId": "healing-draught",
+                    "quantity": 2
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }
@@ -340,7 +601,16 @@
               "text": "Take the strongbox.",
               "outcome": {
                 "text": "It is heavy, and it is yours to carry back to Factor Maren.",
-                "effects": [{ "type": "setFlag", "flag": "hasStrongbox", "value": true }, { "type": "resolveFeature" }],
+                "effects": [
+                  {
+                    "type": "setFlag",
+                    "flag": "hasStrongbox",
+                    "value": true
+                  },
+                  {
+                    "type": "resolveFeature"
+                  }
+                ],
                 "end": "dungeon"
               }
             }

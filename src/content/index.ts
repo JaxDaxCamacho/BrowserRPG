@@ -10,7 +10,6 @@ import {
   type RaceDefinition,
 } from '../engine';
 import abilitiesJson from './abilities.json';
-import greywaterFord from './adventures/greywater-ford.json';
 import classesJson from './classes.json';
 import itemsJson from './items.json';
 import monstersJson from './monsters.json';
@@ -44,8 +43,17 @@ export interface ContentSet {
 
 export type CollectionKey = Exclude<keyof ContentSet, 'adventures' | 'dungeons'>;
 
-/** Every dungeon file in src/content/dungeons, loaded at build time. */
+/** Every dungeon and adventure file, one per entry, loaded at build time in file-name order. */
 const dungeonFiles = import.meta.glob('./dungeons/*.json', { eager: true, import: 'default' });
+const adventureFiles = import.meta.glob('./adventures/*.json', { eager: true, import: 'default' });
+const byFileName = (files: Record<string, unknown>) =>
+  Object.keys(files)
+    .sort()
+    .map((k) => files[k]);
+
+/** Where each per-entry file lives, for the editors that write them. */
+export const dungeonFile = (id: string) => `dungeons/${id}.json`;
+export const adventureFile = (id: string) => `adventures/${id}.json`;
 
 export interface CollectionInfo {
   key: CollectionKey;
@@ -166,6 +174,9 @@ export function crossCheck(set: ContentSet): string[] {
     for (const dialogue of adventure.dialogues) {
       for (const option of dialogue.nodes.flatMap((n) => n.options)) {
         for (const outcome of [option.outcome, option.success, option.failure]) {
+          if (outcome?.end === 'dungeon' && !outcome.dungeon && adventure.dungeons.length === 0) {
+            problems.push(`${where}: option "${option.id}" leads into the adventure's first dungeon, but none is assigned.`);
+          }
           if (outcome?.dungeon && !adventure.dungeons.includes(outcome.dungeon)) {
             problems.push(`${where}: option "${option.id}" enters dungeon "${outcome.dungeon}", which the adventure does not list.`);
           }
@@ -196,6 +207,17 @@ export function crossCheck(set: ContentSet): string[] {
   return problems;
 }
 
+/**
+ * Problems with an edited dungeon and the adventures it is assigned to,
+ * checked against everything else. Empty means it is safe to save.
+ */
+export function checkDungeonEdit(dungeon: unknown, adventures: AdventureDefinition[], current: ContentSet): string[] {
+  const parsed = dungeonSchema.safeParse(dungeon);
+  if (!parsed.success) return parsed.error.issues.map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message));
+  const dungeons = [...current.dungeons.filter((d) => d.id !== parsed.data.id), parsed.data];
+  return crossCheck({ ...current, dungeons, adventures });
+}
+
 /** Problems with a changed collection, checked against the rest of the content as it stands. */
 export function checkCollection(key: CollectionKey, data: unknown, current: ContentSet): string[] {
   let parsed: { id: string }[];
@@ -215,9 +237,8 @@ export const CONTENT: ContentSet = {
   abilities: parseList(abilitySchema, abilitiesJson, 'ability'),
   monsters: parseList(monsterSchema, monstersJson, 'monster'),
   premades: parseList(premadeSchema, premadesJson, 'pre-built merc'),
-  // Adventures are one file each; add new ones to this list.
-  adventures: parseList(adventureSchema, [greywaterFord], 'adventure'),
-  dungeons: parseList(dungeonSchema, Object.values(dungeonFiles), 'dungeon'),
+  adventures: parseList(adventureSchema, byFileName(adventureFiles), 'adventure'),
+  dungeons: parseList(dungeonSchema, byFileName(dungeonFiles), 'dungeon'),
 };
 
 const contentProblems = crossCheck(CONTENT);

@@ -152,6 +152,11 @@ describe('movement', () => {
     expect(state.dungeon!.log.at(-1)).toBe('You cannot find a way there.');
   });
 
+  it('says when a tile has not been explored yet', () => {
+    const state = setDestination(enterDungeon(party(), tiny), tiny, { x: 10, y: 3 });
+    expect(state.dungeon!.log.at(-1)).toBe('You have not explored a way there yet.');
+  });
+
   it('walks one tile per step and reveals as it goes', () => {
     let state = setDestination(enterDungeon(party(), tiny), tiny, { x: 3, y: 1 });
     state = stepParty(state, tiny, dungeonContext(state));

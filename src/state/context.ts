@@ -1,4 +1,4 @@
-import { getClass, getDialogue, getDungeon, getItem, getMonster, getRace } from '../content';
+import { getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getRace } from '../content';
 import { finalStats, mercSheet, type DialogueContext, type DungeonContext, type GameState, type Merc } from '../engine';
 
 function maxHpOf(merc: Merc): number {
@@ -10,6 +10,7 @@ export const dialogueContext: DialogueContext = {
   statsOf: (merc) => finalStats(merc, getRace(merc.raceId)),
   maxHpOf,
   getDungeon,
+  defaultDungeon: (state) => (state.adventureId ? getAdventure(state.adventureId).dungeons[0] : undefined),
 };
 
 /** Map moves also open dialogues from the current adventure. */

@@ -1,10 +1,14 @@
 import { create } from 'zustand';
-import { createInitialState, startNewGame, type GameState } from '../engine';
+import { getDungeon, PREMADES, premadeToDraft } from '../content';
+import { addMerc, createInitialState, enterDungeon, setLeader, startNewGame, type GameState } from '../engine';
 import { createDefaultSaveStore, type SaveRecord } from '../platform/saveStore';
+
+export type Tool = 'contentEditor' | 'dungeonMaker';
+const TOOLS: Tool[] = ['contentEditor', 'dungeonMaker'];
 
 interface GameStore {
   game: GameState;
-  /** The save slot the current game autosaves into; null on the main menu. */
+  /** The save slot the current game autosaves into; null on the main menu or in test play. */
   activeSlot: string | null;
   saves: SaveRecord[];
   /** False until the first read of storage finishes. */
@@ -12,8 +16,12 @@ interface GameStore {
   /** Set when reading or writing storage fails, so the menu can say so. */
   saveError: string | null;
   /** A developer tool open instead of the game, such as the content editor. */
-  tool: 'contentEditor' | null;
-  openTool: (tool: 'contentEditor' | null) => void;
+  tool: Tool | null;
+  openTool: (tool: Tool | null) => void;
+  /** Set while trying out a dungeon from the dungeon maker. Nothing is saved. */
+  testPlay: { dungeonId: string } | null;
+  startTestPlay: (dungeonId: string, adventureId: string) => void;
+  endTestPlay: () => void;
 
   /** Runs an engine command against the current game. */
   apply: (command: (game: GameState) => GameState) => void;
@@ -32,6 +40,22 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function rememberTool(tool: Tool | null) {
+  try {
+    if (tool) sessionStorage.setItem('allerya.tool', tool);
+    else sessionStorage.removeItem('allerya.tool');
+  } catch {
+    // Storage can be unavailable; the tool just will not reopen after a reload.
+  }
+}
+
+/** The first four pre-built mercs, led by the first, dropped at a dungeon's start. */
+function testParty(dungeonId: string, adventureId: string): GameState {
+  let game: GameState = { ...startNewGame(randomSeed()), adventureId };
+  for (const premade of PREMADES.slice(0, 4)) game = addMerc(game, premadeToDraft(premade));
+  return enterDungeon(setLeader(game, 'merc-1'), getDungeon(dungeonId));
+}
+
 export const useGameStore = create<GameStore>((set, get) => ({
   game: createInitialState(),
   activeSlot: null,
@@ -40,13 +64,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   saveError: null,
   tool: readOpenTool(),
   openTool: (tool) => {
-    try {
-      if (tool) sessionStorage.setItem('allerya.tool', tool);
-      else sessionStorage.removeItem('allerya.tool');
-    } catch {
-      // Storage can be unavailable; the tool just will not reopen after a reload.
-    }
+    rememberTool(tool);
     set({ tool });
+  },
+  testPlay: null,
+  startTestPlay: (dungeonId, adventureId) => {
+    rememberTool('dungeonMaker');
+    set({ tool: null, activeSlot: null, testPlay: { dungeonId }, game: testParty(dungeonId, adventureId) });
+  },
+  endTestPlay: () => {
+    rememberTool('dungeonMaker');
+    set({ tool: 'dungeonMaker', testPlay: null, game: createInitialState() });
   },
 
   apply: (command) => set((s) => ({ game: command(s.game) })),
@@ -69,6 +97,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   backToMenu: () => {
+    if (get().testPlay) {
+      get().endTestPlay();
+      return;
+    }
     set({ game: createInitialState(), activeSlot: null });
     void get().refreshSaves();
   },
@@ -86,10 +118,11 @@ useGameStore.subscribe((now, before) => {
     });
 });
 
-/** Saving content reloads the page in development, so the editor reopens itself. */
-function readOpenTool(): 'contentEditor' | null {
+/** Saving content reloads the page in development, so the open editor reopens itself. */
+function readOpenTool(): Tool | null {
   try {
-    return import.meta.env.DEV && sessionStorage.getItem('allerya.tool') === 'contentEditor' ? 'contentEditor' : null;
+    const stored = sessionStorage.getItem('allerya.tool') as Tool | null;
+    return import.meta.env.DEV && stored && TOOLS.includes(stored) ? stored : null;
   } catch {
     return null;
   }

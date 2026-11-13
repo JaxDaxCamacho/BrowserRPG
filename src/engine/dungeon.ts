@@ -288,7 +288,10 @@ export function setDestination(state: GameState, def: DungeonDefinition, target:
   const dungeon = state.dungeon;
   if (!dungeon) return state;
   const path = findPath(dungeon, def, target);
-  if (!path) return { ...state, dungeon: withLog(dungeon, 'You cannot find a way there.') };
+  if (!path) {
+    const message = isSeen(dungeon, def, target) ? 'You cannot find a way there.' : 'You have not explored a way there yet.';
+    return { ...state, dungeon: withLog(dungeon, message) };
+  }
   return { ...state, dungeon: { ...dungeon, path } };
 }
 

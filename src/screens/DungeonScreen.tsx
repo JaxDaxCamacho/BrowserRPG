@@ -23,6 +23,7 @@ export function DungeonScreen() {
   const game = useGameStore((s) => s.game);
   const apply = useGameStore((s) => s.apply);
   const backToMenu = useGameStore((s) => s.backToMenu);
+  const testPlay = useGameStore((s) => s.testPlay);
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<DungeonView | null>(null);
   const applyRef = useRef(apply);
@@ -117,8 +118,8 @@ export function DungeonScreen() {
             );
           })}
         </ul>
-        <button type="button" onClick={backToMenu}>
-          Menu
+        <button type="button" className={testPlay ? 'primary' : ''} onClick={backToMenu}>
+          {testPlay ? 'Back to the dungeon maker' : 'Menu'}
         </button>
       </header>
 
@@ -131,7 +132,8 @@ export function DungeonScreen() {
           ))}
         </ol>
         <div className="row">
-          {goalDone && <span className="goal-banner">Strongbox recovered. The journey back comes in a later milestone.</span>}
+          {testPlay && <span className="goal-banner">Test play: nothing is saved.</span>}
+          {goalDone && <span className="goal-banner">Goal reached. The journey back comes in a later milestone.</span>}
           {walking && (
             <button type="button" onClick={() => apply(stopWalking)}>
               Stop

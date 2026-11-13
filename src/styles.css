@@ -1166,3 +1166,196 @@ button.option {
     align-items: stretch;
   }
 }
+
+/* ---------- dungeon maker ---------- */
+
+.maker-list {
+  font-family: system-ui, sans-serif;
+}
+
+.maker-list .row input {
+  flex: 1;
+  min-height: 40px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.maker-dungeons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maker-dungeons li {
+  align-items: center;
+}
+
+.maker-dungeons .entry-text {
+  margin-right: auto;
+}
+
+.maker {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 340px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'header header header'
+    'tools canvas side';
+  gap: 10px;
+  padding: 10px 14px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+
+.maker button,
+.maker .button-like {
+  font-size: 0.9rem;
+  min-height: 34px;
+  padding: 5px 10px;
+}
+
+.maker .editor-header {
+  grid-area: header;
+}
+
+.maker-header-actions {
+  margin-left: auto;
+}
+
+.maker-header-actions button {
+  margin-left: 0 !important;
+}
+
+.maker-tools {
+  grid-area: tools;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.maker-tools h3 {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.tool-grid button.active,
+.tile-palette button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tile-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tile-palette button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #000;
+  border-radius: 3px;
+  flex: none;
+}
+
+.maker-canvas-wrap {
+  grid-area: canvas;
+  overflow: auto;
+  background: #0b0908;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.maker-canvas {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.maker-canvas.tool-select {
+  cursor: pointer;
+}
+
+.maker-side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.maker-side .panel h2 {
+  font-size: 1rem;
+  font-family: Georgia, serif;
+}
+
+.maker-side input[type='text'],
+.maker-side input[type='number'],
+.maker-tools input[type='range'] {
+  min-height: 32px;
+  padding: 4px 8px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.maker-adventure {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.maker-adventure .row {
+  align-items: center;
+  padding-left: 26px;
+}
+
+.button-like {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button-like:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+@media (max-width: 900px) {
+  .maker {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'header' 'tools' 'canvas' 'side';
+    grid-template-rows: auto auto minmax(300px, 1fr) auto;
+    overflow-y: auto;
+  }
+}

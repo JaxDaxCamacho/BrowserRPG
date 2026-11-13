@@ -108,6 +108,8 @@ export interface DialogueContext {
   statsOf: (merc: Merc) => Stats;
   maxHpOf: (merc: Merc) => number;
   getDungeon: (dungeonId: string) => DungeonDefinition;
+  /** The dungeon an `end: "dungeon"` outcome enters when it names none: the adventure's first. */
+  defaultDungeon: (state: GameState) => string | undefined;
 }
 
 export function startDialogue(
@@ -259,7 +261,9 @@ function advance(state: GameState, to: Pick<Outcome, 'goto' | 'end' | 'dungeon'>
   if (!state.dialogue) return state;
   if (to.goto) return { ...state, dialogue: { ...state.dialogue, nodeId: to.goto, result: null } };
   const closed: GameState = { ...state, dialogue: null, screen: to.end ?? 'dungeon' };
-  if (to.dungeon) return enterDungeon(closed, ctx.getDungeon(to.dungeon));
+  // Ending on the map with no map in progress enters a dungeon: the one named, or the adventure's first.
+  const target = to.dungeon ?? (closed.screen === 'dungeon' && !closed.dungeon ? ctx.defaultDungeon(closed) : undefined);
+  if (target) return enterDungeon(closed, ctx.getDungeon(target));
   return closed;
 }
 
