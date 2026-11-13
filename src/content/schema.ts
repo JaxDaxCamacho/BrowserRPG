@@ -171,6 +171,12 @@ const ammoItem = z.strictObject({
   extraDamage: z.strictObject({ damageType, amount: z.number().int().positive() }).optional(),
 });
 
+const kitItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('kit'),
+  use: z.enum(['healInjury']),
+});
+
 /** Body armour must sit in the bands agreed for each weight. */
 const BODY_ARMOUR_BANDS = {
   clothing: { defense: [0, 0], physical: [0, 0] },
@@ -180,7 +186,7 @@ const BODY_ARMOUR_BANDS = {
 } as const;
 
 export const itemSchema = z
-  .discriminatedUnion('kind', [weaponItem, armourItem, shieldItem, trinketItem, potionItem, ammoItem])
+  .discriminatedUnion('kind', [weaponItem, armourItem, shieldItem, trinketItem, potionItem, ammoItem, kitItem])
   .superRefine((item, ctx) => {
     if (item.kind === 'weapon') {
       if ((item.attack.kind === 'melee') !== (item.range === 0)) {

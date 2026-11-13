@@ -464,6 +464,16 @@
     "encounters": 2
   },
   {
+    "id": "healing-kit",
+    "kind": "kit",
+    "name": "Healing Kit",
+    "icon": "loot/action/actionloot-60",
+    "description": "Splints, salves and stitching. Cures one injury during a long rest.",
+    "value": 2500,
+    "starter": false,
+    "use": "healInjury"
+  },
+  {
     "id": "arrows",
     "kind": "ammo",
     "name": "Arrows",

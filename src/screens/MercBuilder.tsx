@@ -68,6 +68,7 @@ export function describeItem(item: ItemDefinition): string {
       return `${item.ammoType}s${item.bonusHit ? `, hit +${item.bonusHit}` : ''}${item.extraDamage ? `, +${item.extraDamage.amount} ${item.extraDamage.damageType}` : ''}`;
     case 'trinket':
     case 'potion':
+    case 'kit':
       return item.description ?? '';
   }
 }

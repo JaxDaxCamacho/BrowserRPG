@@ -569,12 +569,17 @@
               "id": "take",
               "text": "Take the bottles.",
               "outcome": {
-                "text": "Two healing draughts.",
+                "text": "Two healing draughts, and under them a guild healing kit.",
                 "effects": [
                   {
                     "type": "giveItem",
                     "itemId": "healing-draught",
                     "quantity": 2
+                  },
+                  {
+                    "type": "giveItem",
+                    "itemId": "healing-kit",
+                    "quantity": 1
                   },
                   {
                     "type": "resolveFeature"

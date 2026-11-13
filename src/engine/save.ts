@@ -52,6 +52,19 @@ const MIGRATIONS: Record<number, (save: Loose) => Loose> = {
       encounter: encounter ? { featureId: encounter.featureId, returnTo: encounter.returnTo } : null,
     };
   },
+  // v6 added lasting injuries, death, and one long rest per dungeon level. A fight in progress restarts.
+  5: (save) => {
+    const party = Array.isArray(save.party) ? (save.party as Loose[]) : [];
+    const dungeon = save.dungeon as Loose | null | undefined;
+    const encounter = save.encounter as Loose | null | undefined;
+    return {
+      ...save,
+      version: 6,
+      party: party.map((merc) => ({ ...merc, injuries: [], dead: false })),
+      dungeon: dungeon ? { ...dungeon, rested: false } : null,
+      encounter: encounter ? { featureId: encounter.featureId, returnTo: encounter.returnTo } : null,
+    };
+  },
 };
 
 /**

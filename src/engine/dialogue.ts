@@ -3,6 +3,8 @@ import { rollDice } from './dice';
 import type { DungeonDefinition } from './dungeon';
 import { enterDungeon } from './dungeon';
 import type { GameState, Screen } from './gameState';
+import { ensureLiveLeader, knockDown } from './injuries';
+import type { RaceDefinition } from './race';
 import type { Merc } from './merc';
 import { getLeader } from './party';
 import { statModifier, type StatName, type Stats } from './stats';
@@ -107,6 +109,7 @@ export interface DialogueState {
 export interface DialogueContext {
   statsOf: (merc: Merc) => Stats;
   maxHpOf: (merc: Merc) => number;
+  raceOf: (merc: Merc) => RaceDefinition;
   getDungeon: (dungeonId: string) => DungeonDefinition;
   /** The dungeon an `end: "dungeon"` outcome enters when it names none: the adventure's first. */
   defaultDungeon: (state: GameState) => string | undefined;
@@ -222,8 +225,16 @@ function applyEffects(
           if (effect.type === 'damage') {
             const wounds = Math.min(max, merc.wounds + rolled.value);
             const down = wounds >= max;
-            updateMerc(merc.id, (m) => ({ ...m, wounds, down }));
-            notes.push(`${merc.name} takes ${rolled.value} damage${down ? ' and goes down' : ''}.`);
+            notes.push(`${merc.name} takes ${rolled.value} damage.`);
+            if (down) {
+              // Going down outside a fight injures just the same.
+              const fall = knockDown({ ...merc, wounds }, ctx.raceOf(merc), next.rngSeed);
+              next = { ...next, rngSeed: fall.seed };
+              updateMerc(merc.id, () => ({ ...fall.merc, wounds }));
+              notes.push(fall.line);
+            } else {
+              updateMerc(merc.id, (m) => ({ ...m, wounds }));
+            }
           } else {
             const wounds = Math.max(0, merc.wounds - rolled.value);
             updateMerc(merc.id, (m) => ({ ...m, wounds }));
@@ -253,7 +264,7 @@ function applyEffects(
       }
     }
   }
-  return { state: next, notes };
+  return { state: ensureLiveLeader(next), notes };
 }
 
 /** Moves to the outcome's next node, or ends the dialogue. */

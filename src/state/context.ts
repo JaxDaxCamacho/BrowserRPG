@@ -15,8 +15,10 @@ function maxHpOf(merc: Merc): number {
 
 /** Gives the engine what it needs from content: stats and hit points depend on race, class and gear. */
 export const dialogueContext: DialogueContext = {
+  // Includes injuries; gear does not count towards checks.
   statsOf: (merc) => finalStats(merc, getRace(merc.raceId)),
   maxHpOf,
+  raceOf: (merc) => getRace(merc.raceId),
   getDungeon,
   defaultDungeon: (state) => (state.adventureId ? getAdventure(state.adventureId).dungeons[0] : undefined),
 };

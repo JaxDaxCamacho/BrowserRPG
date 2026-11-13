@@ -114,7 +114,13 @@ export interface AmmoItem extends ItemBase {
   extraDamage?: { damageType: DamageType; amount: number };
 }
 
-export type ItemDefinition = WeaponItem | ArmourItem | ShieldItem | TrinketItem | PotionItem | AmmoItem;
+/** Supplies used outside fights. A healing kit cures one injury during a long rest. */
+export interface KitItem extends ItemBase {
+  kind: 'kit';
+  use: 'healInjury';
+}
+
+export type ItemDefinition = WeaponItem | ArmourItem | ShieldItem | TrinketItem | PotionItem | AmmoItem | KitItem;
 export type ItemKind = ItemDefinition['kind'];
 
 export type ItemLookup = (id: string) => ItemDefinition;
@@ -275,6 +281,7 @@ export function gearTotals(equipment: Equipment, getItem: ItemLookup): GearTotal
         break;
       case 'potion':
       case 'ammo':
+      case 'kit':
         break;
     }
   }

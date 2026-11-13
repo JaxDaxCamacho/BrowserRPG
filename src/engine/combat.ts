@@ -7,7 +7,8 @@ import { weaponAttack, type AmmoItem, type ItemEffect, type ItemLookup } from '.
 import type { Merc as MercType, MercSheet } from './merc';
 import type { AbilityDefinition, EnemyArchetype, MonsterDefinition } from './monsters';
 import { getLeader } from './party';
-import { raceCritThreshold, raceXpMultiplier, type RaceDefinition, type WeaponType } from './race';
+import { ensureLiveLeader, knockDown } from './injuries';
+import { raceCritThreshold, raceDeathSaveDifficulty, raceXpMultiplier, type RaceDefinition, type WeaponType } from './race';
 import { applyStatChanges, statModifier, type StatChanges, type Stats } from './stats';
 
 /**
@@ -65,6 +66,10 @@ export interface Combatant {
   attack: CombatAttack;
   /** Lowest natural roll that crits with the basic attack. */
   critThreshold: number;
+  /** Mercs only: the d20 a Cursed merc needs to avoid an injury when going down, or null. */
+  deathSave: number | null;
+  /** Mercs only: killed by a fourth injury in this fight. */
+  dead: boolean;
 }
 
 export interface CombatEvent {
@@ -272,7 +277,8 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   };
 
   const combatants: Combatant[] = [];
-  for (const merc of state.party) {
+  // The dead take no part.
+  for (const merc of state.party.filter((m) => !m.dead)) {
     const sheet = ctx.sheetOf(merc);
     const { attack, critThreshold } = mercAttack(merc, ctx);
     const potionBuffs: Buff[] = (merc.potionEffects ?? []).map((p) => {
@@ -298,6 +304,8 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
       abilityIds: sheet.gearAbilityIds,
       attack,
       critThreshold,
+      deathSave: raceDeathSaveDifficulty(ctx.raceOf(merc)),
+      dead: false,
     });
   }
 
@@ -327,6 +335,8 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
         abilityIds: monster.abilityIds,
         attack: { name: monster.attack.name, range: monster.attack.range, profile: monster.attack.profile, ...(monster.attack.animation ? { animation: monster.attack.animation } : {}) },
         critThreshold: monster.attack.profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD,
+        deathSave: null,
+        dead: false,
       });
     }
   }
@@ -493,11 +503,21 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
       ...(s.animation ? { animation: s.animation } : {}),
     },
   ];
+  let nextSeed = result.seed;
   if (hp === 0 && s.target.hp > 0) {
-    next = withLog(next, `${s.target.name} goes down.`);
     events.push({ kind: 'down', actorId: s.target.id });
+    const merc = s.target.mercId ? next.mercs.find((m) => m.id === s.target.mercId) : undefined;
+    if (merc) {
+      // A merc who goes down takes a lasting injury, or dies at the fourth.
+      const fall = knockDown(merc, { deathSave: s.target.deathSave }, nextSeed);
+      nextSeed = fall.seed;
+      next = withLog({ ...next, mercs: next.mercs.map((m) => (m.id === merc.id ? fall.merc : m)) }, fall.line);
+      if (fall.outcome.kind === 'dead') next = updateCombatant(next, s.target.id, (x) => ({ ...x, dead: true }));
+    } else {
+      next = withLog(next, `${s.target.name} goes down.`);
+    }
   }
-  return { combat: { ...next, events: [...next.events, ...events] }, seed: result.seed };
+  return { combat: { ...next, events: [...next.events, ...events] }, seed: nextSeed };
 }
 
 function spendShot(c: CombatState, actor: Combatant): CombatState {
@@ -736,7 +756,9 @@ export function finishCombat(state: GameState, ctx: CombatContext): GameState {
   const xp = c.outcome === 'victory' ? shareXp(c, ctx) : {};
 
   const party = c.mercs.map((merc) => {
-    const x = c.combatants.find((k) => k.mercId === merc.id)!;
+    const x = c.combatants.find((k) => k.mercId === merc.id);
+    // Mercs who were already dead took no part.
+    if (!x || merc.dead) return { ...merc, down: true };
     const down = x.hp === 0 && c.outcome !== 'victory';
     const hp = x.hp === 0 && c.outcome === 'victory' ? 1 : x.hp;
     // Lasting potions count down one encounter per fight.
@@ -748,7 +770,7 @@ export function finishCombat(state: GameState, ctx: CombatContext): GameState {
 
   const gained = Object.values(xp)[0];
   const line = c.outcome === 'victory' ? `Victory${gained ? `: +${gained} XP each` : ''}.` : 'You escape the fight.';
-  return {
+  return ensureLiveLeader({
     ...state,
     party,
     screen: 'dungeon',
@@ -758,7 +780,7 @@ export function finishCombat(state: GameState, ctx: CombatContext): GameState {
       ...(c.outcome === 'victory' ? { resolved: [...dungeon.resolved, c.featureId] } : { pos: state.encounter.returnTo, path: [] }),
       log: [...dungeon.log, line].slice(-30),
     },
-  };
+  });
 }
 
 /** After a defeat: start the same fight again from the moment it began. */

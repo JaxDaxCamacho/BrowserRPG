@@ -12,6 +12,7 @@ import {
   type ItemLookup,
   type Loadout,
 } from './items';
+import { injuryStatChanges, type Injury } from './injuries';
 import { raceBaseArmour, raceBonusHp, type RaceDefinition } from './race';
 import {
   applyStatChanges,
@@ -56,15 +57,23 @@ export interface Merc extends Omit<MercDraft, 'loadout'> {
   down: boolean;
   /** Potions still working, and for how many more encounters. */
   potionEffects: { itemId: string; encounters: number }[];
+  /** Lasting injuries from being knocked down; each lowers stats until healed. */
+  injuries: Injury[];
+  /** Killed by a fourth injury. Dead mercs stay on the roster but take no part. */
+  dead: boolean;
 }
 
-/** Base stats with the race's fixed changes and chosen bonuses applied (no gear). */
-export function finalStats(merc: Pick<MercDraft, 'baseStats' | 'raceChoices'>, race: RaceDefinition): Stats {
+/** Base stats with the race's fixed changes, chosen bonuses and any injuries applied (no gear). */
+export function finalStats(
+  merc: Pick<MercDraft, 'baseStats' | 'raceChoices'> & { injuries?: Injury[] },
+  race: RaceDefinition,
+): Stats {
   const chosen: StatChanges = {};
   for (const name of merc.raceChoices) {
     chosen[name] = (chosen[name] ?? 0) + (race.statChoices?.amount ?? 0);
   }
-  return applyStatChanges(applyStatChanges(merc.baseStats, race.statChanges), chosen);
+  const withRace = applyStatChanges(applyStatChanges(merc.baseStats, race.statChanges), chosen);
+  return merc.injuries?.length ? applyStatChanges(withRace, injuryStatChanges(merc.injuries)) : withRace;
 }
 
 export interface GearContext {
@@ -106,10 +115,10 @@ export function validateDraft(draft: MercDraft, race: RaceDefinition, gear: Gear
 /** Turns a validated draft into the starting equipment, inventory and purse of a new merc. */
 export function startingKit(
   draft: MercDraft,
-): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down' | 'potionEffects'> {
+): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down' | 'potionEffects' | 'injuries' | 'dead'> {
   const equipment: Equipment = { ...draft.loadout };
   const inventory: InventoryStack[] = draft.loadout.ammo ? [{ itemId: draft.loadout.ammo, quantity: STARTING_AMMO }] : [];
-  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false, potionEffects: [] };
+  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false, potionEffects: [], injuries: [], dead: false };
 }
 
 export interface MercSheet {
@@ -123,6 +132,7 @@ export interface MercSheet {
 }
 
 type SheetSource = Pick<MercDraft, 'baseStats' | 'raceChoices'> & {
+  injuries?: Injury[];
   level?: number;
   equipment?: Equipment;
   loadout?: Loadout;

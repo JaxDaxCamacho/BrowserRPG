@@ -111,6 +111,8 @@ export interface DungeonState {
   noticed: string[];
   /** Recent messages, newest last. */
   log: string[];
+  /** The one long rest allowed on this level has been taken. */
+  rested: boolean;
 }
 
 export interface EncounterState {
@@ -237,6 +239,7 @@ export function enterDungeon(state: GameState, def: DungeonDefinition): GameStat
     resolved: [],
     noticed: [],
     log: [`You enter ${def.name}.`],
+    rested: false,
   };
   return { ...state, screen: 'dungeon', dungeon, encounter: null };
 }
