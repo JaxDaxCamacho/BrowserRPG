@@ -49,6 +49,22 @@ This resizes the images (and compresses the sounds) into `asset-library/` (git-i
 `weapons/swords/sv-t-01`; anything missing shows a placeholder, so the game still runs
 without the packs. Use `ASSETS_DIR=...` if the packs live somewhere else.
 
+## Online co-op
+
+Up to four players: one hosts, three join. The host opens a game and chooses **Host co-op** (on
+adventure select or the dungeon bar) to get a five-letter join code. The others choose **Join a co-op
+game** on the main menu, type the code and pick a merc to play; the host plays every merc nobody else
+does, and takes a merc back if its player drops out (rejoining from the same browser gets it back).
+
+- The host's game is the only one that changes the state and rolls dice. The others send what they do
+  as commands (`src/state/commands.ts`), which the host checks: you can only act on your own merc's
+  turn, change your own merc's gear and talents, and move a group your merc is in.
+- Everyone sees the same screen; while the party is split, that is whichever fight or group has the turn.
+- Conversations are decided by vote among the players whose mercs are present; the leader's player
+  breaks ties.
+- Browsers connect directly (WebRTC through PeerJS). PeerJS's free public server only introduces them,
+  so it sees the join code but never the game. Only the host's game is saved.
+
 ## Content editor
 
 Run `npm run dev` and choose **Content Editor** on the main menu (development builds only).

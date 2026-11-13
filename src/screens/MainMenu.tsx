@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { getLeader, type GameState } from '../engine';
 import { SAVE_SLOTS, type SaveRecord } from '../platform/saveStore';
 import { useGameStore } from '../state/store';
+import { JoinPanel } from './Coop';
 
-type View = 'main' | 'newGame' | 'continue';
+type View = 'main' | 'newGame' | 'continue' | 'join';
 
 const SCREEN_LABELS: Record<GameState['screen'], string> = {
   menu: 'Main menu',
@@ -41,6 +42,8 @@ export function MainMenu() {
 
   const saveIn = (slotId: string) => saves.find((s) => s.slotId === slotId);
 
+  if (view === 'join') return <JoinPanel onBack={() => setView('main')} />;
+
   if (view === 'main') {
     return (
       <main className="screen menu">
@@ -57,6 +60,9 @@ export function MainMenu() {
             onClick={() => setView('continue')}
           >
             Continue
+          </button>
+          <button type="button" onClick={() => setView('join')}>
+            Join a co-op game
           </button>
           {import.meta.env.DEV && (
             <>

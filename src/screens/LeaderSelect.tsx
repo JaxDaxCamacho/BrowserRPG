@@ -1,10 +1,9 @@
-import { confirmLeader, goToScreen, setLeader } from '../engine';
 import { useGameStore } from '../state/store';
 import { MercCard } from './MercCard';
 
 export function LeaderSelect() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
 
   return (
     <main className="screen wide">
@@ -20,16 +19,16 @@ export function LeaderSelect() {
             merc={merc}
             selected={merc.id === game.leaderId}
             badge={merc.id === game.leaderId ? 'Leader' : undefined}
-            onSelect={() => apply((g) => setLeader(g, merc.id))}
+            onSelect={() => dispatch({ type: 'setLeader', mercId: merc.id })}
           />
         ))}
       </div>
 
       <footer className="screen-footer">
-        <button type="button" onClick={() => apply((g) => goToScreen(g, 'partyCreation'))}>
+        <button type="button" onClick={() => dispatch({ type: 'goToScreen', screen: 'partyCreation' })}>
           Back to party
         </button>
-        <button type="button" className="primary" disabled={!game.leaderId} onClick={() => apply(confirmLeader)}>
+        <button type="button" className="primary" disabled={!game.leaderId} onClick={() => dispatch({ type: 'confirmLeader' })}>
           Confirm leader
         </button>
       </footer>

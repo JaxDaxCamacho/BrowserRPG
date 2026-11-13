@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { getItem } from '../content';
-import { breakCamp, healingKitsHeld, longRest, restBlocker } from '../engine';
+import { healingKitsHeld, restBlocker } from '../engine';
 import { useGameStore } from '../state/store';
+import { useControl } from '../state/net';
 import { Token } from './MercCard';
 import { TrainingPanel } from './TrainingPanel';
 
 /** Making camp: once per dungeon level, recover HP and spend healing kits on injuries. */
 export function RestDialog({ onClose }: { onClose: () => void }) {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
+  const { isHost } = useControl();
   const [cure, setCure] = useState<{ mercId: string; injuryId: string }[]>([]);
   const kits = healingKitsHeld(game, getItem);
   const blocker = restBlocker(game);
@@ -18,7 +20,8 @@ export function RestDialog({ onClose }: { onClose: () => void }) {
   // After resting, the party stays at camp to train until it packs up.
   if (game.dungeon?.camping) {
     const packUp = () => {
-      apply(breakCamp);
+      // The host packs up camp; a joined player just closes the window.
+      if (isHost) dispatch({ type: 'breakCamp' });
       onClose();
     };
     return (
@@ -86,8 +89,9 @@ export function RestDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             className="primary"
-            disabled={!!blocker}
-            onClick={() => apply((g) => longRest(g, { cure }, getItem))}
+            disabled={!!blocker || !isHost}
+            title={isHost ? undefined : 'The host makes camp.'}
+            onClick={() => dispatch({ type: 'longRest', cure })}
           >
             Rest
           </button>

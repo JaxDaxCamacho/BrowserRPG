@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { ADVENTURES, getDialogue } from '../content';
-import { formatCoins, goToScreen, isAdventureComplete, startAdventure } from '../engine';
+import { ADVENTURES } from '../content';
+import { formatCoins, isAdventureComplete } from '../engine';
 import { useGameStore } from '../state/store';
+import { CoopWindow } from './Coop';
 import { mercsWithPoints, TrainingDialog } from './TrainingPanel';
 
 export function AdventureSelect() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
   const testPlay = useGameStore((s) => s.testPlay);
   const backToMenu = useGameStore((s) => s.backToMenu);
   const [training, setTraining] = useState(false);
+  const [coop, setCoop] = useState(false);
+  const online = useGameStore((s) => !!s.net);
   const ready = mercsWithPoints(game.party);
 
   const open = ADVENTURES.filter((a) => !isAdventureComplete(game, a.id));
@@ -35,7 +38,7 @@ export function AdventureSelect() {
             <button
               type="button"
               className="primary"
-              onClick={() => apply((g) => startAdventure(g, adventure.id, getDialogue(adventure.id, adventure.debrief)))}
+              onClick={() => dispatch({ type: 'startAdventure', adventureId: adventure.id })}
             >
               Take the job
             </button>
@@ -59,6 +62,11 @@ export function AdventureSelect() {
       </div>
 
       <footer className="screen-footer">
+        {!testPlay && (
+          <button type="button" onClick={() => setCoop(true)} title="Play with up to three friends online">
+            {online ? 'Co-op players' : 'Host co-op'}
+          </button>
+        )}
         <button type="button" className={ready.length > 0 ? 'primary' : ''} onClick={() => setTraining(true)}>
           Train{ready.length > 0 && ` (${ready.length} ready)`}
         </button>
@@ -67,12 +75,13 @@ export function AdventureSelect() {
             Back to the dungeon maker
           </button>
         ) : (
-          <button type="button" onClick={() => apply((g) => goToScreen(g, 'leaderSelect'))}>
+          <button type="button" onClick={() => dispatch({ type: 'goToScreen', screen: 'leaderSelect' })}>
             Back to leader
           </button>
         )}
       </footer>
       {training && <TrainingDialog onClose={() => setTraining(false)} />}
+      {coop && <CoopWindow onClose={() => setCoop(false)} />}
     </main>
   );
 }

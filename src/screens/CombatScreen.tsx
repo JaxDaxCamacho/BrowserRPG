@@ -3,31 +3,19 @@ import { getDungeon } from '../content';
 import {
   abilityTargets,
   activeCombatant,
-  attack,
   attackTargets,
   ATTACK_STAT,
-  defend,
   effectiveDefense,
-  endTurn,
   featureById,
-  finishCombat,
-  flee,
   isAiControlled,
-  kick,
   kickTargets,
   isEngaged,
-  moveTo,
   obstacleTargets,
   OBSTACLE_PRESETS,
   reachableTiles,
-  retryCombat,
-  runEnemyStep,
   shareXp,
-  startCombat,
   statModifier,
   effectiveStats,
-  castAbility,
-  drinkPotion,
   type AbilityDefinition,
   type AttackRoll,
   type CombatEvent,
@@ -38,6 +26,7 @@ import {
   type StatusKind,
 } from '../engine';
 import { combatContext } from '../state/context';
+import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
 import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
 import { ActionBar, needsPick, slotsFor } from './ActionBar';
@@ -328,8 +317,9 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aim
 
 export function CombatScreen() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
   const backToMenu = useGameStore((s) => s.backToMenu);
+  const { isClient, controls, playerOf } = useControl();
   const assets = useAssetIndex();
   const [targeting, setTargeting] = useState<Targeting | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
@@ -401,8 +391,9 @@ export function CombatScreen() {
 
   // Start the fight the first time this screen opens for an encounter.
   useEffect(() => {
-    if (game.encounter && !game.encounter.combat) apply((g) => startCombat(g, combatContext));
-  }, [game.encounter, apply]);
+    // Only the game that owns the state (alone, or the host) runs the fight.
+    if (!isClient && game.encounter && !game.encounter.combat) dispatch({ type: 'startCombat' });
+  }, [game.encounter, dispatch, isClient]);
 
   // Play the last action's animations, numbers and projectiles.
   useEffect(() => {
@@ -448,12 +439,12 @@ export function CombatScreen() {
 
   // Enemies (and summons) take their turns by themselves, one step at a time, each once the last has played out.
   const actor = live && !live.outcome ? activeCombatant(live) : null;
-  const enemyTurnKey = actor && isAiControlled(actor) && !revealing ? `${live!.round}-${live!.turn}-${live!.seq}` : null;
+  const enemyTurnKey = actor && isAiControlled(actor) && !revealing && !isClient ? `${live!.round}-${live!.turn}-${live!.seq}` : null;
   useEffect(() => {
     if (!enemyTurnKey) return;
-    const timer = window.setTimeout(() => apply((g) => runEnemyStep(g, combatContext)), ENEMY_DELAY_MS);
+    const timer = window.setTimeout(() => dispatch({ type: 'enemyStep' }), ENEMY_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [enemyTurnKey, apply]);
+  }, [enemyTurnKey, dispatch]);
 
   // A new turn clears any half-chosen action.
   useEffect(() => {
@@ -482,7 +473,8 @@ export function CombatScreen() {
 
   const def = getDungeon(game.dungeon.dungeonId);
   const feature = featureById(def, live.featureId);
-  const yourTurn = !!actor && !isAiControlled(actor);
+  // Your turn: a merc you play is acting. In co-op, other players' mercs act on their own screens.
+  const yourTurn = !!actor && !isAiControlled(actor) && controls(actor.mercId);
   // The bar shows the selected merc, or else whoever is acting; only the acting merc's bar can be used.
   const picked = viewId ? live.combatants.find((x) => x.id === viewId && x.side === 'party' && !x.summoned) : undefined;
   const viewed = picked ?? (yourTurn ? actor : undefined);
@@ -528,9 +520,9 @@ export function CombatScreen() {
 
   const pick = (id: string) => {
     if (!targeting) return;
-    if (targeting.kind === 'attack') apply((g) => attack(g, id));
-    else if (targeting.kind === 'kick') apply((g) => kick(g, id));
-    else apply((g) => castAbility(g, targeting.ability.id, id, combatContext));
+    if (targeting.kind === 'attack') dispatch({ type: 'attack', targetId: id });
+    else if (targeting.kind === 'kick') dispatch({ type: 'kick', targetId: id });
+    else dispatch({ type: 'cast', abilityId: targeting.ability.id, targetId: id });
     cancel();
   };
 
@@ -557,16 +549,16 @@ export function CombatScreen() {
           setSelected(i);
         } else {
           cancel();
-          apply((g) => castAbility(g, slot.ability.id, null, combatContext));
+          dispatch({ type: 'cast', abilityId: slot.ability.id, targetId: null });
         }
         return;
       case 'potion':
         cancel();
-        apply((g) => drinkPotion(g, slot.itemId, combatContext));
+        dispatch({ type: 'drink', itemId: slot.itemId });
         return;
       case 'defend':
         cancel();
-        apply(defend);
+        dispatch({ type: 'defend' });
         return;
     }
   };
@@ -620,7 +612,7 @@ export function CombatScreen() {
                       type="button"
                       className="cell-move"
                       aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
-                      onClick={() => apply((g) => moveTo(g, p))}
+                      onClick={() => dispatch({ type: 'move', to: p })}
                     />
                   )}
                   {obstacle && (
@@ -675,7 +667,7 @@ export function CombatScreen() {
       <footer className="combat-footer">
         <div className="combat-actions">
           {combat.outcome ? (
-            <Outcome combat={combat} onContinue={() => apply((g) => finishCombat(g, combatContext))} onRetry={() => apply((g) => retryCombat(g, combatContext))} onMenu={backToMenu} />
+            <Outcome combat={combat} onContinue={() => dispatch({ type: 'finishCombat' })} onRetry={() => dispatch({ type: 'retryCombat' })} onMenu={backToMenu} />
           ) : viewed ? (
             <>
               <p className="turn-title">
@@ -715,16 +707,20 @@ export function CombatScreen() {
                 onCancel={cancel}
                 onEndTurn={() => {
                   cancel();
-                  apply(endTurn);
+                  dispatch({ type: 'endTurn' });
                 }}
                 onFlee={() => {
                   cancel();
-                  apply((g) => flee(g, combatContext));
+                  dispatch({ type: 'flee' });
                 }}
               />
             </>
           ) : (
-            <p className="turn-title dim">{actor ? `${actor.name} is acting… Click one of your mercs to see their actions.` : ''}</p>
+            <p className="turn-title dim">
+              {actor
+                ? `${actor.name} is acting${playerOf(actor.mercId) && playerOf(actor.mercId) !== 'you' ? ` (played by ${playerOf(actor.mercId)})` : ''}… Click one of your mercs to see their actions.`
+                : ''}
+            </p>
           )}
         </div>
         <RollReadout rolls={rolls} />

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   MAX_LEVEL,
-  spendStatPoints,
   STAT_NAMES,
   trainingBlocker,
   unspentStatPoints,
@@ -12,6 +11,7 @@ import {
 } from '../engine';
 import { dialogueContext } from '../state/context';
 import { useGameStore } from '../state/store';
+import { useControl } from '../state/net';
 import { Token } from './MercCard';
 import { TalentTreeView } from './TalentTreeView';
 
@@ -60,7 +60,8 @@ export function mercsWithPoints(party: Merc[]): Merc[] {
  */
 export function TrainingPanel() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
+  const { controls } = useControl();
   const [picks, setPicks] = useState<Record<string, StatName[]>>({});
   const [openTree, setOpenTree] = useState<string | null>(null);
   const blocker = trainingBlocker(game);
@@ -80,7 +81,7 @@ export function TrainingPanel() {
       return { ...p, [merc.id]: mine };
     });
   const confirm = () => {
-    apply((g) => Object.entries(picks).reduce((s, [mercId, stats]) => (stats.length ? spendStatPoints(s, mercId, stats) : s), g));
+    for (const [mercId, stats] of Object.entries(picks)) if (stats.length) dispatch({ type: 'spendStatPoints', mercId, picks: stats });
     setPicks({});
   };
 
@@ -93,6 +94,8 @@ export function TrainingPanel() {
           const statLeft = unspentStatPoints(m) - mine.length;
           const talentLeft = unspentTalentPoints(m);
           const stats = dialogueContext.statsOf(m);
+          // In co-op, each player trains only the mercs they play.
+          const yours = controls(m.id);
           return (
             <li key={m.id} className="training-merc">
               <div className="row">
@@ -126,7 +129,7 @@ export function TrainingPanel() {
                             <button
                               type="button"
                               aria-label={`Raise ${STAT_FULL[s]}`}
-                              disabled={!!blocker || statLeft === 0}
+                              disabled={!!blocker || statLeft === 0 || !yours}
                               onClick={() => pick(m, s)}
                             >
                               +

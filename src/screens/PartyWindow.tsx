@@ -1,38 +1,27 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { getClass, getItem, getRace, getTalentTree } from '../content';
 import {
-  arrangeParty,
-  equipFromPack,
   formatCoins,
-  giveStack,
   itemSize,
-  moveInPack,
   naturalSlot,
   PACK_HEIGHT,
   PACK_WIDTH,
   STAT_NAMES,
   statModifier,
-  unequip,
   type EquipSlot,
-  type GearRules,
-  type GameState,
   type Merc,
   unspentStatPoints,
   unspentTalentPoints,
 } from '../engine';
 import { currentHp, sheetOf } from '../state/context';
+import type { GameCommand } from '../state/commands';
+import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
 import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
 import { formatModifier, initials, Token } from './MercCard';
 import { TalentTreeView } from './TalentTreeView';
 import { XpBar } from './TrainingPanel';
-
-const RULES: GearRules = {
-  getItem,
-  raceOf: (m) => getRace(m.raceId),
-  proficiencyOf: (m) => getClass(m.classId).armour,
-};
 
 /** Equipment slots laid out around the figure: [slot, label, grid column, grid row]. */
 const SLOTS: [EquipSlot, string, number, number][] = [
@@ -67,7 +56,8 @@ const CELL = 46;
  */
 export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onClose: () => void; initialMercId?: string; readOnly?: boolean }) {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
+  const { isClient, controls } = useControl();
   const [mercId, setMercId] = useState(
     () => (initialMercId && game.party.some((m) => m.id === initialMercId) ? initialMercId : undefined) ?? game.party.find((m) => !m.dead)?.id ?? game.party[0]!.id,
   );
@@ -78,8 +68,8 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
 
   // Older saves and freshly looted items may not have a place in the grid yet.
   useEffect(() => {
-    if (!readOnly) apply((g) => arrangeParty(g, getItem));
-  }, [apply, readOnly]);
+    if (!readOnly && !isClient) dispatch({ type: 'arrangeParty' });
+  }, [dispatch, readOnly, isClient]);
 
   const merc = game.party.find((m) => m.id === mercId)!;
   const race = getRace(merc.raceId);
@@ -93,14 +83,19 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
   );
 
   /** Runs a change, showing why if it is refused. */
-  const tryApply = (change: (g: GameState) => GameState) => {
+  const tryApply = (cmd: GameCommand) => {
     if (readOnly) {
       setMessage('Gear cannot be changed in the middle of a fight.');
       setPicked(null);
       return;
     }
+    if (!controls(mercId)) {
+      setMessage('Another player plays this merc.');
+      setPicked(null);
+      return;
+    }
     try {
-      apply(change);
+      dispatch(cmd);
       setMessage(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
@@ -109,17 +104,17 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
   };
 
   const equipPicked = (slot: EquipSlot) => {
-    if (picked?.kind === 'pack') tryApply((g) => equipFromPack(g, mercId, picked.index, slot, RULES));
+    if (picked?.kind === 'pack') tryApply({ type: 'equipFromPack', mercId, index: picked.index, slot });
     else setPicked(merc.equipment[slot] ? { kind: 'slot', slot } : null);
   };
 
   const dropOnCell = (x: number, y: number) => {
-    if (picked?.kind === 'pack') tryApply((g) => moveInPack(g, mercId, picked.index, x, y, getItem));
-    else if (picked?.kind === 'slot') tryApply((g) => unequip(g, mercId, picked.slot, RULES, { x, y }));
+    if (picked?.kind === 'pack') tryApply({ type: 'moveInPack', mercId, index: picked.index, x, y });
+    else if (picked?.kind === 'slot') tryApply({ type: 'unequip', mercId, slot: picked.slot, at: { x, y } });
   };
 
   const giveTo = (to: Merc) => {
-    if (picked?.kind === 'pack' && to.id !== mercId) tryApply((g) => giveStack(g, mercId, picked.index, to.id, getItem));
+    if (picked?.kind === 'pack' && to.id !== mercId) tryApply({ type: 'giveStack', mercId, index: picked.index, toId: to.id });
     else {
       setMercId(to.id);
       setPicked(null);
@@ -287,7 +282,7 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
                     className={`equip-slot${picked?.kind === 'slot' && picked.slot === slot ? ' picked' : ''}${accepts ? ' can-drop' : ''}`}
                     style={{ gridColumn: col, gridRow: row }}
                     onClick={() => equipPicked(slot)}
-                    onDoubleClick={() => item && tryApply((g) => unequip(g, mercId, slot, RULES))}
+                    onDoubleClick={() => item && tryApply({ type: 'unequip', mercId, slot })}
                     onDragOver={allowDrop}
                     onDrop={() => equipPicked(slot)}
                     draggable={!!item}
@@ -336,7 +331,7 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
                     onClick={() => setPicked(isPicked ? null : { kind: 'pack', index })}
                     onDoubleClick={() => {
                       const slot = naturalSlot(item, merc);
-                      if (slot) tryApply((g) => equipFromPack(g, mercId, index, slot, RULES));
+                      if (slot) tryApply({ type: 'equipFromPack', mercId, index, slot });
                     }}
                     draggable
                     onDragStart={dragStart({ kind: 'pack', index })}

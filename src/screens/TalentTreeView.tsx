@@ -3,7 +3,6 @@ import { getAbility, getTalentTree } from '../content';
 import {
   pointsInBranch,
   pointsToOpen,
-  spendTalentPoints,
   talentBlocker,
   TIERS,
   trainingBlocker,
@@ -12,6 +11,7 @@ import {
   type TalentDefinition,
 } from '../engine';
 import { useGameStore } from '../state/store';
+import { useControl } from '../state/net';
 import { AssetImage } from './assets';
 import { RESOURCE_LABEL } from './ActionBar';
 import { Tip, useTip } from './Tip';
@@ -34,12 +34,14 @@ function abilityLine(talent: TalentDefinition): string | null {
  */
 export function TalentTreeView({ merc }: { merc: Merc }) {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
+  const { controls } = useControl();
   const [picks, setPicks] = useState<string[]>([]);
   const tree = getTalentTree(merc.classId);
   if (!tree) return <p className="dim note">This class has no talent tree yet.</p>;
 
-  const blocked = trainingBlocker(game);
+  // In co-op, each player learns talents only for the mercs they play.
+  const blocked = trainingBlocker(game) ?? (controls(merc.id) ? null : 'Another player plays this merc.');
   // The merc as they would be with the pending picks taken.
   const planned: Merc = { ...merc, talents: { ...merc.talents } };
   for (const id of picks) planned.talents[id] = (planned.talents[id] ?? 0) + 1;
@@ -63,7 +65,7 @@ export function TalentTreeView({ merc }: { merc: Merc }) {
       return next;
     });
   const learn = () => {
-    apply((g) => spendTalentPoints(g, merc.id, picks, tree));
+    dispatch({ type: 'spendTalentPoints', mercId: merc.id, picks });
     setPicks([]);
   };
 

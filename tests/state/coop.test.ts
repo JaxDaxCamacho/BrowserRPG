@@ -1,0 +1,121 @@
+import { describe, expect, it } from 'vitest';
+import { getDialogue, getDungeon, PREMADES, premadeToDraft } from '../../src/content';
+import { addMerc, castVote, enterDungeon, setLeader, startDialogue, startNewGame, type GameState } from '../../src/engine';
+import { controlsMerc, HOST_ID, newCode, votersFor, type SessionInfo } from '../../src/net/protocol';
+import { commandBlocker, runCommand } from '../../src/state/commands';
+import { dialogueContext } from '../../src/state/context';
+
+function party(): GameState {
+  let s: GameState = { ...startNewGame(5), adventureId: 'greywater-ford' };
+  for (const id of ['aldric-vane', 'pip-larkspur', 'maelis-thorne', 'korg-the-unbowed']) s = addMerc(s, premadeToDraft(PREMADES.find((p) => p.id === id)!));
+  return setLeader(s, 'merc-1');
+}
+
+/** Ana plays Pip (merc-2), Bo plays Maelis (merc-3); the host plays the rest. */
+const session = (boHere = true): SessionInfo => ({
+  code: 'ABCDE',
+  players: [
+    { id: HOST_ID, name: 'Host', connected: true },
+    { id: 'ana', name: 'Ana', connected: true },
+    { id: 'bo', name: 'Bo', connected: boHere },
+  ],
+  seats: { 'merc-2': 'ana', 'merc-3': 'bo' },
+});
+
+describe('seats', () => {
+  it('a player controls the mercs they claimed; the host controls the rest', () => {
+    const s = session();
+    expect(controlsMerc(s, 'ana', 'merc-2')).toBe(true);
+    expect(controlsMerc(s, 'ana', 'merc-3')).toBe(false);
+    expect(controlsMerc(s, HOST_ID, 'merc-1')).toBe(true);
+    expect(controlsMerc(s, HOST_ID, 'merc-2')).toBe(false);
+  });
+
+  it('the host takes over a merc whose player has disconnected', () => {
+    const s = session(false);
+    expect(controlsMerc(s, 'bo', 'merc-3')).toBe(false);
+    expect(controlsMerc(s, HOST_ID, 'merc-3')).toBe(true);
+  });
+
+  it('join codes are short and unambiguous', () => {
+    const code = newCode();
+    expect(code).toMatch(/^[A-HJKMNP-Z2-9]{5}$/);
+  });
+});
+
+describe('who may do what', () => {
+  const ana = (mercId: string) => controlsMerc(session(), 'ana', mercId);
+
+  it('setting up is the host’s job', () => {
+    const g = party();
+    expect(commandBlocker(g, { type: 'confirmParty' }, false, ana)).toMatch(/host/);
+    expect(commandBlocker(g, { type: 'enemyStep' }, false, ana)).toMatch(/host/);
+    expect(commandBlocker(g, { type: 'confirmParty' }, true, () => true)).toBeNull();
+  });
+
+  it('a player changes only their own merc’s gear and training', () => {
+    const g = party();
+    expect(commandBlocker(g, { type: 'unequip', mercId: 'merc-2', slot: 'mainHand' }, false, ana)).toBeNull();
+    expect(commandBlocker(g, { type: 'unequip', mercId: 'merc-1', slot: 'mainHand' }, false, ana)).toMatch(/not your merc/);
+    expect(commandBlocker(g, { type: 'spendTalentPoints', mercId: 'merc-3', picks: [] }, false, ana)).toMatch(/not your merc/);
+  });
+
+  it('a player acts in a fight only on their own merc’s turn', () => {
+    const map = getDungeon('greywater-tower');
+    let g = enterDungeon(party(), map);
+    g = { ...g, screen: 'combat', encounter: { featureId: 'guards', returnTo: map.start } };
+    g = runCommand(g, { type: 'startCombat' });
+    const c = g.encounter!.combat!;
+    const onTurn = (id: string) => ({ ...g, encounter: { ...g.encounter!, combat: { ...c, order: [id, ...c.order.filter((x) => x !== id)], turn: 0 } } });
+    expect(commandBlocker(onTurn('merc-2'), { type: 'endTurn' }, false, ana)).toBeNull();
+    expect(commandBlocker(onTurn('merc-1'), { type: 'endTurn' }, false, ana)).toMatch(/not your turn/);
+  });
+
+  it('walking the party needs a merc in the group that is moving', () => {
+    const g = enterDungeon(party(), getDungeon('greywater-tower'));
+    expect(commandBlocker(g, { type: 'setDestination', pos: { x: 4, y: 3 } }, false, ana)).toBeNull();
+    expect(commandBlocker(g, { type: 'setDestination', pos: { x: 4, y: 3 } }, false, () => false)).toMatch(/None of your mercs/);
+  });
+});
+
+describe('voting in conversations', () => {
+  const debrief = getDialogue('greywater-ford', 'debrief');
+  const atOffice = () => startDialogue(party(), debrief);
+
+  it('everyone present with a merc gets a vote', () => {
+    expect(votersFor(session(), atOffice()).sort()).toEqual(['ana', 'bo', HOST_ID].sort());
+    // Bo is away: the host speaks for Maelis.
+    expect(votersFor(session(false), atOffice()).sort()).toEqual(['ana', HOST_ID].sort());
+  });
+
+  it('waits for every vote, then goes with the majority', () => {
+    const voters = ['host', 'ana', 'bo'];
+    let g = castVote(atOffice(), debrief, 'host', 'ask-pay', voters, 'host', dialogueContext);
+    expect(g.dialogue!.nodeId).toBe('office');
+    expect(g.dialogue!.votes).toEqual({ host: 'ask-pay' });
+    g = castVote(g, debrief, 'ana', 'ask-ford', voters, 'host', dialogueContext);
+    g = castVote(g, debrief, 'bo', 'ask-ford', voters, 'host', dialogueContext);
+    expect(g.dialogue!.nodeId).toBe('ford');
+    expect(g.dialogue!.votes).toBeUndefined();
+  });
+
+  it('a tie goes to the leader’s player', () => {
+    const voters = ['host', 'ana'];
+    let g = castVote(atOffice(), debrief, 'ana', 'ask-ford', voters, 'host', dialogueContext);
+    g = castVote(g, debrief, 'host', 'ask-pay', voters, 'host', dialogueContext);
+    expect(g.dialogue!.nodeId).toBe('pay');
+  });
+
+  it('a vote can be changed before the last one is in, and outsiders cannot vote', () => {
+    const voters = ['host', 'ana'];
+    let g = castVote(atOffice(), debrief, 'ana', 'ask-ford', voters, 'host', dialogueContext);
+    g = castVote(g, debrief, 'ana', 'ask-pay', voters, 'host', dialogueContext);
+    expect(g.dialogue!.votes).toEqual({ ana: 'ask-pay' });
+    expect(() => castVote(g, debrief, 'zed', 'ask-pay', voters, 'host', dialogueContext)).toThrow(/no say/);
+  });
+
+  it('alone, a vote is simply a choice', () => {
+    const g = runCommand(atOffice(), { type: 'vote', optionId: 'ask-ford' });
+    expect(g.dialogue!.nodeId).toBe('ford');
+  });
+});

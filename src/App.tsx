@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { CoopBadge } from './screens/Coop';
 import { DiceTray } from './screens/DiceTray';
 import { ScreenRouter } from './screens/ScreenRouter';
 import { useGameStore } from './state/store';
@@ -21,6 +22,7 @@ export function App() {
     <>
       <ScreenRouter />
       <DiceTray />
+      <CoopBadge />
     </>
   );
 }

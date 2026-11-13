@@ -117,6 +117,8 @@ export interface DialogueState {
   source?: string;
   /** With the party split: the mercs present. Checks and effects only involve them. */
   mercIds?: string[];
+  /** In co-op: each voter's pick for the node on screen, by voter id. */
+  votes?: Record<string, string>;
 }
 
 /** Things the engine needs from outside: final stats and hit points depend on content data. */
@@ -394,3 +396,41 @@ export function continueDialogue(state: GameState, ctx: DialogueContext): GameSt
   if (!result) return state;
   return advance(state, result, ctx);
 }
+
+/**
+ * Co-op: a player votes for an option. Once everyone in `voters` has voted,
+ * the most-picked option is chosen; a tie goes to the `tieBreaker`'s pick
+ * (the leader's player), or else to the option voted for first.
+ */
+export function castVote(
+  state: GameState,
+  dialogue: DialogueDefinition,
+  voterId: string,
+  optionId: string,
+  voters: string[],
+  tieBreaker: string | undefined,
+  ctx: DialogueContext,
+): GameState {
+  const d = state.dialogue;
+  if (!d) throw new Error('No conversation in progress.');
+  if (d.result) throw new Error('Continue past the current result before choosing again.');
+  if (!voters.includes(voterId)) throw new Error('You have no say in this conversation.');
+  const node = currentNode(state, dialogue);
+  const option = node.options.find((o) => o.id === optionId);
+  if (!option) throw new Error(`Node "${node.id}" has no option "${optionId}".`);
+  if (unmetConditions(state, option).length > 0) throw new Error(`Option "${optionId}" is not available.`);
+
+  const votes = { ...(d.votes ?? {}), [voterId]: optionId };
+  if (!voters.every((v) => votes[v])) return { ...state, dialogue: { ...d, votes } };
+
+  // Everyone has voted: count them up.
+  const tally = new Map<string, number>();
+  for (const v of voters) tally.set(votes[v]!, (tally.get(votes[v]!) ?? 0) + 1);
+  const top = Math.max(...tally.values());
+  const leaders = [...tally.entries()].filter(([, n]) => n === top).map(([id]) => id);
+  const firstVoted = Object.values(votes).find((id) => leaders.includes(id))!;
+  const winner = leaders.length === 1 ? leaders[0]! : tieBreaker && leaders.includes(votes[tieBreaker] ?? '') ? votes[tieBreaker]! : firstVoted;
+  const { votes: _v, ...rest } = d;
+  return chooseOption({ ...state, dialogue: rest }, dialogue, winner, ctx);
+}
+

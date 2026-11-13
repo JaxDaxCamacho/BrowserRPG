@@ -1,8 +1,6 @@
 import { getClass, getDialogue, getRace } from '../content';
 import {
   checkMaker,
-  chooseOption,
-  continueDialogue,
   currentNode,
   unmetConditions,
   type Condition,
@@ -11,6 +9,8 @@ import {
   type StatName,
 } from '../engine';
 import { dialogueContext } from '../state/context';
+import { votersFor } from '../net/protocol';
+import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
 import { DieFace } from './Dice';
 import { formatModifier } from './MercCard';
@@ -69,12 +69,21 @@ function CheckReadout({ check }: { check: NonNullable<DialogueResult['check']> }
 
 export function DialogueScreen() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
+  const net = useGameStore((s) => s.net);
+  const { myId } = useControl();
 
   if (!game.dialogue || !game.adventureId) return null;
   const dialogue = getDialogue(game.adventureId, game.dialogue.dialogueId);
   const node = currentNode(game, dialogue);
   const result = game.dialogue.result;
+
+  // In co-op, everyone present votes; the votes show on the options until the last one is in.
+  const voters = net ? votersFor(net.session, game) : [];
+  const votes = game.dialogue.votes ?? {};
+  const nameOf = (id: string) => (id === myId ? 'you' : (net?.session.players.find((p) => p.id === id)?.name ?? 'the host'));
+  const waitingOn = voters.filter((v) => !votes[v]);
+  const canVote = !net || voters.includes(myId);
 
   const checkLabel = (check: DialogueCheck) => {
     const maker = checkMaker(game, check, dialogueContext);
@@ -103,22 +112,37 @@ export function DialogueScreen() {
                 ))}
               </ul>
             )}
-            <button type="button" className="primary" onClick={() => apply((g) => continueDialogue(g, dialogueContext))}>
+            <button type="button" className="primary" onClick={() => dispatch({ type: 'continueDialogue' })}>
               Continue
             </button>
           </>
         ) : (
-          node.options.map((option) => {
+          <>
+          {net && (
+            <p className="vote-status dim">
+              {!canVote
+                ? 'None of your mercs is here: the others decide.'
+                : waitingOn.length > 0
+                  ? `Everyone present votes. Waiting for ${waitingOn.map(nameOf).join(', ')}.`
+                  : ''}
+            </p>
+          )}
+          {node.options.map((option) => {
             const unmet = unmetConditions(game, option);
             return (
               <button
                 key={option.id}
                 type="button"
                 className="option"
-                disabled={unmet.length > 0}
-                onClick={() => apply((g) => chooseOption(g, dialogue, option.id, dialogueContext))}
+                disabled={unmet.length > 0 || !canVote}
+                onClick={() => dispatch(net ? { type: 'vote', optionId: option.id } : { type: 'chooseOption', optionId: option.id })}
               >
                 <span>{option.text}</span>
+                {net && voters.some((v) => votes[v] === option.id) && (
+                  <span className="option-votes">
+                    Voted by {voters.filter((v) => votes[v] === option.id).map(nameOf).join(', ')}
+                  </span>
+                )}
                 {unmet.length > 0 ? (
                   <span className="option-note">{unmet.map(describeCondition).join('. ')}</span>
                 ) : (
@@ -126,7 +150,8 @@ export function DialogueScreen() {
                 )}
               </button>
             );
-          })
+          })}
+          </>
         )}
       </section>
     </main>

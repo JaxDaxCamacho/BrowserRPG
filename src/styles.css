@@ -3060,3 +3060,103 @@ button.portrait-choice:hover {
 .talents-body h2 {
   margin: 0 0 8px;
 }
+
+/* ---------- online co-op ---------- */
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(360px, 90vw);
+  padding: 16px;
+}
+
+.join-code-input {
+  font-size: 1.4rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+
+.coop-window {
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  font-family: system-ui, sans-serif;
+}
+
+.join-code-line {
+  font-size: 1.1rem;
+}
+
+.join-code {
+  font-size: 1.6rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin: 0 8px;
+}
+
+.coop-players,
+.coop-seats {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coop-players .away {
+  opacity: 0.55;
+}
+
+.coop-seats .row {
+  align-items: center;
+  gap: 8px;
+}
+
+.coop-seat-name {
+  flex: 1;
+}
+
+.coop-badge {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  z-index: 900;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-image: none;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: rgb(20 17 15 / 85%);
+  color: var(--accent);
+}
+
+.coop-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 50px;
+  transform: translateX(-50%);
+  z-index: 1001;
+  max-width: min(480px, 90vw);
+  padding: 8px 14px;
+  border: 1px solid #e07a5f;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 50%);
+}
+
+.option-votes {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+.vote-status {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+}

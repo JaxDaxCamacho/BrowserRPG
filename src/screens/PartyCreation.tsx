@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PREMADES, premadeToDraft } from '../content';
-import { addMerc, confirmParty, isPartyFull, PARTY_SIZE, removeMerc } from '../engine';
+import { isPartyFull, PARTY_SIZE } from '../engine';
 import { useGameStore } from '../state/store';
 import { MercBuilder } from './MercBuilder';
 import { MercCard } from './MercCard';
@@ -9,7 +9,7 @@ type Tab = 'premade' | 'custom';
 
 export function PartyCreation() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
   const backToMenu = useGameStore((s) => s.backToMenu);
   const [tab, setTab] = useState<Tab>('premade');
 
@@ -35,7 +35,7 @@ export function PartyCreation() {
                 key={merc.id}
                 merc={merc}
                 actions={
-                  <button type="button" onClick={() => apply((g) => removeMerc(g, merc.id))}>
+                  <button type="button" onClick={() => dispatch({ type: 'removeMerc', mercId: merc.id })}>
                     Remove
                   </button>
                 }
@@ -84,7 +84,7 @@ export function PartyCreation() {
                       <button
                         type="button"
                         disabled={inParty || full}
-                        onClick={() => apply((g) => addMerc(g, draft))}
+                        onClick={() => dispatch({ type: 'addMerc', draft })}
                       >
                         {inParty ? 'In your party' : 'Hire'}
                       </button>
@@ -94,7 +94,7 @@ export function PartyCreation() {
               })}
             </div>
           ) : (
-            <MercBuilder disabled={full} onAdd={(draft) => apply((g) => addMerc(g, draft))} />
+            <MercBuilder disabled={full} onAdd={(draft) => dispatch({ type: 'addMerc', draft })} />
           )}
         </section>
       </div>
@@ -103,7 +103,7 @@ export function PartyCreation() {
         <button type="button" onClick={backToMenu}>
           Back to menu
         </button>
-        <button type="button" className="primary" disabled={!full} onClick={() => apply(confirmParty)}>
+        <button type="button" className="primary" disabled={!full} onClick={() => dispatch({ type: 'confirmParty' })}>
           Choose a leader
         </button>
       </footer>

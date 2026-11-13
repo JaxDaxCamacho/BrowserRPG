@@ -5,7 +5,6 @@ import {
   allEncounters,
   encounterMercIds,
   canLeave,
-  endExploreTurn,
   getLeader,
   goalReached,
   groupInFight,
@@ -13,23 +12,19 @@ import {
   groupsHere,
   groupsOf,
   isSplit,
-  leaveDungeon,
-  regroup,
   restBlocker,
-  setDestination,
-  splitOff,
-  stepParty,
-  stopWalking,
   type FeatureDefinition,
   type GameState,
   type GroupState,
   type Merc,
 } from '../engine';
 import { DungeonView, type MarkerInfo } from '../render/DungeonView';
-import { currentHp, dungeonContext } from '../state/context';
+import { currentHp } from '../state/context';
+import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
 import { assetUrl } from './assets';
 import { initials, Token } from './MercCard';
+import { CoopWindow } from './Coop';
 import { MuteButton } from './MuteButton';
 import { PartyWindow } from './PartyWindow';
 import { RestDialog } from './RestDialog';
@@ -48,14 +43,16 @@ function markerFor(feature: FeatureDefinition): MarkerInfo {
 
 export function DungeonScreen() {
   const game = useGameStore((s) => s.game);
-  const apply = useGameStore((s) => s.apply);
+  const dispatch = useGameStore((s) => s.dispatch);
+  const { isClient, isHost, controls } = useControl();
   const backToMenu = useGameStore((s) => s.backToMenu);
   const testPlay = useGameStore((s) => s.testPlay);
-  const [panel, setPanel] = useState<'party' | 'rest' | null>(null);
+  const [panel, setPanel] = useState<'party' | 'rest' | 'coop' | null>(null);
+  const online = useGameStore((s) => !!s.net);
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<DungeonView | null>(null);
-  const applyRef = useRef(apply);
-  applyRef.current = apply;
+  const dispatchRef = useRef(dispatch);
+  dispatchRef.current = dispatch;
 
   const dungeon = game.dungeon;
   const def = dungeon ? getDungeon(dungeon.dungeonId) : null;
@@ -67,12 +64,7 @@ export function DungeonScreen() {
   useEffect(() => {
     if (!hostRef.current) return;
     const view = new DungeonView(hostRef.current, {
-      onTileTap: (pos) =>
-        applyRef.current((g) => {
-          if (!g.dungeon) return g;
-          const d = getDungeon(g.dungeon.dungeonId);
-          return setDestination(g, d, pos);
-        }),
+      onTileTap: (pos) => dispatchRef.current({ type: 'setDestination', pos }),
       assetUrl,
       markerFor,
     });
@@ -106,15 +98,11 @@ export function DungeonScreen() {
   // Walk the planned path one tile at a time.
   const walking = (dungeon?.path.length ?? 0) > 0;
   useEffect(() => {
-    if (!walking) return;
-    const timer = window.setTimeout(() => {
-      applyRef.current((g) => {
-        if (!g.dungeon) return g;
-        return stepParty(g, getDungeon(g.dungeon.dungeonId), dungeonContext(g));
-      });
-    }, STEP_MS);
+    // Only the game that owns the state (alone, or the host) moves the token along.
+    if (!walking || isClient) return;
+    const timer = window.setTimeout(() => dispatchRef.current({ type: 'step' }), STEP_MS);
     return () => window.clearTimeout(timer);
-  }, [walking, dungeon?.pos.x, dungeon?.pos.y, dungeon?.path.length]);
+  }, [walking, isClient, dungeon?.pos.x, dungeon?.pos.y, dungeon?.path.length]);
 
   if (!dungeon || !def) {
     return (
@@ -142,12 +130,7 @@ export function DungeonScreen() {
       .flatMap((e) => encounterMercIds(game, e)),
   );
   const atExit = canLeave(game, def);
-  const headOut = () =>
-    apply((g) => {
-      if (!g.dungeon) return g;
-      const d = getDungeon(g.dungeon.dungeonId);
-      return canLeave(g, d) ? leaveDungeon(g, d, dungeonContext(g)) : setDestination(g, d, d.start);
-    });
+  const headOut = () => dispatch({ type: 'headOut' });
 
   return (
     <main className="dungeon">
@@ -157,7 +140,7 @@ export function DungeonScreen() {
           {game.party.map((m) => {
             const hp = currentHp(m);
             const inGroup = here.has(m.id);
-            const canGo = inGroup && here.size > 1 && !m.dead && !groupBlock;
+            const canGo = inGroup && here.size > 1 && !m.dead && !groupBlock && controls(m.id);
             return (
               <li
                 key={m.id}
@@ -179,7 +162,7 @@ export function DungeonScreen() {
                   </span>
                 </span>
                 {canGo && (
-                  <button type="button" className="go-alone" title={`${m.name} leaves the group with their own token`} onClick={() => apply((g) => splitOff(g, m.id))}>
+                  <button type="button" className="go-alone" title={`${m.name} leaves the group with their own token`} onClick={() => dispatch({ type: 'splitOff', mercId: m.id })}>
                     Go alone
                   </button>
                 )}
@@ -187,6 +170,11 @@ export function DungeonScreen() {
             );
           })}
         </ul>
+        {!online && !testPlay && (
+          <button type="button" onClick={() => setPanel('coop')} title="Play with up to three friends online">
+            Host co-op
+          </button>
+        )}
         <MuteButton />
         <button type="button" className={testPlay ? 'primary' : ''} onClick={backToMenu}>
           {testPlay ? 'Back to the dungeon maker' : 'Menu'}
@@ -224,31 +212,33 @@ export function DungeonScreen() {
             </button>
           )}
           {walking && (
-            <button type="button" onClick={() => apply(stopWalking)}>
+            <button type="button" onClick={() => dispatch({ type: 'stopWalking' })}>
               Stop
             </button>
           )}
           {world?.current?.kind === 'explore' && (
-            <button type="button" className="primary" disabled={walking} onClick={() => apply(endExploreTurn)}>
+            <button type="button" className="primary" disabled={walking} onClick={() => dispatch({ type: 'endExploreTurn' })}>
               End turn
             </button>
           )}
           {split && (
-            <button type="button" disabled={!canRegroup} title={canRegroup ? undefined : 'Move onto another group’s tile to regroup.'} onClick={() => apply(regroup)}>
+            <button type="button" disabled={!canRegroup} title={canRegroup ? undefined : 'Move onto another group’s tile to regroup.'} onClick={() => dispatch({ type: 'regroup' })}>
               Regroup
             </button>
           )}
           <button type="button" onClick={() => setPanel('party')}>
             Party
           </button>
+          {(isHost || dungeon.camping) && (
           <button
-            type="button"
-            disabled={!dungeon.camping && !!restBlock}
-            title={!dungeon.camping && restBlock ? restBlock : undefined}
-            onClick={() => setPanel('rest')}
-          >
-            {dungeon.camping ? 'Back to camp' : dungeon.rested ? 'Camp used' : 'Make camp'}
-          </button>
+              type="button"
+              disabled={!dungeon.camping && !!restBlock}
+              title={!dungeon.camping && restBlock ? restBlock : undefined}
+              onClick={() => setPanel('rest')}
+            >
+              {dungeon.camping ? 'Back to camp' : dungeon.rested ? 'Camp used' : 'Make camp'}
+            </button>
+          )}
           <button type="button" onClick={() => viewRef.current?.centreOnParty()}>
             Centre on party
           </button>
@@ -256,6 +246,7 @@ export function DungeonScreen() {
       </footer>
       {panel === 'party' && <PartyWindow onClose={() => setPanel(null)} />}
       {panel === 'rest' && <RestDialog onClose={() => setPanel(null)} />}
+      {panel === 'coop' && <CoopWindow onClose={() => setPanel(null)} />}
     </main>
   );
 }
