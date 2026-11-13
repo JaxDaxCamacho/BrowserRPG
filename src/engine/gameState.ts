@@ -1,4 +1,5 @@
 import type { DialogueState, FlagValue } from './dialogue';
+import type { DungeonState, EncounterState } from './dungeon';
 import type { Merc } from './merc';
 
 /**
@@ -6,7 +7,7 @@ import type { Merc } from './merc';
  * loading is reading it back (after migrations keyed on `version`).
  */
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export const SCREENS = [
   'menu',
@@ -38,6 +39,10 @@ export interface GameState {
   adventureId: string | null;
   /** The conversation in progress, or null when there is none. */
   dialogue: DialogueState | null;
+  /** The map being explored, including its fog of war. */
+  dungeon: DungeonState | null;
+  /** The fight in progress, or null. */
+  encounter: EncounterState | null;
 }
 
 export function createInitialState(rngSeed: number = 1): GameState {
@@ -51,5 +56,7 @@ export function createInitialState(rngSeed: number = 1): GameState {
     flags: {},
     adventureId: null,
     dialogue: null,
+    dungeon: null,
+    encounter: null,
   };
 }

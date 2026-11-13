@@ -50,6 +50,10 @@ export interface Merc extends Omit<MercDraft, 'loadout'> {
   inventory: InventoryStack[];
   /** Money in copper. */
   purse: number;
+  /** Damage taken; current HP is max HP minus this. */
+  wounds: number;
+  /** At 0 HP: out of action until healed. */
+  down: boolean;
 }
 
 /** Base stats with the race's fixed changes and chosen bonuses applied (no gear). */
@@ -98,10 +102,10 @@ export function validateDraft(draft: MercDraft, race: RaceDefinition, gear: Gear
 }
 
 /** Turns a validated draft into the starting equipment, inventory and purse of a new merc. */
-export function startingKit(draft: MercDraft): Pick<Merc, 'equipment' | 'inventory' | 'purse'> {
+export function startingKit(draft: MercDraft): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down'> {
   const equipment: Equipment = { ...draft.loadout };
   const inventory: InventoryStack[] = draft.loadout.ammo ? [{ itemId: draft.loadout.ammo, quantity: STARTING_AMMO }] : [];
-  return { equipment, inventory, purse: STARTING_PURSE };
+  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false };
 }
 
 export interface MercSheet {

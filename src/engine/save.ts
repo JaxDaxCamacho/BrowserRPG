@@ -27,6 +27,20 @@ const MIGRATIONS: Record<number, (save: Loose) => Loose> = {
       })),
     };
   },
+  // v4 added hit points (wounds), the map being explored and the fight in progress.
+  // A save made on the old placeholder map screens has no map state, so it goes back to adventure select.
+  3: (save) => {
+    const party = Array.isArray(save.party) ? (save.party as Loose[]) : [];
+    const offMap = save.screen === 'dungeon' || save.screen === 'combat';
+    return {
+      ...save,
+      version: 4,
+      screen: offMap ? 'adventureSelect' : save.screen,
+      party: party.map((merc) => ({ ...merc, wounds: 0, down: false })),
+      dungeon: null,
+      encounter: null,
+    };
+  },
 };
 
 /**

@@ -1022,3 +1022,147 @@ button.option {
     overflow-y: auto;
   }
 }
+
+/* ---------- dungeon screen ---------- */
+
+.dungeon {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.dungeon-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.dungeon-bar h1 {
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.party-strip {
+  list-style: none;
+  margin: 0 auto 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.party-strip li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.party-strip li.down {
+  opacity: 0.5;
+}
+
+.party-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 90px;
+  font-size: 0.8rem;
+}
+
+.party-name {
+  white-space: nowrap;
+}
+
+.hp-bar {
+  height: 6px;
+  background: #3a2a24;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hp-bar span {
+  display: block;
+  height: 100%;
+  background: #7fb069;
+  transition: width 0.3s;
+}
+
+.hp-text {
+  font-size: 0.75rem;
+}
+
+.dungeon-map {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.dungeon-map canvas {
+  display: block;
+}
+
+.dungeon-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+.dungeon-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+.dungeon-log li:last-child {
+  color: var(--ink);
+}
+
+.dungeon-footer .row {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.goal-banner {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.effect-notes {
+  margin: 0;
+  padding-left: 20px;
+  color: #f0b4a4;
+}
+
+.foe-token {
+  border-color: #d0533c;
+}
+
+@media (max-width: 720px) {
+  .dungeon-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .party-info {
+    min-width: 0;
+  }
+
+  .party-name {
+    display: none;
+  }
+
+  .dungeon-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

@@ -95,7 +95,14 @@ export function DialogueScreen() {
         {result ? (
           <>
             {result.check && <CheckReadout check={result.check} />}
-            <button type="button" className="primary" onClick={() => apply(continueDialogue)}>
+            {result.notes.length > 0 && (
+              <ul className="effect-notes">
+                {result.notes.map((note, i) => (
+                  <li key={i}>{note}</li>
+                ))}
+              </ul>
+            )}
+            <button type="button" className="primary" onClick={() => apply((g) => continueDialogue(g, dialogueContext))}>
               Continue
             </button>
           </>

@@ -56,7 +56,7 @@ const talk: DialogueDefinition = {
 
 /** Every merc has the same flat stats, so the modifier is known. */
 function flatContext(value: number): DialogueContext {
-  return { statsOf: () => ({ ...createStartingStats(), strength: value }) };
+  return { ...dialogueContext, statsOf: () => ({ ...createStartingStats(), strength: value }) };
 }
 
 function party(...premadeIds: string[]): GameState {
@@ -86,7 +86,7 @@ describe('dialogue', () => {
     expect(shown.party[1]!.purse).toBe(STARTING_PURSE);
     expect(shown.dialogue?.nodeId).toBe('a');
     expect(shown.dialogue?.result).toMatchObject({ text: 'He takes your coin.', check: null });
-    expect(continueDialogue(shown).dialogue).toMatchObject({ nodeId: 'b', result: null });
+    expect(continueDialogue(shown, dialogueContext).dialogue).toMatchObject({ nodeId: 'b', result: null });
   });
 
   it('refuses a second choice while a result is showing', () => {
@@ -112,7 +112,7 @@ describe('dialogue', () => {
       expect(after.rngSeed).not.toBe(seed);
       seen.add(check.success);
 
-      const moved = continueDialogue(after);
+      const moved = continueDialogue(after, dialogueContext);
       if (check.success) {
         expect(after.flags.shoved).toBe(true);
         expect(moved.dialogue?.nodeId).toBe('b');
@@ -177,7 +177,7 @@ describe('the Greywater Ford debrief', () => {
     let state = setLeader(party('aldric-vane', 'korg-the-unbowed', 'sylwen-ashbow', 'vesper'), 'merc-1');
     state = startAdventure({ ...state, rngSeed: seed }, adventure.id, debrief);
     for (const optionId of optionIds) {
-      state = continueDialogue(chooseOption(state, debrief, optionId, dialogueContext));
+      state = continueDialogue(chooseOption(state, debrief, optionId, dialogueContext), dialogueContext);
     }
     return state;
   }
@@ -254,7 +254,18 @@ describe('save migration', () => {
       flags: {},
       adventureId: null,
       dialogue: null,
+      dungeon: null,
+      encounter: null,
     });
+  });
+
+  it('sends a save from the old placeholder map back to adventure select', () => {
+    const v3 = { ...startNewGame(1), version: 3, screen: 'dungeon', party: [{ id: 'merc-1' }] } as Record<string, unknown>;
+    delete v3.dungeon;
+    delete v3.encounter;
+    const migrated = migrateSave(v3)!;
+    expect(migrated.screen).toBe('adventureSelect');
+    expect(migrated.party[0]).toMatchObject({ wounds: 0, down: false });
   });
 
   it('refuses a save from a newer version of the game', () => {

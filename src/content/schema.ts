@@ -8,6 +8,7 @@ import {
   isValidDice,
   SCREENS,
   STAT_NAMES,
+  validateDungeon,
   WEAPON_TYPES,
 } from '../engine';
 
@@ -259,9 +260,15 @@ const conditionSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('partyHasRace'), raceId: id }),
 ]);
 
+const effectTarget = z.enum(['roller', 'leader', 'party']);
+
 const effectSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('setFlag'), flag: z.string().min(1), value: flagValue }),
   z.strictObject({ type: z.literal('money'), amount: z.number().int() }),
+  z.strictObject({ type: z.literal('damage'), amount: dice, target: effectTarget }),
+  z.strictObject({ type: z.literal('heal'), amount: dice, target: effectTarget }),
+  z.strictObject({ type: z.literal('giveItem'), itemId: id, quantity: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('resolveFeature') }),
 ]);
 
 const outcomeSchema = z
@@ -270,10 +277,12 @@ const outcomeSchema = z
     effects: z.array(effectSchema).optional(),
     goto: id.optional(),
     end: screenName.optional(),
+    dungeon: id.optional(),
   })
   .refine((o) => (o.goto === undefined) !== (o.end === undefined), {
     message: 'an outcome needs exactly one of "goto" and "end"',
-  });
+  })
+  .refine((o) => !o.dungeon || o.end === 'dungeon', { message: '"dungeon" goes with "end": "dungeon"' });
 
 const optionSchema = z
   .strictObject({
@@ -329,10 +338,68 @@ export const adventureSchema = z
     difficulty: z.string().min(1),
     /** The dialogue that opens the adventure. */
     debrief: id,
+    /** Dungeons this adventure uses, by id, in the order they are explored. */
+    dungeons: z.array(id),
     dialogues: z.array(dialogueSchema).min(1),
   })
   .refine((a) => a.dialogues.some((d) => d.id === a.debrief), {
     message: "the debrief must be one of the adventure's dialogues",
+  });
+
+// ---------- dungeons ----------
+
+const pos = z.strictObject({ x: z.number().int().min(0), y: z.number().int().min(0) });
+const featureBase = {
+  id,
+  name: z.string().min(1),
+  x: z.number().int().min(0),
+  y: z.number().int().min(0),
+  icon: assetId.optional(),
+};
+
+export const dungeonSchema = z
+  .strictObject({
+    id,
+    name: z.string().min(1),
+    width: z.number().int().min(5).max(80),
+    height: z.number().int().min(5).max(80),
+    tiles: z.array(z.string()),
+    start: pos,
+    rooms: z.array(
+      z.strictObject({
+        id,
+        name: z.string().optional(),
+        x: z.number().int().min(0),
+        y: z.number().int().min(0),
+        width: z.number().int().min(1),
+        height: z.number().int().min(1),
+        rows: z.number().int().min(2).max(5),
+      }),
+    ),
+    features: z.array(
+      z.discriminatedUnion('type', [
+        z.strictObject({
+          ...featureBase,
+          type: z.literal('trap'),
+          detectDifficulty: z.number().int().min(1),
+          dialogueId: id,
+          triggerNode: id,
+          disarmNode: id.optional(),
+        }),
+        z.strictObject({
+          ...featureBase,
+          type: z.literal('encounter'),
+          monsters: z.array(z.strictObject({ monsterId: id, count: z.number().int().min(1) })).min(1),
+        }),
+        z.strictObject({ ...featureBase, type: z.literal('event'), dialogueId: id, node: id.optional() }),
+        z.strictObject({ ...featureBase, type: z.literal('goal'), dialogueId: id, node: id.optional() }),
+      ]),
+    ),
+  })
+  .superRefine((dungeon, ctx) => {
+    for (const problem of validateDungeon(dungeon)) ctx.addIssue({ code: 'custom', message: problem });
+    const ids = dungeon.features.map((f) => f.id);
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'feature ids must be unique' });
   });
 
 // ---------- pre-built mercs ----------

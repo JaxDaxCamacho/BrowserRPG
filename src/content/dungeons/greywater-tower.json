@@ -1,0 +1,230 @@
+{
+  "id": "greywater-tower",
+  "name": "the Greywater watchtower",
+  "width": 30,
+  "height": 27,
+  "tiles": [
+    "##############################",
+    "#,,,,,,########,,,,,,###,,,,,#",
+    "#,>,,,,########,,,,,,###,,,,,#",
+    "#,,,,,,+......+,,,,,,+.+,,,,,#",
+    "#,,,,,,########,,,,,,###,,,,,#",
+    "#,,,,,,########,,,,,,###,,,,,#",
+    "###+##############+#####,,,,,#",
+    "###.##############.###########",
+    "###.##############+###########",
+    "###.######_______________#####",
+    "###.######_______________#####",
+    "###.######_______________#####",
+    "###+######_______________#####",
+    "#,,,,,,###_______________#####",
+    "#,,,,,,###_______________#####",
+    "#,,,,,,+.+_______________#####",
+    "#,,,,,,###_______________#####",
+    "#,,,,,,###_______________#####",
+    "#################+############",
+    "#################.############",
+    "#################+############",
+    "#############,,,,,,,,,########",
+    "#############,,,,,,,,,########",
+    "#############,,,,,,,,,########",
+    "#############,,,,,,,,,########",
+    "#############,,,,,,,,,########",
+    "##############################"
+  ],
+  "start": {
+    "x": 3,
+    "y": 3
+  },
+  "rooms": [
+    {
+      "id": "gatehouse",
+      "name": "Gatehouse",
+      "x": 1,
+      "y": 1,
+      "width": 6,
+      "height": 5,
+      "rows": 3
+    },
+    {
+      "id": "guardroom",
+      "name": "Guardroom",
+      "x": 15,
+      "y": 1,
+      "width": 6,
+      "height": 5,
+      "rows": 3
+    },
+    {
+      "id": "kennels",
+      "name": "Kennels",
+      "x": 24,
+      "y": 1,
+      "width": 5,
+      "height": 6,
+      "rows": 3
+    },
+    {
+      "id": "storeroom",
+      "name": "Storeroom",
+      "x": 1,
+      "y": 13,
+      "width": 6,
+      "height": 5,
+      "rows": 3
+    },
+    {
+      "id": "great-hall",
+      "name": "Great Hall",
+      "x": 10,
+      "y": 9,
+      "width": 15,
+      "height": 9,
+      "rows": 5
+    },
+    {
+      "id": "vault",
+      "name": "Vault",
+      "x": 13,
+      "y": 21,
+      "width": 9,
+      "height": 5,
+      "rows": 4
+    }
+  ],
+  "features": [
+    {
+      "type": "event",
+      "id": "sentry",
+      "name": "Bandit sentry",
+      "x": 10,
+      "y": 3,
+      "icon": "portraits/male/m-15",
+      "dialogueId": "event-sentry"
+    },
+    {
+      "type": "encounter",
+      "id": "guards",
+      "name": "Guardroom bandits",
+      "x": 18,
+      "y": 3,
+      "monsters": [
+        {
+          "monsterId": "bandit-thug",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "type": "encounter",
+      "id": "hounds",
+      "name": "War hounds",
+      "x": 26,
+      "y": 4,
+      "monsters": [
+        {
+          "monsterId": "war-hound",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "type": "trap",
+      "id": "tripwire",
+      "name": "tripwire",
+      "x": 3,
+      "y": 9,
+      "detectDifficulty": 12,
+      "dialogueId": "trap-tripwire",
+      "triggerNode": "sprung",
+      "disarmNode": "spotted"
+    },
+    {
+      "type": "event",
+      "id": "captive",
+      "name": "Captive guard",
+      "x": 5,
+      "y": 14,
+      "icon": "portraits/male/m-19",
+      "dialogueId": "event-captive"
+    },
+    {
+      "type": "event",
+      "id": "supply-crate",
+      "name": "Supply crate",
+      "x": 2,
+      "y": 16,
+      "icon": "loot/action/actionloot-12",
+      "dialogueId": "event-crate"
+    },
+    {
+      "type": "trap",
+      "id": "rotten-floor",
+      "name": "rotten floor",
+      "x": 8,
+      "y": 15,
+      "detectDifficulty": 14,
+      "dialogueId": "trap-floor",
+      "triggerNode": "sprung",
+      "disarmNode": "spotted"
+    },
+    {
+      "type": "encounter",
+      "id": "hall-band",
+      "name": "Bandits in the hall",
+      "x": 17,
+      "y": 13,
+      "monsters": [
+        {
+          "monsterId": "bandit-thug",
+          "count": 1
+        },
+        {
+          "monsterId": "bandit-archer",
+          "count": 2
+        },
+        {
+          "monsterId": "hedge-mage",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "type": "trap",
+      "id": "cursed-lock",
+      "name": "cursed lock",
+      "x": 17,
+      "y": 20,
+      "detectDifficulty": 13,
+      "dialogueId": "trap-lock",
+      "triggerNode": "sprung",
+      "disarmNode": "spotted"
+    },
+    {
+      "type": "encounter",
+      "id": "captain",
+      "name": "The bandit captain",
+      "x": 17,
+      "y": 24,
+      "monsters": [
+        {
+          "monsterId": "bandit-captain",
+          "count": 1
+        },
+        {
+          "monsterId": "bandit-thug",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "type": "goal",
+      "id": "strongbox",
+      "name": "Guild strongbox",
+      "x": 17,
+      "y": 25,
+      "icon": "loot/action/actionloot-30",
+      "dialogueId": "goal-strongbox"
+    }
+  ]
+}

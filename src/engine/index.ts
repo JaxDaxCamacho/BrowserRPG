@@ -5,6 +5,7 @@ export * from './currency';
 export * from './derived';
 export * from './dialogue';
 export * from './dice';
+export * from './dungeon';
 export * from './gameState';
 export * from './items';
 export * from './merc';

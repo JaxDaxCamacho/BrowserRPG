@@ -4,6 +4,7 @@
   "summary": "Bandits hold the old watchtower above the river crossing and have taken the merchant guild's strongbox. Clear them out and bring it back.",
   "difficulty": "Starter",
   "debrief": "debrief",
+  "dungeons": ["greywater-tower"],
   "dialogues": [
     {
       "id": "debrief",
@@ -95,7 +96,253 @@
             {
               "id": "set-out",
               "text": "Set out for Greywater Ford.",
-              "outcome": { "effects": [{ "type": "setFlag", "flag": "debriefDone", "value": true }], "end": "dungeon" }
+              "outcome": {
+                "effects": [{ "type": "setFlag", "flag": "debriefDone", "value": true }],
+                "end": "dungeon",
+                "dungeon": "greywater-tower"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-sentry",
+      "start": "challenge",
+      "nodes": [
+        {
+          "id": "challenge",
+          "speaker": "Bandit sentry",
+          "image": "tower-corridor",
+          "text": "A bored bandit leans on a spear in the narrow passage. He straightens when he sees you.\n\n\"Toll's paid at the ford, not in here. Who sent you?\"",
+          "options": [
+            {
+              "id": "bribe",
+              "text": "Press five silver into his hand.",
+              "outcome": {
+                "text": "The coins vanish. So does the sentry, down a side stair, whistling.",
+                "effects": [{ "type": "money", "amount": -500 }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            },
+            {
+              "id": "bluff",
+              "text": "Tell him the captain sent for fresh blades.",
+              "check": { "stat": "charisma", "difficulty": 12, "by": "leader" },
+              "success": {
+                "text": "\"About time.\" He waves you through and wanders off toward the gate.",
+                "effects": [{ "type": "resolveFeature" }],
+                "end": "dungeon"
+              },
+              "failure": {
+                "text": "He shouts for help and lunges. You put him down, but the noise carries.",
+                "effects": [{ "type": "damage", "amount": "1d4", "target": "leader" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            },
+            {
+              "id": "back-off",
+              "text": "Step back and think again.",
+              "outcome": { "end": "dungeon" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trap-tripwire",
+      "start": "sprung",
+      "nodes": [
+        {
+          "id": "sprung",
+          "image": "tripwire",
+          "text": "A wire snaps taut against your shin. Somewhere above, a rack of loaded crossbows swings toward the corridor.",
+          "options": [
+            {
+              "id": "dive",
+              "text": "Dive flat.",
+              "check": { "stat": "agility", "difficulty": 12, "by": "leader" },
+              "success": { "text": "Bolts hiss over your back and shatter on the stones.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "failure": {
+                "text": "Too slow. A bolt finds its mark.",
+                "effects": [{ "type": "damage", "amount": "1d6", "target": "roller" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            }
+          ]
+        },
+        {
+          "id": "spotted",
+          "image": "tripwire",
+          "text": "The tripwire glints at ankle height, running to a rack of loaded crossbows above.",
+          "options": [
+            {
+              "id": "cut",
+              "text": "Cut the wire slowly.",
+              "check": { "stat": "agility", "difficulty": 10, "by": "best" },
+              "success": { "text": "The wire parts with a soft ping. The crossbows stay still.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "failure": {
+                "text": "Your blade slips. The rack fires.",
+                "effects": [{ "type": "damage", "amount": "1d4", "target": "roller" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            },
+            {
+              "id": "step-over",
+              "text": "Step over it carefully.",
+              "outcome": { "text": "One by one you step over the wire and leave it behind, still armed.", "end": "dungeon" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trap-floor",
+      "start": "sprung",
+      "nodes": [
+        {
+          "id": "sprung",
+          "image": "rotten-floor",
+          "text": "The boards give way with a wet crack and you drop toward the cellar below.",
+          "options": [
+            {
+              "id": "brace",
+              "text": "Brace for the fall.",
+              "check": { "stat": "toughness", "difficulty": 12, "by": "leader" },
+              "success": { "text": "You land hard but whole, and climb back up.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "failure": {
+                "text": "You land badly on the rubble.",
+                "effects": [{ "type": "damage", "amount": "1d8", "target": "roller" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            }
+          ]
+        },
+        {
+          "id": "spotted",
+          "image": "rotten-floor",
+          "text": "The floorboards here are black with rot. One wrong step and they will give way.",
+          "options": [
+            {
+              "id": "edge",
+              "text": "Edge along the wall.",
+              "check": { "stat": "agility", "difficulty": 10, "by": "leader" },
+              "success": { "text": "You cross with your back to the stones.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "failure": {
+                "text": "A board snaps and you drop to the cellar below.",
+                "effects": [{ "type": "damage", "amount": "1d6", "target": "roller" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trap-lock",
+      "start": "sprung",
+      "nodes": [
+        {
+          "id": "sprung",
+          "image": "vault-door",
+          "text": "Your hand closes on the iron lock and a cold voice fills your head, whispering your own death.",
+          "options": [
+            {
+              "id": "resist",
+              "text": "Hold on and force the door.",
+              "check": { "stat": "spirit", "difficulty": 13, "by": "leader" },
+              "success": { "text": "The voice breaks against your will. The lock falls open.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "failure": {
+                "text": "The curse takes its toll on everyone near the door before the lock gives.",
+                "effects": [{ "type": "damage", "amount": "1d4", "target": "party" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            }
+          ]
+        },
+        {
+          "id": "spotted",
+          "image": "vault-door",
+          "text": "Hex marks are scratched around the vault's lock. Whoever touches it will hear the curse.",
+          "options": [
+            {
+              "id": "break-hex",
+              "text": "Break the hex before touching the lock.",
+              "check": { "stat": "spirit", "difficulty": 11, "by": "best" },
+              "success": { "text": "The marks smoke and fade. The lock opens to an ordinary key.", "effects": [{ "type": "resolveFeature" }], "end": "dungeon" },
+              "failure": {
+                "text": "The hex lashes back at you before it breaks.",
+                "effects": [{ "type": "damage", "amount": "1d6", "target": "roller" }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-captive",
+      "start": "captive",
+      "nodes": [
+        {
+          "id": "captive",
+          "speaker": "Captive guard",
+          "image": "storeroom",
+          "text": "A guild guard sits chained to a beam, bruised but alive.\n\n\"You're from Maren? Get me out of these and I'll tell you what's in the hall.\"",
+          "options": [
+            {
+              "id": "free",
+              "text": "Free him.",
+              "outcome": {
+                "text": "\"Three of them in the hall, archers and a hedge wizard who calls down lightning. Hit the wizard first.\" He limps off toward the gate.",
+                "effects": [{ "type": "setFlag", "flag": "warnedAboutHall", "value": true }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            },
+            { "id": "later", "text": "Tell him you will be back.", "outcome": { "end": "dungeon" } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-crate",
+      "start": "crate",
+      "nodes": [
+        {
+          "id": "crate",
+          "image": "supply-crate",
+          "text": "A crate stamped with the guild's mark, pried open. Most of it is gone, but two stoppered bottles are wedged in the straw.",
+          "options": [
+            {
+              "id": "take",
+              "text": "Take the bottles.",
+              "outcome": {
+                "text": "Two healing draughts.",
+                "effects": [{ "type": "giveItem", "itemId": "healing-draught", "quantity": 2 }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goal-strongbox",
+      "start": "strongbox",
+      "nodes": [
+        {
+          "id": "strongbox",
+          "image": "strongbox",
+          "text": "The guild strongbox sits on a stone plinth, its wax seal unbroken.",
+          "options": [
+            {
+              "id": "take",
+              "text": "Take the strongbox.",
+              "outcome": {
+                "text": "It is heavy, and it is yours to carry back to Factor Maren.",
+                "effects": [{ "type": "setFlag", "flag": "hasStrongbox", "value": true }, { "type": "resolveFeature" }],
+                "end": "dungeon"
+              }
             }
           ]
         }

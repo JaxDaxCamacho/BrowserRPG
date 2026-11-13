@@ -1,10 +1,11 @@
 import { useGameStore } from '../state/store';
 import { AdventureSelect } from './AdventureSelect';
 import { DialogueScreen } from './DialogueScreen';
+import { DungeonScreen } from './DungeonScreen';
+import { EncounterPlaceholder } from './EncounterPlaceholder';
 import { LeaderSelect } from './LeaderSelect';
 import { MainMenu } from './MainMenu';
 import { PartyCreation } from './PartyCreation';
-import { PlaceholderScreen } from './PlaceholderScreen';
 
 /** Shows the screen named by `game.screen`. Routing is game state, not URLs. */
 export function ScreenRouter() {
@@ -22,8 +23,8 @@ export function ScreenRouter() {
     case 'dialogue':
       return <DialogueScreen />;
     case 'dungeon':
-      return <PlaceholderScreen title="Dungeon" milestone={5} next="combat" />;
+      return <DungeonScreen />;
     case 'combat':
-      return <PlaceholderScreen title="Combat" milestone={6} />;
+      return <EncounterPlaceholder />;
   }
 }

@@ -1,4 +1,7 @@
 import { makeCheck, type CheckResult } from './checks';
+import { rollDice } from './dice';
+import type { DungeonDefinition } from './dungeon';
+import { enterDungeon } from './dungeon';
 import type { GameState, Screen } from './gameState';
 import type { Merc } from './merc';
 import { getLeader } from './party';
@@ -18,11 +21,21 @@ export type Condition =
   | { type: 'partyHasClass'; classId: string }
   | { type: 'partyHasRace'; raceId: string };
 
+/** Who an effect lands on: the merc who made the check (or the leader), the leader, or everyone. */
+export type EffectTarget = 'roller' | 'leader' | 'party';
+
 /** A change to the game made when an outcome is reached. */
 export type Effect =
   | { type: 'setFlag'; flag: string; value: FlagValue }
   /** Pays (or, if negative, takes) money in copper from the leader's purse. */
-  | { type: 'money'; amount: number };
+  | { type: 'money'; amount: number }
+  /** Dice notation, e.g. "1d6". */
+  | { type: 'damage'; amount: string; target: EffectTarget }
+  | { type: 'heal'; amount: string; target: EffectTarget }
+  /** Puts items into the leader's pack. */
+  | { type: 'giveItem'; itemId: string; quantity: number }
+  /** Marks the trap, event or chest that opened this dialogue as done, so it never fires again. */
+  | { type: 'resolveFeature' };
 
 export interface Outcome {
   /** Shown to the player before moving on. Without it the dialogue advances straight away. */
@@ -32,6 +45,8 @@ export interface Outcome {
   goto?: string;
   /** End the dialogue and show this screen. Exactly one of `goto` and `end` is set. */
   end?: Screen;
+  /** With `end: "dungeon"`: enter this dungeon, from its start. */
+  dungeon?: string;
 }
 
 export interface DialogueCheck {
@@ -71,28 +86,44 @@ export interface DialogueDefinition {
 /** What happened after the player picked an option, shown until they continue. */
 export interface DialogueResult {
   optionId: string;
-  check: (CheckResult & { stat: StatName; mercName: string }) | null;
+  check: (CheckResult & { stat: StatName; mercName: string; mercId: string }) | null;
   text: string;
+  /** Lines describing what the effects did, such as damage taken. */
+  notes: string[];
   goto?: string;
   end?: Screen;
+  dungeon?: string;
 }
 
 export interface DialogueState {
   dialogueId: string;
   nodeId: string;
   result: DialogueResult | null;
+  /** The map feature (trap, event, goal) that opened this dialogue, if any. */
+  source?: string;
 }
 
-/** Things the engine needs from outside: final stats depend on race data. */
+/** Things the engine needs from outside: final stats and hit points depend on content data. */
 export interface DialogueContext {
   statsOf: (merc: Merc) => Stats;
+  maxHpOf: (merc: Merc) => number;
+  getDungeon: (dungeonId: string) => DungeonDefinition;
 }
 
-export function startDialogue(state: GameState, dialogue: DialogueDefinition): GameState {
+export function startDialogue(
+  state: GameState,
+  dialogue: DialogueDefinition,
+  options: { nodeId?: string; source?: string } = {},
+): GameState {
   return {
     ...state,
     screen: 'dialogue',
-    dialogue: { dialogueId: dialogue.id, nodeId: dialogue.start, result: null },
+    dialogue: {
+      dialogueId: dialogue.id,
+      nodeId: options.nodeId ?? dialogue.start,
+      result: null,
+      ...(options.source ? { source: options.source } : {}),
+    },
   };
 }
 
@@ -125,25 +156,51 @@ export function unmetConditions(state: GameState, option: DialogueOption): Condi
   return (option.requires ?? []).filter((c) => !conditionMet(state, c));
 }
 
-/** Who makes a check, and with what modifier. */
+/** Mercs still on their feet. */
+export function standingMercs(state: GameState): Merc[] {
+  return state.party.filter((m) => !m.down);
+}
+
+/** Who makes a check, and with what modifier. A merc who is down cannot. */
 export function checkMaker(
   state: GameState,
   check: DialogueCheck,
-  ctx: DialogueContext,
+  ctx: Pick<DialogueContext, 'statsOf'>,
 ): { merc: Merc; modifier: number } {
-  const candidates = check.by === 'leader' ? [getLeader(state) ?? state.party[0]] : state.party;
+  const standing = standingMercs(state);
+  const leader = getLeader(state);
+  const candidates = check.by === 'leader' ? [leader && !leader.down ? leader : standing[0]] : standing;
   let best: { merc: Merc; modifier: number } | null = null;
   for (const merc of candidates) {
     if (!merc) continue;
     const modifier = statModifier(ctx.statsOf(merc)[check.stat]);
     if (!best || modifier > best.modifier) best = { merc, modifier };
   }
-  if (!best) throw new Error('A check needs at least one merc in the party.');
+  if (!best) throw new Error('A check needs at least one merc standing.');
   return best;
 }
 
-function applyEffects(state: GameState, effects: Effect[] = []): GameState {
+function targetsOf(state: GameState, target: EffectTarget, rollerId: string | null): Merc[] {
+  const standing = standingMercs(state);
+  if (target === 'party') return standing;
+  const leader = getLeader(state);
+  const roller = rollerId ? state.party.find((m) => m.id === rollerId) : null;
+  const pick = target === 'roller' && roller ? roller : leader && !leader.down ? leader : standing[0];
+  return pick ? [pick] : [];
+}
+
+function applyEffects(
+  state: GameState,
+  effects: Effect[] = [],
+  rollerId: string | null,
+  ctx: DialogueContext,
+): { state: GameState; notes: string[] } {
   let next = state;
+  const notes: string[] = [];
+  const updateMerc = (id: string, change: (m: Merc) => Merc) => {
+    next = { ...next, party: next.party.map((m) => (m.id === id ? change(m) : m)) };
+  };
+
   for (const effect of effects) {
     switch (effect.type) {
       case 'setFlag':
@@ -151,23 +208,59 @@ function applyEffects(state: GameState, effects: Effect[] = []): GameState {
         break;
       case 'money': {
         const payee = getLeader(next) ?? next.party[0];
-        if (!payee) break;
-        next = {
-          ...next,
-          party: next.party.map((m) => (m.id === payee.id ? { ...m, purse: Math.max(0, m.purse + effect.amount) } : m)),
-        };
+        if (payee) updateMerc(payee.id, (m) => ({ ...m, purse: Math.max(0, m.purse + effect.amount) }));
+        break;
+      }
+      case 'damage':
+      case 'heal': {
+        for (const merc of targetsOf(next, effect.target, rollerId)) {
+          const rolled = rollDice(next.rngSeed, effect.amount);
+          next = { ...next, rngSeed: rolled.seed };
+          const max = ctx.maxHpOf(merc);
+          if (effect.type === 'damage') {
+            const wounds = Math.min(max, merc.wounds + rolled.value);
+            const down = wounds >= max;
+            updateMerc(merc.id, (m) => ({ ...m, wounds, down }));
+            notes.push(`${merc.name} takes ${rolled.value} damage${down ? ' and goes down' : ''}.`);
+          } else {
+            const wounds = Math.max(0, merc.wounds - rolled.value);
+            updateMerc(merc.id, (m) => ({ ...m, wounds }));
+            notes.push(`${merc.name} recovers ${merc.wounds - wounds} HP.`);
+          }
+        }
+        break;
+      }
+      case 'giveItem': {
+        const holder = getLeader(next) ?? next.party[0];
+        if (!holder) break;
+        updateMerc(holder.id, (m) => {
+          const stack = m.inventory.find((s) => s.itemId === effect.itemId);
+          const inventory = stack
+            ? m.inventory.map((s) => (s === stack ? { ...s, quantity: s.quantity + effect.quantity } : s))
+            : [...m.inventory, { itemId: effect.itemId, quantity: effect.quantity }];
+          return { ...m, inventory };
+        });
+        break;
+      }
+      case 'resolveFeature': {
+        const source = next.dialogue?.source;
+        if (source && next.dungeon && !next.dungeon.resolved.includes(source)) {
+          next = { ...next, dungeon: { ...next.dungeon, resolved: [...next.dungeon.resolved, source] } };
+        }
         break;
       }
     }
   }
-  return next;
+  return { state: next, notes };
 }
 
 /** Moves to the outcome's next node, or ends the dialogue. */
-function advance(state: GameState, to: Pick<Outcome, 'goto' | 'end'>): GameState {
+function advance(state: GameState, to: Pick<Outcome, 'goto' | 'end' | 'dungeon'>, ctx: DialogueContext): GameState {
   if (!state.dialogue) return state;
   if (to.goto) return { ...state, dialogue: { ...state.dialogue, nodeId: to.goto, result: null } };
-  return { ...state, dialogue: null, screen: to.end ?? 'dungeon' };
+  const closed: GameState = { ...state, dialogue: null, screen: to.end ?? 'dungeon' };
+  if (to.dungeon) return enterDungeon(closed, ctx.getDungeon(to.dungeon));
+  return closed;
 }
 
 /**
@@ -194,32 +287,35 @@ export function chooseOption(
     const maker = checkMaker(state, option.check, ctx);
     const rolled = makeCheck(state.rngSeed, maker.modifier, option.check.difficulty);
     next = { ...next, rngSeed: rolled.seed };
-    check = { ...rolled.value, stat: option.check.stat, mercName: maker.merc.name };
+    check = { ...rolled.value, stat: option.check.stat, mercName: maker.merc.name, mercId: maker.merc.id };
     outcome = rolled.value.success ? option.success : option.failure;
   } else {
     outcome = option.outcome;
   }
   if (!outcome) throw new Error(`Option "${optionId}" has no outcome.`);
 
-  next = applyEffects(next, outcome.effects);
+  const applied = applyEffects(next, outcome.effects, check?.mercId ?? null, ctx);
+  next = applied.state;
 
-  // A check always pauses on its result so the player sees the roll.
-  if (outcome.text || check) {
+  // A check, or anything that happened to the party, pauses so the player can see it.
+  if (outcome.text || check || applied.notes.length > 0) {
     const result: DialogueResult = {
       optionId,
       check,
       text: outcome.text ?? '',
+      notes: applied.notes,
       ...(outcome.goto ? { goto: outcome.goto } : {}),
       ...(outcome.end ? { end: outcome.end } : {}),
+      ...(outcome.dungeon ? { dungeon: outcome.dungeon } : {}),
     };
     return { ...next, dialogue: { ...next.dialogue!, result } };
   }
-  return advance(next, outcome);
+  return advance(next, outcome, ctx);
 }
 
 /** The player has read the result and moves on. */
-export function continueDialogue(state: GameState): GameState {
+export function continueDialogue(state: GameState, ctx: DialogueContext): GameState {
   const result = state.dialogue?.result;
   if (!result) return state;
-  return advance(state, result);
+  return advance(state, result, ctx);
 }

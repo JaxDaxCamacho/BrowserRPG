@@ -3,6 +3,7 @@ import {
   validateDraft,
   type AbilityDefinition,
   type DialogueDefinition,
+  type DungeonDefinition,
   type ItemDefinition,
   type MercDraft,
   type MonsterDefinition,
@@ -19,6 +20,7 @@ import {
   abilitySchema,
   adventureSchema,
   classSchema,
+  dungeonSchema,
   itemSchema,
   monsterSchema,
   parseList,
@@ -37,9 +39,13 @@ export interface ContentSet {
   monsters: MonsterDefinition[];
   premades: PremadeDefinition[];
   adventures: AdventureDefinition[];
+  dungeons: DungeonDefinition[];
 }
 
-export type CollectionKey = Exclude<keyof ContentSet, 'adventures'>;
+export type CollectionKey = Exclude<keyof ContentSet, 'adventures' | 'dungeons'>;
+
+/** Every dungeon file in src/content/dungeons, loaded at build time. */
+const dungeonFiles = import.meta.glob('./dungeons/*.json', { eager: true, import: 'default' });
 
 export interface CollectionInfo {
   key: CollectionKey;
@@ -127,6 +133,53 @@ export function crossCheck(set: ContentSet): string[] {
   }
 
   for (const adventure of set.adventures) {
+    const dialogues = new Map(adventure.dialogues.map((d) => [d.id, d]));
+    const where = `Adventure "${adventure.id}"`;
+
+    for (const dungeonId of adventure.dungeons) {
+      const dungeon = set.dungeons.find((d) => d.id === dungeonId);
+      if (!dungeon) {
+        problems.push(`${where} uses unknown dungeon "${dungeonId}".`);
+        continue;
+      }
+      for (const f of dungeon.features) {
+        if (f.type === 'encounter') {
+          for (const m of f.monsters) {
+            if (!has(set.monsters, m.monsterId)) problems.push(`Dungeon "${dungeon.id}": ${f.id} has unknown monster "${m.monsterId}".`);
+          }
+          continue;
+        }
+        const dialogue = dialogues.get(f.dialogueId);
+        if (!dialogue) {
+          problems.push(`Dungeon "${dungeon.id}": ${f.id} opens dialogue "${f.dialogueId}", which ${where} does not have.`);
+          continue;
+        }
+        const nodes = f.type === 'trap' ? [f.triggerNode, f.disarmNode] : [f.node];
+        for (const node of nodes) {
+          if (node && !dialogue.nodes.some((n) => n.id === node)) {
+            problems.push(`Dungeon "${dungeon.id}": ${f.id} starts at missing node "${node}" of "${f.dialogueId}".`);
+          }
+        }
+      }
+    }
+
+    for (const dialogue of adventure.dialogues) {
+      for (const option of dialogue.nodes.flatMap((n) => n.options)) {
+        for (const outcome of [option.outcome, option.success, option.failure]) {
+          if (outcome?.dungeon && !adventure.dungeons.includes(outcome.dungeon)) {
+            problems.push(`${where}: option "${option.id}" enters dungeon "${outcome.dungeon}", which the adventure does not list.`);
+          }
+          for (const effect of outcome?.effects ?? []) {
+            if (effect.type === 'giveItem' && !has(set.items, effect.itemId)) {
+              problems.push(`${where}: option "${option.id}" gives unknown item "${effect.itemId}".`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (const adventure of set.adventures) {
     for (const dialogue of adventure.dialogues) {
       for (const option of dialogue.nodes.flatMap((n) => n.options)) {
         for (const condition of option.requires ?? []) {
@@ -164,13 +217,14 @@ export const CONTENT: ContentSet = {
   premades: parseList(premadeSchema, premadesJson, 'pre-built merc'),
   // Adventures are one file each; add new ones to this list.
   adventures: parseList(adventureSchema, [greywaterFord], 'adventure'),
+  dungeons: parseList(dungeonSchema, Object.values(dungeonFiles), 'dungeon'),
 };
 
 const contentProblems = crossCheck(CONTENT);
 if (contentProblems.length > 0) throw new Error(`Invalid game content:\n${contentProblems.join('\n')}`);
 
 export const { classes: CLASSES, races: RACES, items: ITEMS, abilities: ABILITIES, monsters: MONSTERS } = CONTENT;
-export const { premades: PREMADES, adventures: ADVENTURES } = CONTENT;
+export const { premades: PREMADES, adventures: ADVENTURES, dungeons: DUNGEONS } = CONTENT;
 
 export const getClass = lookup(CLASSES, 'class');
 export const getRace = lookup(RACES, 'race');
@@ -178,6 +232,7 @@ export const getItem = lookup(ITEMS, 'item');
 export const getAbility = lookup(ABILITIES, 'ability');
 export const getMonster = lookup(MONSTERS, 'monster');
 export const getAdventure = lookup(ADVENTURES, 'adventure');
+export const getDungeon = lookup(DUNGEONS, 'dungeon');
 
 export function getDialogue(adventureId: string, dialogueId: string): DialogueDefinition {
   const dialogue = getAdventure(adventureId).dialogues.find((d) => d.id === dialogueId);
