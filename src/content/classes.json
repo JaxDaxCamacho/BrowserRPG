@@ -1,0 +1,62 @@
+[
+  {
+    "id": "knight",
+    "name": "Knight",
+    "role": "Front-line protector",
+    "keyStats": ["strength", "toughness"],
+    "baseHp": 12,
+    "hpPerLevel": 6,
+    "baseDefense": 12,
+    "armour": "heavy"
+  },
+  {
+    "id": "barbarian",
+    "name": "Barbarian",
+    "role": "Melee damage",
+    "keyStats": ["strength", "toughness"],
+    "baseHp": 14,
+    "hpPerLevel": 7,
+    "baseDefense": 10,
+    "armour": "light"
+  },
+  {
+    "id": "ranger",
+    "name": "Ranger",
+    "role": "Ranged damage and scouting",
+    "keyStats": ["agility", "spirit"],
+    "baseHp": 10,
+    "hpPerLevel": 5,
+    "baseDefense": 11,
+    "armour": "medium"
+  },
+  {
+    "id": "wizard",
+    "name": "Wizard",
+    "role": "Area magic",
+    "keyStats": ["intellect"],
+    "baseHp": 6,
+    "hpPerLevel": 3,
+    "baseDefense": 9,
+    "armour": "none"
+  },
+  {
+    "id": "warlock",
+    "name": "Warlock",
+    "role": "Curses and drain",
+    "keyStats": ["spirit"],
+    "baseHp": 8,
+    "hpPerLevel": 4,
+    "baseDefense": 10,
+    "armour": "light"
+  },
+  {
+    "id": "rogue",
+    "name": "Rogue",
+    "role": "Skills and burst damage",
+    "keyStats": ["agility", "charisma"],
+    "baseHp": 8,
+    "hpPerLevel": 4,
+    "baseDefense": 11,
+    "armour": "light"
+  }
+]
