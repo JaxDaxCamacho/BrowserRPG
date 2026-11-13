@@ -39,17 +39,17 @@ import { TUMBLE_MS } from './DiceTray';
 import { initials } from './MercCard';
 
 /** Pause before each enemy acts, so the player can follow the fight. */
-const ENEMY_DELAY_MS = 900;
-const FLASH_MS = 1100;
+const ENEMY_DELAY_MS = 1500;
+const FLASH_MS = 1200;
 /**
  * The beats of an attack: first who attacks whom is shown (AIM_MS), then the
  * dice tumble (TUMBLE_MS), rest on their result for a moment (RESULT_MS), and
  * only then does the damage land.
  */
-const AIM_MS = 500;
-const RESULT_MS = 300;
+const AIM_MS = 800;
+const RESULT_MS = 500;
 /** How long a projectile takes to cross the battlefield before it lands or goes wide. */
-const PROJECTILE_MS = 420;
+const PROJECTILE_MS = 550;
 
 type Targeting = { kind: 'attack' } | { kind: 'kick' } | { kind: 'ability'; ability: AbilityDefinition };
 
@@ -97,6 +97,8 @@ const STATUS_FLAIR: Record<StatusKind, { icon: string; name: string }> = {
   frozen: { icon: '🧊', name: 'Frozen' },
   warded: { icon: '✨', name: 'Warded' },
   prone: { icon: '🤕', name: 'Prone' },
+  rooted: { icon: '🌿', name: 'Rooted' },
+  regenerating: { icon: '💚', name: 'Regenerating' },
 };
 
 interface ProjectileSpec {

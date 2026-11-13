@@ -1415,5 +1415,777 @@
       "rounds": 4
     },
     "sound": "sfx/magic/dark/abyssal-pulse"
+  },
+  {
+    "id": "snare-shot",
+    "name": "Snare Shot",
+    "icon": "skills/green/green-17",
+    "animation": "animations/wind/aswind-04-breeze",
+    "sound": "sfx/medieval/weapons/crossbow-shot-a",
+    "description": "A weighted-line arrow that roots the target in place for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "rooted",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "crippling-shot",
+    "name": "Crippling Shot",
+    "icon": "skills/blue/blue-09",
+    "animation": "animations/earth/asearth-03-stone",
+    "sound": "sfx/medieval/weapons/crossbow-shot-b",
+    "description": "A shot to the legs: -2 movement for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [
+      {
+        "type": "movement",
+        "amount": -2
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "weaponAttack": {}
+  },
+  {
+    "id": "concussive-shot",
+    "name": "Concussive Shot",
+    "icon": "skills/blue/blue-16",
+    "animation": "animations/earth/asearth-04-tremor",
+    "sound": "sfx/impacts/beefy-impacts/beefy-impact-b",
+    "description": "A heavy blunt-headed arrow that knocks the target 2 tiles back.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "knockback": 2
+  },
+  {
+    "id": "net-throw",
+    "name": "Net Throw",
+    "icon": "skills/green/green-32",
+    "animation": "animations/wind/aswind-02-cast2",
+    "sound": "sfx/medieval/whooshes/general-throw-b",
+    "description": "A weighted net: the target is rooted for 2 turns and has -2 Defense while tangled.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 3,
+    "cooldown": 3,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": -2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "statuses": [
+      {
+        "status": "rooted",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "pin-down",
+    "name": "Pin Down",
+    "icon": "skills/blue/blue-10",
+    "animation": "animations/wind/aswind-06-gust",
+    "sound": "sfx/medieval/weapons/ballista-shoot-a",
+    "description": "A volley at an enemy and everyone next to it: weapon damage, and they are rooted for a turn.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "area",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 5
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "rooted",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "call-wolf",
+    "name": "Call the Wolf",
+    "icon": "skills/blue/blue-31",
+    "animation": "animations/wind/aswind-01-cast",
+    "sound": "sfx/impacts/flesh-hits/flesh-hit-a",
+    "description": "A wolf answers your whistle and fights beside you for 6 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 6,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "summon": {
+      "monsterId": "wolf-companion",
+      "rounds": 6
+    }
+  },
+  {
+    "id": "call-hawk",
+    "name": "Call the Hawk",
+    "icon": "skills/violet/violet-19",
+    "animation": "animations/wind/aswind-06-gust",
+    "sound": "sfx/movement/whoosh/whoosh-fast-b",
+    "description": "A hawk drops from the sky to harry your enemies for 6 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 6,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "summon": {
+      "monsterId": "hawk-companion",
+      "rounds": 6
+    }
+  },
+  {
+    "id": "sic-em",
+    "name": "Sic 'Em",
+    "icon": "skills/yellow/yellow-06",
+    "animation": "animations/light/aslight-02-cast2",
+    "sound": "sfx/impacts/flesh-hits/flesh-hit-b",
+    "description": "Point at the prey: an ally (your beast, or anyone) next to an enemy makes a free attack.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 6,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "grantAttack": true
+  },
+  {
+    "id": "call-bear",
+    "name": "Call the Bear",
+    "icon": "skills/yellow/yellow-16",
+    "animation": "animations/earth/asearth-06-spire",
+    "sound": "sfx/impacts/beefy-impacts/beefy-big-punch-b",
+    "description": "A great bear lumbers out of the dark and fights beside you for 5 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 8,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 5
+    },
+    "summon": {
+      "monsterId": "bear-companion",
+      "rounds": 5
+    }
+  },
+  {
+    "id": "entangling-roots",
+    "name": "Entangling Roots",
+    "icon": "skills/green/green-02",
+    "animation": "animations/earth/asearth-05-quicksand",
+    "sound": "sfx/magic/nature/root-snare",
+    "description": "Roots burst from the ground: the target is rooted for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 5,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    },
+    "statuses": [
+      {
+        "status": "rooted",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "healing-touch",
+    "name": "Healing Touch",
+    "icon": "skills/green/green-28",
+    "animation": "animations/light/aslight-05-sparkle",
+    "sound": "sfx/magic/nature/natural-healing",
+    "description": "Heal an ally (or yourself) for 7.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 1,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 7
+      }
+    ],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "thorn-whip",
+    "name": "Thorn Whip",
+    "icon": "skills/green/green-23",
+    "animation": "animations/wind/aswind-04-breeze",
+    "sound": "sfx/magic/nature/whip-vine-a",
+    "description": "A lash of thorny vines: magic damage, and the target bleeds 2 a turn for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "1",
+      "hit": "1d6"
+    },
+    "attackStat": "spirit",
+    "statuses": [
+      {
+        "status": "bleeding",
+        "rounds": 2,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": "barkskin",
+    "name": "Barkskin",
+    "icon": "skills/green/green-15",
+    "animation": "animations/earth/asearth-02-cast2",
+    "sound": "sfx/magic/nature/barkskin",
+    "description": "An ally's skin turns to bark: +3 armour for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 3,
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "physical",
+        "amount": 3
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "rejuvenation",
+    "name": "Rejuvenation",
+    "icon": "skills/green/green-30",
+    "animation": "animations/light/aslight-06-scintillation",
+    "sound": "sfx/magic/nature/verdant-growth",
+    "description": "Every ally within 4 tiles regenerates 3 HP a turn for 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 5
+    },
+    "statuses": [
+      {
+        "status": "regenerating",
+        "rounds": 3,
+        "amount": 3
+      }
+    ]
+  },
+  {
+    "id": "wrath-of-nature",
+    "name": "Wrath of Nature",
+    "icon": "skills/green/green-27",
+    "animation": "animations/earth/asearth-07-rupture",
+    "sound": "sfx/magic/earth/seismic-pulse",
+    "description": "The earth itself rises against an enemy and everyone next to it: magic damage, and they are rooted for a turn.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "area",
+    "range": 5,
+    "cooldown": 5,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 7
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "2d6"
+    },
+    "attackStat": "spirit",
+    "statuses": [
+      {
+        "status": "rooted",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "spirit-mend",
+    "name": "Spirit Mend",
+    "icon": "skills/violet/violet-04",
+    "animation": "animations/light/aslight-05-sparkle",
+    "sound": "sfx/magic/dark/soul-siphon",
+    "description": "The spirits of the dead knit an ally's wounds: heal 8.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 1,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 8
+      }
+    ],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "ancestral-ward",
+    "name": "Ancestral Ward",
+    "icon": "skills/violet/violet-16",
+    "animation": "animations/thaumaturgy/ac3t009-cast05a",
+    "sound": "sfx/magic/light/holy-ward",
+    "description": "An ancestor's shade stands guard over an ally, soaking up 6 damage for up to 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    },
+    "statuses": [
+      {
+        "status": "warded",
+        "rounds": 3,
+        "amount": 6
+      }
+    ]
+  },
+  {
+    "id": "wailing-guardians",
+    "name": "Wailing Guardians",
+    "icon": "skills/violet/violet-02",
+    "animation": "animations/dark/asdark-06-gloom",
+    "sound": "sfx/magic/dark/abyssal-pulse",
+    "description": "Spirits circle the party: every ally within 4 tiles regenerates 3 HP a turn for 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 5
+    },
+    "statuses": [
+      {
+        "status": "regenerating",
+        "rounds": 3,
+        "amount": 3
+      }
+    ]
+  },
+  {
+    "id": "spirit-armor",
+    "name": "Spirit Armour",
+    "icon": "skills/violet/violet-17",
+    "animation": "animations/thaumaturgy/ac3t003-cast02a",
+    "sound": "sfx/magic/light/holy-ward",
+    "description": "A ghostly mantle: +2 magic armour, +1 armour and +1 Defense for an ally for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 3,
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "magic",
+        "amount": 2
+      },
+      {
+        "type": "armour",
+        "armour": "physical",
+        "amount": 1
+      },
+      {
+        "type": "defense",
+        "amount": 1
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "call-back-the-fallen",
+    "name": "Call Back the Fallen",
+    "icon": "skills/violet/violet-28",
+    "animation": "animations/thaumaturgy/ac3t017-resurrection",
+    "sound": "sfx/magic/light/heavenly-flame",
+    "description": "Bargain with the dead: a fallen ally within 3 tiles rises with 12 HP. Costs souls.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 3,
+    "cooldown": 5,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 12
+      }
+    ],
+    "cost": {
+      "resource": "souls",
+      "amount": 2
+    },
+    "revive": true
+  },
+  {
+    "id": "shadow-bolt",
+    "name": "Shadow Bolt",
+    "icon": "skills/violet/violet-09",
+    "animation": "animations/dark/asdark-04-sting",
+    "sound": "sfx/magic/dark/shadow-bolt-impact-a",
+    "description": "A bolt of shadow, cast with Spirit.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 6,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "2",
+      "hit": "1d8"
+    }
+  },
+  {
+    "id": "curse-of-weakness",
+    "name": "Curse of Weakness",
+    "icon": "skills/violet/violet-21",
+    "animation": "animations/dark/asdark-05-subdue",
+    "sound": "sfx/magic/dark/nightshade-curse",
+    "description": "The target withers: -2 Strength and -1 Defense for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 5,
+    "cooldown": 2,
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": -2
+      },
+      {
+        "type": "defense",
+        "amount": -1
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    }
+  },
+  {
+    "id": "plague",
+    "name": "Plague",
+    "icon": "skills/green/green-29",
+    "animation": "animations/dark/asdark-06-gloom",
+    "sound": "sfx/magic/dark/necrotic-touch",
+    "description": "A sickly cloud on an enemy and everyone next to it: poisoned for 3 damage a turn for 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "area",
+    "range": 5,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 4
+    },
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "1",
+      "hit": "1d4"
+    },
+    "statuses": [
+      {
+        "status": "poisoned",
+        "rounds": 3,
+        "amount": 3
+      }
+    ]
+  },
+  {
+    "id": "corruption",
+    "name": "Corruption",
+    "icon": "skills/violet/violet-12",
+    "animation": "animations/dark/asdark-07-umbra",
+    "sound": "sfx/magic/dark/soul-siphon",
+    "description": "Rot from within: the target takes 4 damage a turn for 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 5,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    },
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "1",
+      "hit": "1d4"
+    },
+    "statuses": [
+      {
+        "status": "poisoned",
+        "rounds": 3,
+        "amount": 4
+      }
+    ]
+  },
+  {
+    "id": "soul-rot",
+    "name": "Soul Rot",
+    "icon": "skills/violet/violet-20",
+    "animation": "animations/dark/asdark-09-void",
+    "sound": "sfx/magic/dark/soul-shatter",
+    "description": "Every enemy within 3 tiles is poisoned for 3 a turn for 3 turns and silenced for a turn. Costs souls.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 3,
+    "cooldown": 5,
+    "effects": [],
+    "cost": {
+      "resource": "souls",
+      "amount": 3
+    },
+    "statuses": [
+      {
+        "status": "poisoned",
+        "rounds": 3,
+        "amount": 3
+      },
+      {
+        "status": "silenced",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "bind-blade",
+    "name": "Bind Blade",
+    "icon": "skills/violet/violet-05",
+    "animation": "animations/thaumaturgy/ac3t005-cast03a",
+    "sound": "sfx/magic/dark/soul-siphon",
+    "description": "Bind a spirit into your weapon: +2 damage on your weapon blows for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 2
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    }
+  },
+  {
+    "id": "spectral-edge",
+    "name": "Spectral Edge",
+    "icon": "skills/gray/gray-04",
+    "animation": "animations/dark/asdark-04-sting",
+    "sound": "sfx/slash/evfx02-20-dazzlingblade",
+    "description": "A blow from a blade of spirit: spiritual damage, cast with Spirit.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "2",
+      "hit": "1d8"
+    }
+  },
+  {
+    "id": "hexed-blade",
+    "name": "Hexed Blade",
+    "icon": "skills/violet/violet-25",
+    "animation": "animations/dark/asdark-05-subdue",
+    "sound": "sfx/slash/evfx02-05-pentacleedge",
+    "description": "A weapon blow that curses: the target has -2 Defense and is blinded for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": -2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "blinded",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "draining-strike",
+    "name": "Draining Strike",
+    "icon": "skills/red/red-35",
+    "animation": "animations/dark/asdark-03-chaos",
+    "sound": "sfx/slash/evfx02-01-sanguineedge",
+    "description": "A weapon blow that drinks: you heal by the damage it deals.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "lifesteal": true
+  },
+  {
+    "id": "soulfire-blade",
+    "name": "Soulfire Blade",
+    "icon": "skills/red/red-19",
+    "animation": "animations/thaumaturgy/ac3t020-inferno",
+    "sound": "sfx/magic/fire/flame-armor",
+    "description": "Your weapon burns with captured souls: +4 damage on weapon blows and melee attackers take 3, for 3 rounds. Costs souls.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 5,
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 4
+      },
+      {
+        "type": "retaliate",
+        "amount": 3
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "souls",
+      "amount": 2
+    }
   }
 ]

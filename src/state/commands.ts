@@ -1,4 +1,4 @@
-import { getAdventure, getClass, getDialogue, getDungeon, getItem, getRace, getTalentTree } from '../content';
+import { CONTENT, getAdventure, getClass, startingTalentProblems, getDialogue, getDungeon, getItem, getRace, getTalentTree } from '../content';
 import {
   activeCombatant,
   activeMercIds,
@@ -129,8 +129,11 @@ function mapOf(g: GameState) {
 /** Applies one command to the game. Throws, with a reason, when it cannot be done. */
 export function runCommand(g: GameState, cmd: GameCommand, voting?: Voting): GameState {
   switch (cmd.type) {
-    case 'addMerc':
+    case 'addMerc': {
+      const why = startingTalentProblems(cmd.draft.classId, cmd.draft.startingTalents ?? [], CONTENT.talents);
+      if (why.length > 0) throw new Error(`Starting talent: ${why[0]}.`);
       return addMerc(g, cmd.draft);
+    }
     case 'removeMerc':
       return removeMerc(g, cmd.mercId);
     case 'confirmParty':
@@ -219,8 +222,6 @@ export function runCommand(g: GameState, cmd: GameCommand, voting?: Voting): Gam
 
 /** Commands only the host sends: setting up, resting, and the steps the host's game runs by itself. */
 const HOST_ONLY: ReadonlySet<GameCommand['type']> = new Set([
-  'addMerc',
-  'removeMerc',
   'confirmParty',
   'setLeader',
   'confirmLeader',
@@ -262,6 +263,15 @@ const MAP_MOVES: ReadonlySet<GameCommand['type']> = new Set(['setDestination', '
 export function commandBlocker(g: GameState, cmd: GameCommand, isHost: boolean, controls: (mercId: string) => boolean): string | null {
   if (isHost) return null;
   if (HOST_ONLY.has(cmd.type)) return 'Only the host can do that.';
+  // While the party is being made, each joined player brings one merc of their own.
+  if (cmd.type === 'addMerc') {
+    if (g.screen !== 'partyCreation') return 'Mercs are added while the party is being made.';
+    return g.party.some((m) => controls(m.id)) ? 'You already have a merc in the party.' : null;
+  }
+  if (cmd.type === 'removeMerc') {
+    if (g.screen !== 'partyCreation') return 'Mercs are removed while the party is being made.';
+    return controls(cmd.mercId) ? null : 'That is not your merc.';
+  }
   const merc = ownMerc(cmd);
   if (merc) return controls(merc) ? null : 'That is not your merc.';
   if (COMBAT_TURN.has(cmd.type)) {

@@ -219,5 +219,114 @@
     },
     "abilityIds": [],
     "xp": 0
+  },
+  {
+    "id": "wolf-companion",
+    "name": "Wolf",
+    "portrait": "monsters/mobs/grey-wolf-02",
+    "archetype": "savage",
+    "movement": 5,
+    "level": 2,
+    "stats": {
+      "strength": 12,
+      "agility": 14,
+      "toughness": 12,
+      "intellect": 3,
+      "spirit": 10,
+      "charisma": 6
+    },
+    "hp": 14,
+    "defense": 12,
+    "armour": {
+      "physical": 0,
+      "magic": 0
+    },
+    "attack": {
+      "name": "Bite",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "2",
+        "hit": "1d6"
+      },
+      "animation": "animations/dark/asdark-03-chaos",
+      "sound": "sfx/impacts/flesh-hits/flesh-hit-a"
+    },
+    "abilityIds": [],
+    "xp": 0
+  },
+  {
+    "id": "hawk-companion",
+    "name": "Hawk",
+    "portrait": "monsters/mobs/bird-01",
+    "archetype": "assassin",
+    "movement": 7,
+    "level": 2,
+    "stats": {
+      "strength": 6,
+      "agility": 18,
+      "toughness": 8,
+      "intellect": 4,
+      "spirit": 12,
+      "charisma": 6
+    },
+    "hp": 8,
+    "defense": 15,
+    "armour": {
+      "physical": 0,
+      "magic": 0
+    },
+    "attack": {
+      "name": "Talons",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "1",
+        "hit": "1d4",
+        "critThreshold": 18
+      },
+      "animation": "animations/wind/aswind-04-breeze",
+      "sound": "sfx/slash/evfx02-06-razorclaw"
+    },
+    "abilityIds": [],
+    "xp": 0
+  },
+  {
+    "id": "bear-companion",
+    "name": "Bear",
+    "portrait": "monsters/mobs/bear",
+    "archetype": "brawler",
+    "movement": 4,
+    "level": 2,
+    "stats": {
+      "strength": 16,
+      "agility": 8,
+      "toughness": 16,
+      "intellect": 3,
+      "spirit": 8,
+      "charisma": 6
+    },
+    "hp": 30,
+    "defense": 11,
+    "armour": {
+      "physical": 1,
+      "magic": 0
+    },
+    "attack": {
+      "name": "Maul",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "3",
+        "hit": "1d10"
+      },
+      "animation": "animations/earth/asearth-04-tremor",
+      "sound": "sfx/impacts/beefy-impacts/beefy-big-punch-a"
+    },
+    "abilityIds": [],
+    "xp": 0
   }
 ]

@@ -1176,5 +1176,556 @@
         ]
       }
     ]
+  },
+  {
+    "id": "ranger",
+    "classId": "ranger",
+    "branches": [
+      {
+        "id": "trapper",
+        "name": "Trapper",
+        "description": "Battlefield control: snares, push-backs and slows that keep enemies where you want them.",
+        "talents": [
+          {
+            "id": "t-snare-shot",
+            "name": "Snare Shot",
+            "description": "Learn Snare Shot: root a target in place for 2 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "snare-shot"
+          },
+          {
+            "id": "t-crippling-shot",
+            "name": "Crippling Shot",
+            "description": "Learn Crippling Shot: -2 movement for 3 rounds.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "crippling-shot"
+          },
+          {
+            "id": "deadeye",
+            "name": "Deadeye",
+            "description": "+1 Agility per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "agility",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-concussive-shot",
+            "name": "Concussive Shot",
+            "description": "Learn Concussive Shot: knock a target 2 tiles back.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "concussive-shot"
+          },
+          {
+            "id": "t-net-throw",
+            "name": "Net Throw",
+            "description": "Learn Net Throw: root a target and lower its Defense.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "net-throw"
+          },
+          {
+            "id": "hunters-patience",
+            "name": "Hunter's Patience",
+            "description": "Crit on one number lower per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "critRange",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-pin-down",
+            "name": "Pin Down",
+            "description": "Learn Pin Down: a volley that roots a whole group.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "pin-down"
+          },
+          {
+            "id": "trap-master",
+            "name": "Trap Master",
+            "description": "+1 damage per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "beast-master",
+        "name": "Beast Master",
+        "description": "A ranged fighter with beasts at their side: wolves, hawks and bears that fight on their own.",
+        "talents": [
+          {
+            "id": "t-call-wolf",
+            "name": "Call the Wolf",
+            "description": "Learn Call the Wolf: a wolf fights beside you for 6 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "call-wolf"
+          },
+          {
+            "id": "wild-bond",
+            "name": "Wild Bond",
+            "description": "+4 max HP per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "keen-eye",
+            "name": "Keen Eye",
+            "description": "+1 Agility per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "agility",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-call-hawk",
+            "name": "Call the Hawk",
+            "description": "Learn Call the Hawk: a hawk harries your enemies for 6 turns.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "call-hawk"
+          },
+          {
+            "id": "t-sic-em",
+            "name": "Sic 'Em",
+            "description": "Learn Sic 'Em: an ally next to an enemy makes a free attack.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "sic-em"
+          },
+          {
+            "id": "pack-leader",
+            "name": "Pack Leader",
+            "description": "+1 damage per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-call-bear",
+            "name": "Call the Bear",
+            "description": "Learn Call the Bear: a great bear fights beside you for 5 turns.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "call-bear"
+          },
+          {
+            "id": "alpha",
+            "name": "Alpha",
+            "description": "+1 Spirit per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "spirit",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "druid",
+        "name": "Druid",
+        "description": "A ranged fighter who commands nature: roots, thorns, bark and healing.",
+        "talents": [
+          {
+            "id": "t-entangling-roots",
+            "name": "Entangling Roots",
+            "description": "Learn Entangling Roots: root a target for 2 turns. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "entangling-roots"
+          },
+          {
+            "id": "t-healing-touch",
+            "name": "Healing Touch",
+            "description": "Learn Healing Touch: heal an ally for 7. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "healing-touch"
+          },
+          {
+            "id": "natures-voice",
+            "name": "Nature's Voice",
+            "description": "+1 Spirit per rank: stronger nature spells.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "spirit",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-thorn-whip",
+            "name": "Thorn Whip",
+            "description": "Learn Thorn Whip: magic damage and bleeding. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "thorn-whip"
+          },
+          {
+            "id": "t-barkskin",
+            "name": "Barkskin",
+            "description": "Learn Barkskin: +3 armour for an ally. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "barkskin"
+          },
+          {
+            "id": "t-rejuvenation",
+            "name": "Rejuvenation",
+            "description": "Learn Rejuvenation: every ally nearby regenerates. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "rejuvenation"
+          },
+          {
+            "id": "deep-roots",
+            "name": "Deep Roots",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-wrath-of-nature",
+            "name": "Wrath of Nature",
+            "description": "Learn Wrath of Nature: damage and root a whole group. Costs mana.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "wrath-of-nature"
+          },
+          {
+            "id": "verdant-soul",
+            "name": "Verdant Soul",
+            "description": "+1 Spirit per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "spirit",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "warlock",
+    "classId": "warlock",
+    "branches": [
+      {
+        "id": "spirit-healer",
+        "name": "Spirit Healer",
+        "description": "Commands the spirits of the dead to heal allies and lay protective effects on them.",
+        "talents": [
+          {
+            "id": "t-spirit-mend",
+            "name": "Spirit Mend",
+            "description": "Learn Spirit Mend: heal an ally for 8. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "spirit-mend"
+          },
+          {
+            "id": "t-ancestral-ward",
+            "name": "Ancestral Ward",
+            "description": "Learn Ancestral Ward: a ward that soaks 6 damage. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "ancestral-ward"
+          },
+          {
+            "id": "spirit-link",
+            "name": "Spirit Link",
+            "description": "+1 Spirit per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "spirit",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-wailing-guardians",
+            "name": "Wailing Guardians",
+            "description": "Learn Wailing Guardians: every ally nearby regenerates. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "wailing-guardians"
+          },
+          {
+            "id": "t-spirit-armor",
+            "name": "Spirit Armour",
+            "description": "Learn Spirit Armour: armour and Defense for an ally. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "spirit-armor"
+          },
+          {
+            "id": "communion",
+            "name": "Communion",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-call-back-the-fallen",
+            "name": "Call Back the Fallen",
+            "description": "Learn Call Back the Fallen: raise a fallen ally. Costs souls.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "call-back-the-fallen"
+          },
+          {
+            "id": "ancestors-embrace",
+            "name": "Ancestors' Embrace",
+            "description": "+1 magic armour per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "plague-bearer",
+        "name": "Plague Bearer",
+        "description": "Shadow magic that afflicts enemies with harmful effects and damage that keeps on hurting.",
+        "talents": [
+          {
+            "id": "t-shadow-bolt",
+            "name": "Shadow Bolt",
+            "description": "Learn Shadow Bolt: a bolt of shadow. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "shadow-bolt"
+          },
+          {
+            "id": "t-curse-of-weakness",
+            "name": "Curse of Weakness",
+            "description": "Learn Curse of Weakness: -2 Strength and -1 Defense. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "curse-of-weakness"
+          },
+          {
+            "id": "dark-pact",
+            "name": "Dark Pact",
+            "description": "+1 Spirit per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "spirit",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-plague",
+            "name": "Plague",
+            "description": "Learn Plague: poison a whole group. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "plague"
+          },
+          {
+            "id": "t-corruption",
+            "name": "Corruption",
+            "description": "Learn Corruption: 4 damage a turn for 3 turns. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "corruption"
+          },
+          {
+            "id": "festering",
+            "name": "Festering",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-soul-rot",
+            "name": "Soul Rot",
+            "description": "Learn Soul Rot: poison and silence every enemy nearby. Costs souls.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "soul-rot"
+          },
+          {
+            "id": "pestilence",
+            "name": "Pestilence",
+            "description": "+1 Spirit per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "spirit",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "sword-binder",
+        "name": "Sword Binder",
+        "description": "A spellblade who enchants their weapons with spirits: extra damage, curses and draining blows.",
+        "talents": [
+          {
+            "id": "t-bind-blade",
+            "name": "Bind Blade",
+            "description": "Learn Bind Blade: +2 damage on weapon blows for 3 rounds. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "bind-blade"
+          },
+          {
+            "id": "t-spectral-edge",
+            "name": "Spectral Edge",
+            "description": "Learn Spectral Edge: a blow of pure spirit. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "spectral-edge"
+          },
+          {
+            "id": "binders-grip",
+            "name": "Binder's Grip",
+            "description": "+1 Strength per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "strength",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-hexed-blade",
+            "name": "Hexed Blade",
+            "description": "Learn Hexed Blade: a blow that curses and blinds. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "hexed-blade"
+          },
+          {
+            "id": "t-draining-strike",
+            "name": "Draining Strike",
+            "description": "Learn Draining Strike: heal by the damage you deal. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "draining-strike"
+          },
+          {
+            "id": "twin-binding",
+            "name": "Twin Binding",
+            "description": "+1 damage per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-soulfire-blade",
+            "name": "Soulfire Blade",
+            "description": "Learn Soulfire Blade: +4 damage and retaliation for 3 rounds. Costs souls.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "soulfire-blade"
+          },
+          {
+            "id": "bladebound",
+            "name": "Bladebound",
+            "description": "Crit on one number lower per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "critRange",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

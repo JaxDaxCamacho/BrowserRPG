@@ -121,7 +121,8 @@ describe('talent trees', () => {
   });
 
   it('adds passive bonuses per rank and teaches abilities', () => {
-    const s = party([{ premade: 'aldric-vane', talents: ['bulwark', 'bulwark', 'stalwart', 't-taunt'] }]);
+    // Aldric starts with Taunt: his starting talent point is already placed.
+    const s = party([{ premade: 'aldric-vane', talents: ['bulwark', 'bulwark', 'stalwart'] }]);
     const before = sheetOf(party([{ premade: 'aldric-vane' }]).party[0]!);
     const after = sheetOf(s.party[0]!);
     expect(after.defense).toBe(before.defense + 2);
@@ -458,7 +459,8 @@ describe('the Wizard', () => {
   });
 
   it('Summon Demon calls up an imp that acts on its own right after the wizard, then fades', () => {
-    const destruction = ['t-firebolt', 'kindling', 'kindling', 'kindling', 'hellfire-ward', 't-fireball', 't-immolate', 'infernal-vigour', 'infernal-vigour', 'infernal-vigour', 't-summon-demon'];
+    // Maelis starts with Firebolt.
+    const destruction = ['kindling', 'kindling', 'kindling', 'hellfire-ward', 't-fireball', 't-immolate', 'infernal-vigour', 'infernal-vigour', 'infernal-vigour', 't-summon-demon'];
     let s = fight(maelis(destruction, 12));
     s = setUp(s, 'merc-1', { 'merc-1': { pos: at(3, 3), resources: mana(20) } });
     s = castAbility(s, 'summon-demon', null, ctx);
@@ -540,5 +542,59 @@ describe('kick', () => {
     expect(combatOf(up).moveLeft).toBe(0);
     // Its turn over, it is back on its feet.
     expect(who(endTurn(up), 'bandit-thug-1').statuses).toEqual([]);
+  });
+});
+
+// ---------- the Ranger and the Warlock ----------
+
+describe('the Ranger and the Warlock', () => {
+  const landed = (g: GameState) => combatOf(g).events.some((e) => e.kind === 'attack' && e.outcome !== 'miss');
+
+  it('a rooted combatant cannot move, but can still act', () => {
+    let s = fight(party([{ premade: 'sylwen-ashbow' }]));
+    s = setUp(s, 'bandit-thug-1', { 'bandit-thug-1': { pos: at(4, 3), statuses: [{ kind: 'rooted', rounds: 2 }] }, 'merc-1': { pos: at(1, 3) } });
+    const c = combatOf(s);
+    s = { ...s, encounter: { ...s.encounter!, combat: { ...c, order: ['merc-1', 'bandit-thug-1', ...c.order.filter((x) => x !== 'merc-1' && x !== 'bandit-thug-1')], turn: 0 } } };
+    const next = endTurn(s);
+    expect(combatOf(next).order[combatOf(next).turn]).toBe('bandit-thug-1');
+    expect(combatOf(next).moveLeft).toBe(0);
+  });
+
+  it('Snare Shot roots on a hit (Sylwen starts with it)', () => {
+    let s = fight(party([{ premade: 'sylwen-ashbow' }]));
+    s = setUp(s, 'merc-1', { 'merc-1': { pos: at(1, 3), resources: pool(9) }, 'bandit-thug-1': { pos: at(5, 3), baseDefense: -50, hp: 99, maxHp: 99 } });
+    s = withSeed(s, (g) => landed(castAbility(g, 'snare-shot', 'bandit-thug-1', ctx)));
+    expect(who(castAbility(s, 'snare-shot', 'bandit-thug-1', ctx), 'bandit-thug-1').statuses.map((st) => st.kind)).toContain('rooted');
+  });
+
+  it('regeneration heals at the start of the turn', () => {
+    let s = fight(party([{ premade: 'vesper' }]));
+    const v = who(s, 'merc-1');
+    s = setUp(s, 'bandit-thug-1', { 'merc-1': { hp: v.maxHp - 5, statuses: [{ kind: 'regenerating', rounds: 2, amount: 3 }] } });
+    const c = combatOf(s);
+    s = { ...s, encounter: { ...s.encounter!, combat: { ...c, order: ['bandit-thug-1', 'merc-1', ...c.order.filter((x) => x !== 'merc-1' && x !== 'bandit-thug-1')], turn: 0 } } };
+    expect(who(endTurn(s), 'merc-1').hp).toBe(v.maxHp - 2);
+  });
+
+  it('a weapon enchantment adds to weapon blows, and Draining Strike heals by the damage dealt', () => {
+    const binder = ['t-bind-blade', 't-spectral-edge', 'binders-grip', 'binders-grip', 'binders-grip', 't-hexed-blade', 't-draining-strike'];
+    let s = fight(party([{ premade: 'vesper', talents: binder, mainHand: 'arming-sword' }], 11));
+    const v = who(s, 'merc-1');
+    s = setUp(s, 'merc-1', {
+      'merc-1': { pos: at(3, 3), hp: 5, resources: { mana: { current: 20, max: 20 } }, buffs: [{ source: 'Bind Blade', effects: [{ type: 'damage', amount: 2 }], roundsLeft: 3 }] },
+      'bandit-thug-1': { pos: at(4, 3), baseDefense: -50, hp: 99, maxHp: 99, armour: { physical: 0, magic: 0 } },
+    });
+    s = withSeed(s, (g) => landed(castAbility(g, 'draining-strike', 'bandit-thug-1', ctx)));
+    const after = castAbility(s, 'draining-strike', 'bandit-thug-1', ctx);
+    const roll = combatOf(after).events.find((e) => e.kind === 'attack')!.roll!;
+    expect(roll.bonusDamage).toBeGreaterThanOrEqual(2);
+    expect(who(after, 'merc-1').hp).toBe(Math.min(v.maxHp, 5 + roll.damage));
+  });
+
+  it('the Beast Master’s wolf joins the fight on the party’s side', () => {
+    const s0 = fight(party([{ premade: 'sylwen-ashbow', talents: ['t-call-wolf'] }]));
+    const s = setUp(s0, 'merc-1', { 'merc-1': { pos: at(3, 3), resources: pool(9) } });
+    const wolf = combatOf(castAbility(s, 'call-wolf', null, ctx)).combatants.find((x) => x.summoned)!;
+    expect(wolf).toMatchObject({ side: 'party', monsterId: 'wolf-companion', summoned: { rounds: 6 } });
   });
 });

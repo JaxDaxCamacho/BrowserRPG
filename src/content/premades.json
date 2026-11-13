@@ -5,9 +5,26 @@
     "raceId": "human",
     "classId": "knight",
     "portrait": "portraits/male/m-31",
-    "baseStats": { "strength": 13, "agility": 8, "toughness": 12, "intellect": 8, "spirit": 8, "charisma": 11 },
-    "raceChoices": ["strength", "toughness"],
-    "loadout": { "mainHand": "arming-sword", "offHand": "round-shield", "body": "chainmail" }
+    "baseStats": {
+      "strength": 13,
+      "agility": 8,
+      "toughness": 12,
+      "intellect": 8,
+      "spirit": 8,
+      "charisma": 11
+    },
+    "raceChoices": [
+      "strength",
+      "toughness"
+    ],
+    "loadout": {
+      "mainHand": "arming-sword",
+      "offHand": "round-shield",
+      "body": "chainmail"
+    },
+    "startingTalents": [
+      "t-taunt"
+    ]
   },
   {
     "id": "brunna-stonehand",
@@ -15,9 +32,23 @@
     "raceId": "dwarf",
     "classId": "knight",
     "portrait": "portraits/female/f-12",
-    "baseStats": { "strength": 12, "agility": 9, "toughness": 13, "intellect": 8, "spirit": 10, "charisma": 8 },
+    "baseStats": {
+      "strength": 12,
+      "agility": 9,
+      "toughness": 13,
+      "intellect": 8,
+      "spirit": 10,
+      "charisma": 8
+    },
     "raceChoices": [],
-    "loadout": { "mainHand": "mace", "offHand": "round-shield", "body": "chainmail" }
+    "loadout": {
+      "mainHand": "mace",
+      "offHand": "round-shield",
+      "body": "chainmail"
+    },
+    "startingTalents": [
+      "t-forward"
+    ]
   },
   {
     "id": "korg-the-unbowed",
@@ -25,9 +56,23 @@
     "raceId": "goliath",
     "classId": "barbarian",
     "portrait": "portraits/male/cultist-04",
-    "baseStats": { "strength": 14, "agility": 10, "toughness": 12, "intellect": 8, "spirit": 8, "charisma": 8 },
+    "baseStats": {
+      "strength": 14,
+      "agility": 10,
+      "toughness": 12,
+      "intellect": 8,
+      "spirit": 8,
+      "charisma": 8
+    },
     "raceChoices": [],
-    "loadout": { "mainHand": "greataxe", "offHand": "buckler", "body": "leather-armour" }
+    "loadout": {
+      "mainHand": "greataxe",
+      "offHand": "buckler",
+      "body": "leather-armour"
+    },
+    "startingTalents": [
+      "t-reckless-swing"
+    ]
   },
   {
     "id": "dagna-ironbrow",
@@ -35,9 +80,22 @@
     "raceId": "dwarf",
     "classId": "barbarian",
     "portrait": "portraits/female/f-19",
-    "baseStats": { "strength": 13, "agility": 10, "toughness": 13, "intellect": 8, "spirit": 8, "charisma": 8 },
+    "baseStats": {
+      "strength": 13,
+      "agility": 10,
+      "toughness": 13,
+      "intellect": 8,
+      "spirit": 8,
+      "charisma": 8
+    },
     "raceChoices": [],
-    "loadout": { "mainHand": "warhammer", "body": "leather-armour" }
+    "loadout": {
+      "mainHand": "warhammer",
+      "body": "leather-armour"
+    },
+    "startingTalents": [
+      "t-shove"
+    ]
   },
   {
     "id": "sylwen-ashbow",
@@ -45,9 +103,23 @@
     "raceId": "elf",
     "classId": "ranger",
     "portrait": "portraits/female/f-11",
-    "baseStats": { "strength": 8, "agility": 14, "toughness": 10, "intellect": 9, "spirit": 11, "charisma": 8 },
+    "baseStats": {
+      "strength": 8,
+      "agility": 14,
+      "toughness": 10,
+      "intellect": 9,
+      "spirit": 11,
+      "charisma": 8
+    },
     "raceChoices": [],
-    "loadout": { "mainHand": "shortbow", "body": "hide-armour", "ammo": "arrows" }
+    "loadout": {
+      "mainHand": "shortbow",
+      "body": "hide-armour",
+      "ammo": "arrows"
+    },
+    "startingTalents": [
+      "t-snare-shot"
+    ]
   },
   {
     "id": "maelis-thorne",
@@ -55,9 +127,25 @@
     "raceId": "human",
     "classId": "wizard",
     "portrait": "portraits/male/m-03",
-    "baseStats": { "strength": 8, "agility": 10, "toughness": 10, "intellect": 15, "spirit": 9, "charisma": 8 },
-    "raceChoices": ["intellect", "toughness"],
-    "loadout": { "mainHand": "oak-staff", "body": "travellers-robes" }
+    "baseStats": {
+      "strength": 8,
+      "agility": 10,
+      "toughness": 10,
+      "intellect": 15,
+      "spirit": 9,
+      "charisma": 8
+    },
+    "raceChoices": [
+      "intellect",
+      "toughness"
+    ],
+    "loadout": {
+      "mainHand": "oak-staff",
+      "body": "travellers-robes"
+    },
+    "startingTalents": [
+      "t-firebolt"
+    ]
   },
   {
     "id": "vesper",
@@ -65,9 +153,22 @@
     "raceId": "cursed",
     "classId": "warlock",
     "portrait": "portraits/female/f-01",
-    "baseStats": { "strength": 8, "agility": 10, "toughness": 11, "intellect": 9, "spirit": 14, "charisma": 8 },
+    "baseStats": {
+      "strength": 8,
+      "agility": 10,
+      "toughness": 11,
+      "intellect": 9,
+      "spirit": 14,
+      "charisma": 8
+    },
     "raceChoices": [],
-    "loadout": { "mainHand": "ritual-focus", "body": "leather-armour" }
+    "loadout": {
+      "mainHand": "ritual-focus",
+      "body": "leather-armour"
+    },
+    "startingTalents": [
+      "t-shadow-bolt"
+    ]
   },
   {
     "id": "pip-larkspur",
@@ -75,8 +176,25 @@
     "raceId": "human",
     "classId": "rogue",
     "portrait": "portraits/male/cultist-05",
-    "baseStats": { "strength": 8, "agility": 13, "toughness": 10, "intellect": 9, "spirit": 8, "charisma": 12 },
-    "raceChoices": ["agility", "charisma"],
-    "loadout": { "mainHand": "dagger", "offHand": "dagger", "body": "leather-armour" }
+    "baseStats": {
+      "strength": 8,
+      "agility": 13,
+      "toughness": 10,
+      "intellect": 9,
+      "spirit": 8,
+      "charisma": 12
+    },
+    "raceChoices": [
+      "agility",
+      "charisma"
+    ],
+    "loadout": {
+      "mainHand": "dagger",
+      "offHand": "dagger",
+      "body": "leather-armour"
+    },
+    "startingTalents": [
+      "t-backstab"
+    ]
   }
 ]

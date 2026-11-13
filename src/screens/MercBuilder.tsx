@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CLASSES, getClass, getItem, getRace, ITEMS, portraitsFor, PREMADES, RACES, type Gender } from '../content';
+import { CLASSES, getAbility, getClass, getItem, getRace, getTalentTree, ITEMS, portraitsFor, PREMADES, RACES, type Gender } from '../content';
 import {
   canWearArmour,
   CREATION_POINTS,
@@ -165,13 +165,26 @@ export function MercBuilder({ disabled, onAdd }: Props) {
   const [baseStats, setBaseStats] = useState<Stats>(createStartingStats);
   const [raceChoices, setRaceChoices] = useState<StatName[]>([]);
   const [loadout, setLoadout] = useState<Loadout>(() => defaultLoadout(RACES[0]!, CLASSES[0]!.id));
+  /** The tier 1 talent the starting talent point goes into, if one is picked now. */
+  const [startingTalent, setStartingTalent] = useState<string | null>(null);
 
   const race = getRace(raceId);
   const cls = getClass(classId);
   // Only faces that suit the chosen gender and race; keep the pick while it still fits.
   const portraits = useMemo(() => portraitsFor(gender, raceId).map((p) => p.asset), [gender, raceId]);
   const portrait = chosenPortrait && portraits.includes(chosenPortrait) ? chosenPortrait : portraits[0];
-  const draft: MercDraft = { name, gender, raceId, classId, baseStats, raceChoices, loadout, ...(portrait ? { portrait } : {}) };
+  const draft: MercDraft = {
+    name,
+    gender,
+    raceId,
+    classId,
+    baseStats,
+    raceChoices,
+    loadout,
+    ...(portrait ? { portrait } : {}),
+    ...(startingTalent ? { startingTalents: [startingTalent] } : {}),
+  };
+  const firstTalents = (getTalentTree(classId)?.branches ?? []).flatMap((b) => b.talents.filter((t) => t.tier === 1).map((t) => ({ talent: t, branch: b.name })));
 
   // Load every choice up front so picking one shows it straight away.
   useEffect(() => {
@@ -202,6 +215,7 @@ export function MercBuilder({ disabled, onAdd }: Props) {
     setName('');
     setBaseStats(createStartingStats());
     setRaceChoices([]);
+    setStartingTalent(null);
   };
 
   const main = loadout.mainHand ? getItem(loadout.mainHand) : null;
@@ -270,6 +284,7 @@ export function MercBuilder({ disabled, onAdd }: Props) {
             onChange={(e) => {
               setClassId(e.target.value);
               setLoadout(defaultLoadout(race, e.target.value));
+              setStartingTalent(null);
             }}
           >
             {CLASSES.map((c) => (
@@ -352,6 +367,33 @@ export function MercBuilder({ disabled, onAdd }: Props) {
           })}
         </tbody>
       </table>
+
+      <h3 className="builder-heading">Starting talent</h3>
+      {firstTalents.length === 0 ? (
+        <p className="dim note">The {cls.name} talent tree is still to come; the starting point waits until then.</p>
+      ) : (
+        <>
+          <p className="dim note">Every merc starts with one talent point. Spend it on a first talent now, or save it for camp or town.</p>
+          <div className="starting-talents">
+            {firstTalents.map(({ talent, branch }) => (
+              <button
+                key={talent.id}
+                type="button"
+                className={`starting-talent${startingTalent === talent.id ? ' chosen' : ''}`}
+                aria-pressed={startingTalent === talent.id}
+                onClick={() => setStartingTalent((cur) => (cur === talent.id ? null : talent.id))}
+              >
+                <AssetImage id={talent.icon ?? (talent.abilityId ? getAbility(talent.abilityId).icon : undefined)} fallback={talent.name.slice(0, 2)} size={36} />
+                <span>
+                  <strong>{talent.name}</strong> <span className="dim">· {branch}</span>
+                  <br />
+                  <span className="dim">{talent.description}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <h3 className="builder-heading">Starting gear</h3>
       <div className="gear-pickers">

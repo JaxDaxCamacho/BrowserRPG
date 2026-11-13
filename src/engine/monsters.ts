@@ -35,6 +35,8 @@ export type Resource = (typeof RESOURCES)[number];
  * - frozen: loses its turns, but taking damage shatters the ice
  * - warded: a shield that soaks up `amount` damage before it breaks
  * - prone: knocked off its feet; its next turn's movement goes on getting up, and melee attacks on it have advantage
+ * - rooted: snared in place; it cannot move, but can still act
+ * - regenerating: heals `amount` at the start of each turn
  */
 export const STATUS_KINDS = [
   'stunned',
@@ -53,6 +55,8 @@ export const STATUS_KINDS = [
   'frozen',
   'warded',
   'prone',
+  'rooted',
+  'regenerating',
 ] as const;
 export type StatusKind = (typeof STATUS_KINDS)[number];
 
@@ -131,6 +135,8 @@ export interface AbilityDefinition {
   revive?: boolean;
   /** Calls up a monster to fight on the user's side for a number of its turns. */
   summon?: { monsterId: string; rounds: number };
+  /** The user heals by the damage the ability deals. */
+  lifesteal?: boolean;
 }
 
 /** A spell: a magic or spiritual attack, or anything paid for with mana or souls. Spells can be cancelled and reflected. */

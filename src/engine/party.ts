@@ -13,7 +13,9 @@ export function addMerc(state: GameState, draft: MercDraft): GameState {
   if (draft.premadeId && state.party.some((m) => m.premadeId === draft.premadeId)) {
     throw new Error(`${draft.name} is already in the party.`);
   }
-  const { loadout: _loadout, ...identity } = draft;
+  const { loadout: _loadout, startingTalents: picked = [], ...identity } = draft;
+  const talents: Record<string, number> = {};
+  for (const id of picked) talents[id] = (talents[id] ?? 0) + 1;
   const merc: Merc = {
     ...identity,
     ...startingKit(draft),
@@ -21,6 +23,7 @@ export function addMerc(state: GameState, draft: MercDraft): GameState {
     id: `merc-${state.nextMercId}`,
     level: 1,
     xp: 0,
+    talents,
   };
   return { ...state, party: [...state.party, merc], nextMercId: state.nextMercId + 1 };
 }

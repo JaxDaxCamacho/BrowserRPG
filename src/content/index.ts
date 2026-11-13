@@ -109,7 +109,22 @@ export function premadeToDraft(premade: PremadeDefinition): MercDraft {
     raceChoices: premade.raceChoices,
     loadout: premade.loadout,
     premadeId: premade.id,
+    ...(premade.startingTalents ? { startingTalents: premade.startingTalents } : {}),
   };
+}
+
+/**
+ * Problems with the talents a new merc starts with: at most one, and only a tier 1
+ * talent of their own class (the starting talent point). Empty means they are fine.
+ */
+export function startingTalentProblems(classId: string, talents: string[], trees: TalentTree[]): string[] {
+  if (talents.length === 0) return [];
+  if (talents.length > 1) return ['a new merc has one starting talent point'];
+  const tree = trees.find((t) => t.classId === classId);
+  const talent = tree?.branches.flatMap((b) => b.talents).find((t) => t.id === talents[0]);
+  if (!talent) return [`"${talents[0]}" is not a talent of the ${classId} tree`];
+  if (talent.tier !== 1) return [`"${talent.name}" is not a tier 1 talent`];
+  return [];
 }
 
 /** Checks that entries refer to things that exist. Empty means everything lines up. */
@@ -176,6 +191,9 @@ export function crossCheck(set: ContentSet): string[] {
       getItem,
     });
     for (const p of draftProblems) problems.push(`Pre-built merc "${premade.id}": ${p}`);
+    for (const p of startingTalentProblems(premade.classId, premade.startingTalents ?? [], set.talents ?? [])) {
+      problems.push(`Pre-built merc "${premade.id}": ${p}`);
+    }
   }
 
   for (const adventure of set.adventures) {

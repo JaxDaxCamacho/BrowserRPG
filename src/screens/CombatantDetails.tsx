@@ -50,6 +50,8 @@ const STATUS_WORDS: Record<string, string> = {
   reflecting: 'Reflecting: the next hostile spell bounces back',
   warded: 'Warded',
   prone: 'Prone: getting up takes its next move; melee attacks on it have advantage',
+  rooted: 'Rooted: cannot move, but can still act',
+  regenerating: 'Regenerating',
 };
 
 /** Everything known about an enemy (or a summoned ally) in a fight. Opened by double right-clicking its token. */

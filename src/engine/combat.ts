@@ -465,7 +465,13 @@ export function effectiveStats(x: Combatant): Stats {
 
 /** Tiles a combatant may move this turn, with movement buffs and slows. Never below 1. */
 export function effectiveMovement(x: Combatant): number {
+  if (hasStatus(x, 'rooted')) return 0;
   return Math.max(1, x.movement + x.bloodrage * rageLevel(x) + buffTotal(x, (e) => (e.type === 'movement' ? e.amount : 0)));
+}
+
+/** Flat damage on a weapon blow: from gear and talents, plus any weapon enchantment buffs. */
+export function weaponDamageBonus(x: Combatant): number {
+  return x.damageBonus + buffTotal(x, (e) => (e.type === 'damage' ? e.amount : 0));
 }
 
 export function effectiveDefense(x: Combatant): number {
@@ -855,6 +861,17 @@ function beginTurn(c: CombatState, seed: number): { combat: CombatState; seed: n
   let next = updateCombatant({ ...c, moveLeft, acted: false }, actor.id, (x) =>
     changeResource({ ...x, defending: false, cooldowns }, 'mana', 1),
   );
+  // Regeneration heals before anything else bites.
+  const regen = statusOf(actor, 'regenerating');
+  if (regen?.amount && isStanding(actor)) {
+    const me = combatantById(next, actor.id);
+    const hp = Math.min(me.maxHp, me.hp + regen.amount);
+    if (hp > me.hp) {
+      next = updateCombatant(next, actor.id, (x) => ({ ...x, hp }));
+      next = withLog(next, `${actor.name} regenerates ${hp - me.hp} HP.`);
+      next = { ...next, events: [...next.events, { kind: 'heal', actorId: actor.id, targetId: actor.id, amount: hp - me.hp, animation: ANIMATIONS.heal }] };
+    }
+  }
   for (const st of actor.statuses) {
     const word = DOT_WORDS[st.kind];
     const me = combatantById(next, actor.id);
@@ -1254,7 +1271,7 @@ export function attack(state: GameState, targetId: string): GameState {
     mode: combineModes(mode, hidden ? 'advantage' : 'normal'),
     critThreshold: actor.critThreshold,
     animation: actor.attack.animation,
-    bonusDamage: actor.damageBonus,
+    bonusDamage: weaponDamageBonus(actor),
     weapon: true,
     ...(actor.attack.sound ? { sound: actor.attack.sound } : {}),
     ...(actor.attack.style ? { style: actor.attack.style } : {}),
@@ -1387,7 +1404,7 @@ function grantedAttack(c: CombatState, seed: number, ally: Combatant): { combat:
     mode: reach(c, ally.attack.range, ally.pos, foe.pos, true).mode,
     critThreshold: ally.critThreshold,
     animation: ally.attack.animation,
-    bonusDamage: ally.damageBonus,
+    bonusDamage: weaponDamageBonus(ally),
     weapon: true,
     ...(ally.attack.sound ? { sound: ally.attack.sound } : {}),
     ...(ally.attack.style ? { style: ally.attack.style } : {}),
@@ -1488,7 +1505,7 @@ export function castAbility(
     }
     if (profile && (target.side !== actor.side || target.id === actor.id)) {
       // Bonus dice for the situation, judged before the blow lands.
-      let bonus = (ability.weaponAttack ? (ability.weaponAttack.bonus ?? 0) + user.damageBonus : 0);
+      let bonus = ability.weaponAttack ? (ability.weaponAttack.bonus ?? 0) + weaponDamageBonus(user) : 0;
       for (const b of ability.bonuses ?? []) {
         if (!conditionHolds(next, b.when, user, target)) continue;
         const rolled = rollDice(seed, b.damage);
@@ -1513,6 +1530,15 @@ export function castAbility(
       });
       next = r.combat;
       seed = r.seed;
+      if (ability.lifesteal && r.outcome !== 'miss') {
+        const dealt = target.hp - combatantById(next, target.id).hp;
+        const me = combatantById(next, user.id);
+        const hp = Math.min(me.maxHp, me.hp + Math.max(0, dealt));
+        if (hp > me.hp && isStanding(me)) {
+          next = withLog(updateCombatant(next, user.id, (x) => ({ ...x, hp })), `${user.name} drains ${hp - me.hp} HP.`);
+          next = { ...next, events: [...next.events, { kind: 'heal', actorId: user.id, targetId: user.id, amount: hp - me.hp, animation: ANIMATIONS.heal }] };
+        }
+      }
       if (r.outcome !== 'miss') {
         const struck = combatantById(next, target.id);
         if (isStanding(struck)) {
@@ -1734,7 +1760,7 @@ export function moveTo(state: GameState, to: Pos): GameState {
         mode: 'normal',
         critThreshold: punisher.critThreshold,
         animation: punisher.attack.animation,
-        bonusDamage: punisher.damageBonus,
+        bonusDamage: weaponDamageBonus(punisher),
         weapon: true,
         ...(punisher.attack.sound ? { sound: punisher.attack.sound } : {}),
         ...(punisher.attack.style ? { style: punisher.attack.style } : {}),

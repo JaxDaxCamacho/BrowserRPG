@@ -2130,7 +2130,7 @@ button.portrait-choice:hover {
 .token-slot {
   position: absolute;
   transform: translate(-50%, -50%);
-  transition: left 0.35s ease, top 0.35s ease;
+  transition: left 0.5s ease, top 0.5s ease;
   pointer-events: auto;
 }
 
@@ -2139,7 +2139,7 @@ button.portrait-choice:hover {
   width: calc(var(--cell) * 0.26);
   height: calc(var(--cell) * 0.1);
   border-radius: 999px;
-  transition: left 0.42s linear, top 0.42s linear;
+  transition: left 0.55s linear, top 0.55s linear;
   z-index: 5;
 }
 
@@ -3159,4 +3159,37 @@ button.portrait-choice:hover {
 .vote-status {
   margin: 0 0 6px;
   font-size: 0.85rem;
+}
+
+.starting-talents {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.starting-talent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 6px 8px;
+  border-image: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.8rem;
+  font-family: system-ui, sans-serif;
+}
+
+.starting-talent.chosen {
+  border-color: var(--accent);
+  background: rgb(201 150 60 / 12%);
+}
+
+.coop-banner {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: rgb(201 150 60 / 10%);
 }

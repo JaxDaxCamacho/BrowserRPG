@@ -119,3 +119,31 @@ describe('voting in conversations', () => {
     expect(g.dialogue!.nodeId).toBe('ford');
   });
 });
+
+describe('making the party together', () => {
+  const fresh = (): GameState => ({ ...startNewGame(2), screen: 'partyCreation' });
+  const draft = () => premadeToDraft(PREMADES.find((p) => p.id === 'pip-larkspur')!);
+
+  it('a joined player may add one merc of their own while the party is made', () => {
+    const none = () => false;
+    expect(commandBlocker(fresh(), { type: 'addMerc', draft: draft() }, false, none)).toBeNull();
+    const withMine = runCommand(fresh(), { type: 'addMerc', draft: draft() });
+    expect(commandBlocker(withMine, { type: 'addMerc', draft: draft() }, false, (id) => id === 'merc-1')).toMatch(/already have a merc/);
+    expect(commandBlocker({ ...fresh(), screen: 'dungeon' }, { type: 'addMerc', draft: draft() }, false, none)).toMatch(/being made/);
+  });
+
+  it('and remove only their own', () => {
+    const g = runCommand(runCommand(fresh(), { type: 'addMerc', draft: draft() }), { type: 'addMerc', draft: premadeToDraft(PREMADES[0]!) });
+    const mine = (id: string) => id === 'merc-1';
+    expect(commandBlocker(g, { type: 'removeMerc', mercId: 'merc-1' }, false, mine)).toBeNull();
+    expect(commandBlocker(g, { type: 'removeMerc', mercId: 'merc-2' }, false, mine)).toMatch(/not your merc/);
+  });
+
+  it('a merc can start with only one tier 1 talent of its own class', () => {
+    const bad = { ...draft(), startingTalents: ['t-vanish'] };
+    expect(() => runCommand(fresh(), { type: 'addMerc', draft: bad })).toThrow(/not a tier 1 talent/);
+    const wrongClass = { ...draft(), startingTalents: ['bulwark'] };
+    expect(() => runCommand(fresh(), { type: 'addMerc', draft: wrongClass })).toThrow(/not a talent of the rogue tree/);
+    expect(runCommand(fresh(), { type: 'addMerc', draft: draft() }).party[0]!.talents).toEqual({ 't-backstab': 1 });
+  });
+});

@@ -155,3 +155,18 @@ describe('save migration', () => {
     expect(migrated.party[0]).toMatchObject({ level: 3, levelStats: {}, talents: {} });
   });
 });
+
+describe('the starting talent point', () => {
+  it('every merc has one talent point at level 1', () => {
+    const custom = addMerc(startNewGame(1), { ...premadeToDraft(PREMADES.find((p) => p.id === 'aldric-vane')!), premadeId: undefined, startingTalents: [] } as never).party[0]!;
+    expect(custom.talents).toEqual({});
+    expect(unspentTalentPoints(custom)).toBe(1);
+    expect(unspentTalentPoints({ ...custom, level: MAX_LEVEL })).toBe(39);
+  });
+
+  it('pre-built mercs come with theirs already placed', () => {
+    const aldric = party().party[0]!;
+    expect(aldric.talents).toEqual({ 't-taunt': 1 });
+    expect(unspentTalentPoints(aldric)).toBe(0);
+  });
+});

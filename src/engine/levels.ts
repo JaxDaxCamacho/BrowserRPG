@@ -12,6 +12,8 @@ import { STAT_NAMES, statPointsFromLevels, type StatChanges, type StatName } fro
 
 export const MAX_LEVEL = 20;
 export const TALENT_POINTS_PER_LEVEL = 2;
+/** Every merc starts with one talent point at level 1. */
+export const STARTING_TALENT_POINTS = 1;
 
 /** Total XP needed to reach a level. */
 export function xpForLevel(level: number): number {
@@ -70,7 +72,7 @@ export function unspentStatPoints(merc: Pick<Merc, 'level' | 'levelStats'>): num
 }
 
 export function unspentTalentPoints(merc: Pick<Merc, 'level' | 'talents'>): number {
-  return (merc.level - 1) * TALENT_POINTS_PER_LEVEL - total(merc.talents);
+  return STARTING_TALENT_POINTS + (merc.level - 1) * TALENT_POINTS_PER_LEVEL - total(merc.talents);
 }
 
 /** Why points cannot be spent right now, or null when they can: only at camp or in town. */

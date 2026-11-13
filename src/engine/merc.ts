@@ -44,6 +44,8 @@ export interface MercDraft {
   loadout: Loadout;
   /** Set when the merc came from the pre-built roster. */
   premadeId?: string;
+  /** Talents taken at creation, with the starting talent point: tier 1 talents of the class. */
+  startingTalents?: string[];
 }
 
 export interface Merc extends Omit<MercDraft, 'loadout'> {

@@ -267,6 +267,7 @@ export const abilitySchema = z.strictObject({
   attackStat: statName.optional(),
   revive: z.boolean().optional(),
   summon: z.strictObject({ monsterId: id, rounds: z.number().int().min(1).max(10) }).optional(),
+  lifesteal: z.boolean().optional(),
 }).refine((a) => !(a.attack && a.weaponAttack), { message: 'an ability uses its own "attack" or the "weaponAttack", not both' });
 
 // ---------- talent trees ----------
@@ -542,6 +543,8 @@ export const premadeSchema = z.strictObject({
     body: id.optional(),
     ammo: id.optional(),
   }),
+  /** The talent its starting point is already placed in: a tier 1 talent of its class. */
+  startingTalents: z.array(id).max(1).optional(),
 });
 
 export type AdventureDefinition = z.infer<typeof adventureSchema>;

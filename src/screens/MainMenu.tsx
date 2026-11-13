@@ -4,7 +4,7 @@ import { SAVE_SLOTS, type SaveRecord } from '../platform/saveStore';
 import { useGameStore } from '../state/store';
 import { JoinPanel } from './Coop';
 
-type View = 'main' | 'newGame' | 'continue' | 'join';
+type View = 'main' | 'newGame' | 'hostGame' | 'continue' | 'join';
 
 const SCREEN_LABELS: Record<GameState['screen'], string> = {
   menu: 'Main menu',
@@ -31,6 +31,7 @@ export function MainMenu() {
   const newGame = useGameStore((s) => s.newGame);
   const continueGame = useGameStore((s) => s.continueGame);
   const openTool = useGameStore((s) => s.openTool);
+  const hostOnline = useGameStore((s) => s.hostOnline);
 
   const [view, setView] = useState<View>('main');
   /** The used slot the player has asked to overwrite, awaiting a yes or no. */
@@ -61,6 +62,9 @@ export function MainMenu() {
           >
             Continue
           </button>
+          <button type="button" onClick={() => setView('hostGame')}>
+            Host a co-op game
+          </button>
           <button type="button" onClick={() => setView('join')}>
             Join a co-op game
           </button>
@@ -80,11 +84,23 @@ export function MainMenu() {
     );
   }
 
-  const isNew = view === 'newGame';
+  const isNew = view === 'newGame' || view === 'hostGame';
+  const hosting = view === 'hostGame';
+  /** A new game in this slot; when hosting, the game opens for others to join straight away. */
+  const begin = (slotId: string) => {
+    newGame(slotId);
+    if (hosting) void hostOnline().catch((e: unknown) => useGameStore.setState({ netNotice: `Could not open the game to others: ${e instanceof Error ? e.message : String(e)}` }));
+  };
   return (
     <main className="screen menu">
-      <h1>{isNew ? 'New Game' : 'Continue'}</h1>
-      <p className="menu-tagline">{isNew ? 'Choose a slot for your new company.' : 'Choose a company to lead.'}</p>
+      <h1>{hosting ? 'Host a co-op game' : isNew ? 'New Game' : 'Continue'}</h1>
+      <p className="menu-tagline">
+        {hosting
+          ? 'Choose a slot for the company. You get a join code; each friend who joins creates their own merc, and you fill the rest.'
+          : isNew
+            ? 'Choose a slot for your new company.'
+            : 'Choose a company to lead.'}
+      </p>
       {!savesLoaded && <p className="menu-tagline">Reading saved games…</p>}
       <ul className="slot-list">
         {SAVE_SLOTS.map((slotId, index) => {
@@ -96,7 +112,7 @@ export function MainMenu() {
               <li key={slotId} className="slot slot-confirm">
                 <span>Replace the game in {label}? This cannot be undone.</span>
                 <span className="row">
-                  <button type="button" className="danger" onClick={() => newGame(slotId)}>
+                  <button type="button" className="danger" onClick={() => begin(slotId)}>
                     Replace
                   </button>
                   <button type="button" onClick={() => setOverwriting(null)}>
@@ -116,7 +132,7 @@ export function MainMenu() {
                 onClick={() => {
                   if (!isNew) continueGame(slotId);
                   else if (record) setOverwriting(slotId);
-                  else newGame(slotId);
+                  else begin(slotId);
                 }}
               >
                 <strong>{label}</strong>

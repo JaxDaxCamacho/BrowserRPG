@@ -310,6 +310,11 @@ function hostReceive(connId: string, msg: ClientMessage) {
     try {
       const next = settle(runCommand(game, msg.cmd, votingFor(game, net.session, playerId)), combatContext);
       useGameStore.setState({ game: next });
+      // A merc a player brings to the party is theirs to play.
+      if (msg.cmd.type === 'addMerc') {
+        const added = next.party.find((m) => !game.party.some((old) => old.id === m.id));
+        if (added) store.assignSeat(added.id, playerId);
+      }
     } catch (error) {
       hostLink.send(connId, { t: 'rejected', id: msg.id, reason: describe(error) });
     }
