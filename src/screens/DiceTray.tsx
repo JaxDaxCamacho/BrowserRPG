@@ -31,18 +31,23 @@ function TumblingDie({ value, index, settled, dropped }: { value: number; index:
  */
 export function DiceTray() {
   const feed = useGameStore((s) => s.game.rollFeed);
+  const delay = useGameStore((s) => s.diceDelay);
   const [shown, setShown] = useState<{ seq: number; rolls: ShownRoll[] } | null>(null);
   const [settled, setSettled] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (!feed || feed.seq === shown?.seq) return;
-    setShown(feed);
-    setSettled(false);
-    setVisible(true);
-    const land = window.setTimeout(() => setSettled(true), TUMBLE_MS);
-    const hide = window.setTimeout(() => setVisible(false), TUMBLE_MS + SHOW_MS);
+    // In a fight the dice wait a moment, while the screen shows who is attacking whom.
+    const start = window.setTimeout(() => {
+      setShown(feed);
+      setSettled(false);
+      setVisible(true);
+    }, delay);
+    const land = window.setTimeout(() => setSettled(true), delay + TUMBLE_MS);
+    const hide = window.setTimeout(() => setVisible(false), delay + TUMBLE_MS + SHOW_MS);
     return () => {
+      window.clearTimeout(start);
       window.clearTimeout(land);
       window.clearTimeout(hide);
     };

@@ -52,6 +52,13 @@ import { initials } from './MercCard';
 /** Pause before each enemy acts, so the player can follow the fight. */
 const ENEMY_DELAY_MS = 900;
 const FLASH_MS = 1100;
+/**
+ * The beats of an attack: first who attacks whom is shown (AIM_MS), then the
+ * dice tumble (TUMBLE_MS), rest on their result for a moment (RESULT_MS), and
+ * only then does the damage land.
+ */
+const AIM_MS = 500;
+const RESULT_MS = 300;
 /** How long a projectile takes to cross the battlefield before it lands or goes wide. */
 const PROJECTILE_MS = 420;
 
@@ -264,6 +271,10 @@ interface TokenProps {
   frames: (id: string) => number | undefined;
   /** Shown as the merc whose action bar is on screen. */
   viewed?: boolean;
+  /** Making an attack that is about to be rolled. */
+  aiming?: boolean;
+  /** The target of an attack about to be rolled. */
+  aimed?: boolean;
   onPick: () => void;
   /** A left click that is not picking a target: select the token. */
   onSelect: () => void;
@@ -271,13 +282,13 @@ interface TokenProps {
   onInspect: () => void;
 }
 
-function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, onPick, onSelect, onInspect }: TokenProps) {
+function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aiming, aimed, onPick, onSelect, onInspect }: TokenProps) {
   const down = x.hp === 0;
   const pct = Math.max(0, (x.hp / x.maxHp) * 100);
   return (
     <button
       type="button"
-      className={`combat-token side-${x.side}${active ? ' active' : ''}${viewed ? ' viewed' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}`}
+      className={`combat-token side-${x.side}${active ? ' active' : ''}${viewed ? ' viewed' : ''}${aiming ? ' aiming' : ''}${aimed ? ' aimed' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}`}
       onClick={() => (targetable ? onPick() : onSelect())}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -360,9 +371,16 @@ export function CombatScreen() {
       setHeld(live);
       return;
     }
-    const timer = window.setTimeout(() => setHeld(live), TUMBLE_MS + 150);
+    const timer = window.setTimeout(() => setHeld(live), AIM_MS + TUMBLE_MS + RESULT_MS);
     return () => window.clearTimeout(timer);
   }, [live]);
+
+  // While a fight is on screen, the dice wait for the attack to be shown first.
+  const setDiceDelay = useGameStore((s) => s.setDiceDelay);
+  useEffect(() => {
+    setDiceDelay(AIM_MS);
+    return () => setDiceDelay(0);
+  }, [setDiceDelay]);
 
   // Keep the dice of the latest attacks on screen until someone attacks again.
   useEffect(() => {
@@ -446,6 +464,21 @@ export function CombatScreen() {
 
 
   if (!game.encounter || !combat || !live || !game.dungeon) return <main className="screen">Preparing the fight…</main>;
+
+  // Who is attacking whom, shown while the dice are out.
+  const aim = { attackers: new Set<string>(), targets: new Set<string>(), lines: [] as { key: string; from: Pos; to: Pos }[] };
+  if (revealing) {
+    const at = (id: string) => combat.combatants.find((x) => x.id === id)?.pos ?? combat.obstacles.find((o) => o.id === id)?.pos;
+    live.events.forEach((e, i) => {
+      const aimed = e.kind === 'attack' || (e.kind === 'status' && (e.label === 'Kicked' || e.label === 'Shrugged off'));
+      if (!aimed || !e.targetId) return;
+      aim.attackers.add(e.actorId);
+      aim.targets.add(e.targetId);
+      const from = at(e.actorId);
+      const to = at(e.targetId);
+      if (from && to && e.actorId !== e.targetId) aim.lines.push({ key: `${live.seq}-${i}`, from, to });
+    });
+  }
 
   const def = getDungeon(game.dungeon.dungeonId);
   const feature = featureById(def, live.featureId);
@@ -613,6 +646,8 @@ export function CombatScreen() {
                   flashes={flashes.filter((f) => f.targetId === x.id)}
                   frames={frames}
                   viewed={viewed?.id === x.id && viewed.id !== actor?.id}
+                  aiming={aim.attackers.has(x.id)}
+                  aimed={aim.targets.has(x.id)}
                   onPick={() => pick(x.id)}
                   onSelect={() => {
                     if (x.side === 'party' && !x.summoned && !targeting) setViewId(x.id === actor?.id ? null : x.id);
@@ -622,6 +657,13 @@ export function CombatScreen() {
               </div>
             ))}
           </div>
+          {aim.lines.length > 0 && (
+            <svg className="aim-layer" viewBox={`0 0 ${combat.width} ${combat.height}`} preserveAspectRatio="none" aria-hidden="true">
+              {aim.lines.map((l) => (
+                <line key={l.key} x1={l.from.x + 0.5} y1={l.from.y + 0.5} x2={l.to.x + 0.5} y2={l.to.y + 0.5} className="aim-line" vectorEffect="non-scaling-stroke" />
+              ))}
+            </svg>
+          )}
           <div className="projectile-layer" aria-hidden="true">
             {projectiles.map((p) => (
               <ProjectileFX key={p.key} spec={p} width={combat.width} height={combat.height} />

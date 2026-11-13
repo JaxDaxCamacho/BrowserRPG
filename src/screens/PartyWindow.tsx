@@ -25,6 +25,7 @@ import { useGameStore } from '../state/store';
 import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
 import { formatModifier, initials, Token } from './MercCard';
+import { TalentTreeView } from './TalentTreeView';
 import { XpBar } from './TrainingPanel';
 
 const RULES: GearRules = {
@@ -71,6 +72,8 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
     () => (initialMercId && game.party.some((m) => m.id === initialMercId) ? initialMercId : undefined) ?? game.party.find((m) => !m.dead)?.id ?? game.party[0]!.id,
   );
   const [picked, setPicked] = useState<Picked>(null);
+  /** Which page of the window: the character sheet with gear, or the talent tree. */
+  const [view, setView] = useState<'sheet' | 'talents'>('sheet');
   const [message, setMessage] = useState<string | null>(null);
 
   // Older saves and freshly looted items may not have a place in the grid yet.
@@ -158,11 +161,28 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
               </li>
             ))}
           </ul>
+          <div className="party-views" role="tablist" aria-label="View">
+            <button type="button" role="tab" aria-selected={view === 'sheet'} className={view === 'sheet' ? 'active' : ''} onClick={() => setView('sheet')}>
+              Character &amp; gear
+            </button>
+            <button type="button" role="tab" aria-selected={view === 'talents'} className={view === 'talents' ? 'active' : ''} onClick={() => setView('talents')}>
+              Talents
+              {unspentTalentPoints(merc) > 0 && <span className="tab-badge">{unspentTalentPoints(merc)}</span>}
+            </button>
+          </div>
           <button type="button" onClick={onClose}>
             Close
           </button>
         </header>
 
+        {view === 'talents' ? (
+          <div className="party-body talents-body">
+            <h2>
+              {merc.name} <span className="dim">· {cls.name} talents · level {merc.level}</span>
+            </h2>
+            <TalentTreeView key={merc.id} merc={merc} />
+          </div>
+        ) : (
         <div className="party-body">
           <section className="char-sheet" aria-label="Character sheet">
             <div className="row char-title">
@@ -350,6 +370,7 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
             </div>
           </section>
         </div>
+        )}
       </div>
     </div>
   );

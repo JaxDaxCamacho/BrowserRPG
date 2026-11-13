@@ -21,6 +21,9 @@ interface GameStore {
   openTool: (tool: Tool | null) => void;
   /** Set while trying out a dungeon from the dungeon maker. Nothing is saved. */
   testPlay: { dungeonId: string } | null;
+  /** How long the dice tray waits before rolling, so a fight can show who attacks whom first. Not saved. */
+  diceDelay: number;
+  setDiceDelay: (ms: number) => void;
   startTestPlay: (dungeonId: string, adventureId: string) => void;
   endTestPlay: () => void;
 
@@ -69,6 +72,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ tool });
   },
   testPlay: null,
+  diceDelay: 0,
+  setDiceDelay: (ms) => set({ diceDelay: ms }),
   startTestPlay: (dungeonId, adventureId) => {
     rememberTool('dungeonMaker');
     set({ tool: null, activeSlot: null, testPlay: { dungeonId }, game: testParty(dungeonId, adventureId) });
