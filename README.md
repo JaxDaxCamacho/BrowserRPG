@@ -6,6 +6,10 @@ A party-based dungeon crawler for browser, PC and Android, built once in TypeScr
 
 Requires Node.js 20.19 or newer.
 
+**One click (Windows with WSL):** double-click `Play.bat`. It starts the game inside WSL, installs
+packages on the first run, and opens your browser at http://127.0.0.1:5173. Close its window to stop
+the game; double-clicking again while it is running just reopens the browser.
+
 ```bash
 npm install
 npm run dev      # play in the browser
