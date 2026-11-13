@@ -366,6 +366,18 @@ const featureBase = {
   icon: assetId.optional(),
 };
 
+/** Obstacle kinds the battlefield can be dressed with; each carries its own blocking defaults. */
+export const OBSTACLE_KINDS = ['barrel', 'chest', 'barricade', 'pillar'] as const;
+export type ObstacleKind = (typeof OBSTACLE_KINDS)[number];
+
+const obstacleSchema = z.strictObject({
+  id,
+  kind: z.enum(OBSTACLE_KINDS),
+  /** Position on the combat grid (not the dungeon map): 0,0 is the top-left of the battlefield. */
+  x: z.number().int().min(0).max(11),
+  y: z.number().int().min(0).max(8),
+});
+
 export const dungeonSchema = z
   .strictObject({
     id,
@@ -402,6 +414,8 @@ export const dungeonSchema = z
           ambush: z.boolean().optional(),
           detection: z.number().int().min(0).max(12).optional(),
           stealthDifficulty: z.number().int().min(1).max(30).optional(),
+          /** Barrels, chests, barricades and pillars dressing the battlefield for this fight. */
+          obstacles: z.array(obstacleSchema).optional(),
         }),
         z.strictObject({ ...featureBase, type: z.literal('event'), dialogueId: id, node: id.optional() }),
         z.strictObject({ ...featureBase, type: z.literal('goal'), dialogueId: id, node: id.optional() }),

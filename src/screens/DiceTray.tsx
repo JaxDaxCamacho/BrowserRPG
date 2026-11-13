@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ShownRoll } from '../engine';
 import { useGameStore } from '../state/store';
+import { DieFace } from './Dice';
 
 /** How long the dice bounce before landing, and how long the result stays up after. */
 const TUMBLE_MS = 900;
@@ -22,7 +23,7 @@ function TumblingDie({ value, sides, index, settled, dropped }: { value: number;
       style={{ animationDelay: `${index * 60}ms` }}
       aria-hidden="true"
     >
-      {face}
+      <DieFace value={face} />
     </span>
   );
 }

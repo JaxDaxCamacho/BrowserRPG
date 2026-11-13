@@ -16,6 +16,8 @@ import {
   flee,
   isEngaged,
   moveTo,
+  obstacleTargets,
+  OBSTACLE_PRESETS,
   reachableTiles,
   retryCombat,
   runEnemyTurn,
@@ -30,15 +32,20 @@ import {
   type CombatEvent,
   type Combatant,
   type CombatState,
+  type Obstacle,
+  type Pos,
 } from '../engine';
 import { combatContext } from '../state/context';
 import { useGameStore } from '../state/store';
 import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
+import { DieFace } from './Dice';
 import { initials } from './MercCard';
 
 /** Pause before each enemy acts, so the player can follow the fight. */
 const ENEMY_DELAY_MS = 750;
 const FLASH_MS = 1100;
+/** How long a projectile takes to cross the battlefield before it lands or goes wide. */
+const PROJECTILE_MS = 420;
 
 type Targeting = { kind: 'attack' } | { kind: 'ability'; ability: AbilityDefinition };
 
@@ -62,6 +69,73 @@ function flashesFrom(events: CombatEvent[], seq: number): Flash[] {
     if (e.kind === 'defend') return [{ key, targetId: e.actorId, text: 'Defend', tone: 'buff' }];
     return [];
   });
+}
+
+interface ProjectileSpec {
+  key: string;
+  from: Pos;
+  to: Pos;
+  hit: boolean;
+  kind: 'ranged' | 'magic';
+}
+
+/** A shot or bolt to animate for every ranged or magic attack in the last action. */
+function projectilesFrom(combat: CombatState, seq: number): ProjectileSpec[] {
+  return combat.events.flatMap((e, i): ProjectileSpec[] => {
+    if (e.kind !== 'attack' || !e.roll?.ranged || !e.targetId) return [];
+    const from = combat.combatants.find((x) => x.id === e.actorId)?.pos;
+    const to = combat.combatants.find((x) => x.id === e.targetId)?.pos ?? combat.obstacles.find((o) => o.id === e.targetId)?.pos;
+    if (!from || !to) return [];
+    return [{ key: `${seq}-${i}`, from, to, hit: e.outcome !== 'miss', kind: e.roll.stat === 'intellect' ? 'magic' : 'ranged' }];
+  });
+}
+
+/** Position as a percentage of the battlefield stage, centred on the tile. */
+function pctStyle(p: Pos, width: number, height: number) {
+  return { left: `${((p.x + 0.5) / width) * 100}%`, top: `${((p.y + 0.5) / height) * 100}%` };
+}
+
+/** A shot that flies from the attacker to the target, landing on a hit and skidding wide on a miss. */
+function ProjectileFX({ spec, width, height }: { spec: ProjectileSpec; width: number; height: number }) {
+  const [pos, setPos] = useState<Pos>(spec.from);
+  const landing = spec.hit ? spec.to : { x: spec.to.x + (spec.to.x >= spec.from.x ? 0.7 : -0.7), y: spec.to.y + (spec.to.y >= spec.from.y ? 0.6 : -0.6) };
+  useEffect(() => {
+    setPos(spec.from);
+    const raf = requestAnimationFrame(() => setPos(landing));
+    return () => cancelAnimationFrame(raf);
+    // Only a fresh shot restarts the flight.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec.key]);
+  const angle = (Math.atan2(landing.y - spec.from.y, landing.x - spec.from.x) * 180) / Math.PI;
+  return <span className={`projectile kind-${spec.kind}`} style={{ ...pctStyle(pos, width, height), transform: `translate(-50%, -50%) rotate(${angle}deg)` }} />;
+}
+
+/** A barrel, chest, barricade or pillar dressing the battlefield; destructible ones can be targeted like an enemy. */
+function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; targetable: boolean; flashes: Flash[]; onPick: () => void }) {
+  const preset = OBSTACLE_PRESETS[o.kind];
+  const destructible = o.hp !== null;
+  return (
+    <button
+      type="button"
+      className={`obstacle-token${destructible ? ' destructible' : ''}${targetable ? ' targetable' : ''}`}
+      disabled={!targetable}
+      onClick={onPick}
+      title={`${preset.name}${destructible ? ` (${o.hp}/${o.maxHp} HP)` : ''}`}
+      aria-label={preset.name}
+    >
+      <span aria-hidden="true">{preset.emoji}</span>
+      {destructible && o.hp !== null && o.maxHp !== null && (
+        <span className="obstacle-hp">
+          <span style={{ width: `${(o.hp / o.maxHp) * 100}%` }} />
+        </span>
+      )}
+      {flashes.map((f) => (
+        <span key={f.key} className="token-flash">
+          <span className={`flash-text tone-${f.tone}`}>{f.text}</span>
+        </span>
+      ))}
+    </button>
+  );
 }
 
 const STAT_SHORT: Record<string, string> = {
@@ -119,7 +193,7 @@ function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
               const kept = roll.dice.length === 1 || (d === roll.natural && roll.dice.indexOf(roll.natural) === i);
               return (
                 <span key={i} className={`d20${kept ? ' kept' : ' dropped'}`}>
-                  {d}
+                  <DieFace value={d} />
                 </span>
               );
             })}
@@ -198,6 +272,7 @@ export function CombatScreen() {
   const assets = useAssetIndex();
   const [targeting, setTargeting] = useState<Targeting | null>(null);
   const [flashes, setFlashes] = useState<Flash[]>([]);
+  const [projectiles, setProjectiles] = useState<ProjectileSpec[]>([]);
   const [rolls, setRolls] = useState<ShownRoll[]>([]);
   const lastSeq = useRef(-1);
 
@@ -225,15 +300,26 @@ export function CombatScreen() {
     if (game.encounter && !game.encounter.combat) apply((g) => startCombat(g, combatContext));
   }, [game.encounter, apply]);
 
-  // Play the last action's animations and numbers.
+  // Play the last action's animations, numbers and projectiles.
   useEffect(() => {
     if (!combat || combat.seq === lastSeq.current) return;
     lastSeq.current = combat.seq;
-    const next = flashesFrom(combat.events, combat.seq);
-    if (next.length === 0) return;
-    setFlashes(next);
-    const timer = window.setTimeout(() => setFlashes([]), FLASH_MS);
-    return () => window.clearTimeout(timer);
+    const nextFlashes = flashesFrom(combat.events, combat.seq);
+    const nextShots = projectilesFrom(combat, combat.seq);
+    let flashTimer: number | undefined;
+    let shotTimer: number | undefined;
+    if (nextFlashes.length > 0) {
+      setFlashes(nextFlashes);
+      flashTimer = window.setTimeout(() => setFlashes([]), FLASH_MS);
+    }
+    if (nextShots.length > 0) {
+      setProjectiles(nextShots);
+      shotTimer = window.setTimeout(() => setProjectiles([]), PROJECTILE_MS + 150);
+    }
+    return () => {
+      if (flashTimer) window.clearTimeout(flashTimer);
+      if (shotTimer) window.clearTimeout(shotTimer);
+    };
   }, [combat]);
 
   // Enemies take their turns by themselves.
@@ -268,6 +354,7 @@ export function CombatScreen() {
         const dis = actor.attack.range > 0 && isEngaged(combat, actor);
         targets.set(t.id, `hit on ${hitOn(actor, t, actor.attack.profile.kind)}+${dis ? ', disadvantage' : ''}`);
       }
+      for (const o of obstacleTargets(combat, actor)) targets.set(o.id, 'destroy');
     } else {
       const ability = targeting.ability;
       for (const t of abilityTargets(combat, actor, ability)) {
@@ -311,40 +398,60 @@ export function CombatScreen() {
       </header>
 
       <section className="battlefield" aria-label="Battlefield">
-        <div
-          className="combat-grid"
-          style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
-        >
-          {cells.flat().map((p) => {
-            // Someone standing here, or failing that someone lying here.
-            const here =
-              combat.combatants.find((x) => x.hp > 0 && x.pos.x === p.x && x.pos.y === p.y) ??
-              combat.combatants.find((x) => x.pos.x === p.x && x.pos.y === p.y);
-            const canWalk = reachable.has(`${p.x},${p.y}`);
-            return (
-              <div key={`${p.x},${p.y}`} className={`combat-cell${canWalk ? ' walkable' : ''}`}>
-                {canWalk && !here && (
-                  <button
-                    type="button"
-                    className="cell-move"
-                    aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
-                    onClick={() => apply((g) => moveTo(g, p))}
-                  />
-                )}
-                {here && (
-                  <CombatToken
-                    x={here}
-                    active={actor?.id === here.id}
-                    targetable={targets.has(here.id)}
-                    hint={targets.get(here.id)}
-                    flashes={flashes.filter((f) => f.targetId === here.id)}
-                    frames={frames}
-                    onPick={() => pick(here.id)}
-                  />
-                )}
+        <div className="battlefield-stage">
+          <div
+            className="combat-grid"
+            style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
+          >
+            {cells.flat().map((p) => {
+              // Someone standing here, or failing that someone lying here.
+              const here =
+                combat.combatants.find((x) => x.hp > 0 && x.pos.x === p.x && x.pos.y === p.y) ??
+                combat.combatants.find((x) => x.pos.x === p.x && x.pos.y === p.y);
+              const obstacle = combat.obstacles.find((o) => o.pos.x === p.x && o.pos.y === p.y);
+              const canWalk = reachable.has(`${p.x},${p.y}`);
+              return (
+                <div key={`${p.x},${p.y}`} className={`combat-cell${canWalk ? ' walkable' : ''}`}>
+                  {canWalk && !here && !obstacle && (
+                    <button
+                      type="button"
+                      className="cell-move"
+                      aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
+                      onClick={() => apply((g) => moveTo(g, p))}
+                    />
+                  )}
+                  {obstacle && (
+                    <ObstacleToken
+                      o={obstacle}
+                      targetable={targets.has(obstacle.id)}
+                      flashes={flashes.filter((f) => f.targetId === obstacle.id)}
+                      onPick={() => pick(obstacle.id)}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="token-layer">
+            {combat.combatants.map((x) => (
+              <div key={x.id} className="token-slot" style={pctStyle(x.pos, combat.width, combat.height)}>
+                <CombatToken
+                  x={x}
+                  active={actor?.id === x.id}
+                  targetable={targets.has(x.id)}
+                  hint={targets.get(x.id)}
+                  flashes={flashes.filter((f) => f.targetId === x.id)}
+                  frames={frames}
+                  onPick={() => pick(x.id)}
+                />
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className="projectile-layer" aria-hidden="true">
+            {projectiles.map((p) => (
+              <ProjectileFX key={p.key} spec={p} width={combat.width} height={combat.height} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -385,8 +492,14 @@ export function CombatScreen() {
                   <button
                     type="button"
                     className="primary"
-                    disabled={combat.acted || attackTargets(combat, actor).length === 0}
-                    title={shots === 0 ? 'Out of ammunition' : attackTargets(combat, actor).length === 0 ? 'No target in reach' : undefined}
+                    disabled={combat.acted || (attackTargets(combat, actor).length === 0 && obstacleTargets(combat, actor).length === 0)}
+                    title={
+                      shots === 0
+                        ? 'Out of ammunition'
+                        : attackTargets(combat, actor).length === 0 && obstacleTargets(combat, actor).length === 0
+                          ? 'No target in reach'
+                          : undefined
+                    }
                     onClick={() => setTargeting({ kind: 'attack' })}
                   >
                     {actor.attack.name}

@@ -1731,26 +1731,29 @@ button.option {
   height: 40px;
   display: grid;
   place-items: center;
-  font-size: 1.15rem;
-  font-weight: bold;
-  color: var(--ink);
-  background: var(--panel);
-  border: 2px solid var(--accent);
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
   animation: tumble 0.45s ease-out;
 }
 
 .d20.dropped {
   opacity: 0.35;
-  border-color: var(--border);
 }
 
-.outcome-crit .d20.kept {
-  background: #5a1d1d;
+.outcome-crit .d20.kept .die-facet {
+  fill: #7a2424;
 }
 
-.outcome-miss .d20.kept {
-  background: #2a2a30;
+.outcome-crit .d20.kept .die-number {
+  fill: #ffd9d9;
+  stroke: #5a1d1dcc;
+}
+
+.outcome-miss .d20.kept .die-facet {
+  fill: #35353c;
+}
+
+.outcome-miss .d20.kept .die-number {
+  fill: var(--ink-dim);
+  stroke: #1a1408cc;
 }
 
 @keyframes tumble {
@@ -1897,11 +1900,50 @@ button.portrait-choice:hover {
   height: 42px;
   display: grid;
   place-items: center;
-  font-size: 1.2rem;
+  filter: drop-shadow(0 3px 3px rgb(0 0 0 / 45%));
+}
+
+/* A faceted gem shape used for every die shown anywhere in the game. */
+.die-face {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.die-facet {
+  stroke: #0000003a;
+  stroke-width: 1;
+}
+
+.die-facet.facet-1,
+.die-facet.facet-6 {
+  fill: #f6e3b4;
+}
+
+.die-facet.facet-2,
+.die-facet.facet-5 {
+  fill: #dba84e;
+}
+
+.die-facet.facet-3,
+.die-facet.facet-4 {
+  fill: #a9722a;
+}
+
+.die-outline {
+  fill: none;
+  stroke: #1a1408;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.die-number {
+  font-size: 2.1rem;
   font-weight: bold;
-  color: #1a1408;
-  background: linear-gradient(145deg, #f3dca0, #c9963c);
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  fill: #1a1408;
+  paint-order: stroke;
+  stroke: #f6e3b4cc;
+  stroke-width: 3px;
 }
 
 .tray-die.rolling {
@@ -1990,14 +2032,89 @@ button.portrait-choice:hover {
   overflow: auto;
 }
 
-.combat-grid {
+.battlefield-stage {
   --cell: clamp(52px, min(calc((100vw - 48px) / 12), calc((100vh - 290px) / 9)), 96px);
+  position: relative;
+  display: inline-block;
+}
+
+.combat-grid {
   display: grid;
   gap: 2px;
   padding: 6px;
   background: rgb(0 0 0 / 35%);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+/* Tokens and shots float over the floor grid so they can glide between cells
+   instead of jumping; the inset matches the grid's own padding + border. */
+.token-layer,
+.projectile-layer {
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+}
+
+.token-slot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  transition: left 0.35s ease, top 0.35s ease;
+  pointer-events: auto;
+}
+
+.projectile {
+  position: absolute;
+  width: calc(var(--cell) * 0.26);
+  height: calc(var(--cell) * 0.1);
+  border-radius: 999px;
+  transition: left 0.42s linear, top 0.42s linear;
+  z-index: 5;
+}
+
+.projectile.kind-ranged {
+  background: linear-gradient(90deg, transparent, #d8c08a 60%, #efe3c4);
+  box-shadow: 0 0 6px 1px rgb(216 192 138 / 70%);
+}
+
+.projectile.kind-magic {
+  background: linear-gradient(90deg, transparent, #7fa8ff 60%, #d6e4ff);
+  box-shadow: 0 0 8px 2px rgb(127 168 255 / 80%);
+}
+
+.obstacle-token {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: calc(var(--cell) * 0.42);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+}
+
+.obstacle-token.destructible.targetable {
+  cursor: pointer;
+  filter: drop-shadow(0 0 4px rgb(224 122 95 / 70%));
+}
+
+.obstacle-token .obstacle-hp {
+  position: absolute;
+  bottom: 2px;
+  left: 10%;
+  width: 80%;
+  height: 4px;
+  background: rgb(0 0 0 / 45%);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.obstacle-token .obstacle-hp span {
+  display: block;
+  height: 100%;
+  background: #e07a5f;
 }
 
 .combat-cell {
@@ -2029,36 +2146,36 @@ button.portrait-choice:hover {
   outline: none;
 }
 
-.combat-grid .combat-token {
-  width: 100%;
-  height: 100%;
+.token-slot .combat-token {
+  width: var(--cell);
+  height: var(--cell);
   padding: 2px;
   gap: 1px;
   justify-content: center;
   border-width: 2px;
 }
 
-.combat-grid .combat-token .token {
+.token-slot .combat-token .token {
   width: calc(var(--cell) * 0.6);
   height: calc(var(--cell) * 0.6);
 }
 
-.combat-grid .token-name,
-.combat-grid .token-buffs {
+.token-slot .token-name,
+.token-slot .token-buffs {
   display: none;
 }
 
-.combat-grid .token-hp {
+.token-slot .token-hp {
   font-size: 0.65rem;
   line-height: 1;
 }
 
-.combat-grid .combat-token .hp-bar {
+.token-slot .combat-token .hp-bar {
   width: 80%;
   height: 4px;
 }
 
-.combat-grid .token-hint {
+.token-slot .token-hint {
   position: absolute;
   bottom: -2px;
   left: 50%;
@@ -2071,7 +2188,7 @@ button.portrait-choice:hover {
   z-index: 2;
 }
 
-.combat-grid .token-flash {
+.token-slot .token-flash {
   z-index: 3;
 }
 

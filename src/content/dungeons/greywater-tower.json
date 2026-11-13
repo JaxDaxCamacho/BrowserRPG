@@ -113,6 +113,11 @@
           "monsterId": "bandit-thug",
           "count": 2
         }
+      ],
+      "obstacles": [
+        { "id": "guards-pillar", "kind": "pillar", "x": 2, "y": 2 },
+        { "id": "guards-barrel", "kind": "barrel", "x": 4, "y": 1 },
+        { "id": "guards-barricade", "kind": "barricade", "x": 1, "y": 3 }
       ]
     },
     {

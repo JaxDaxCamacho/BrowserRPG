@@ -130,15 +130,18 @@ describe('setting up a fight', () => {
 });
 
 describe('reach', () => {
+  // These checks are pure geometry: no obstacle sits in the way.
+  const clear = { obstacles: [] } as unknown as CombatState;
+
   it('lets melee hit the eight tiles around', () => {
-    expect(reach(0, { x: 2, y: 2 }, { x: 3, y: 3 }, false).ok).toBe(true);
-    expect(reach(0, { x: 2, y: 2 }, { x: 4, y: 2 }, false).ok).toBe(false);
+    expect(reach(clear, 0, { x: 2, y: 2 }, { x: 3, y: 3 }, false).ok).toBe(true);
+    expect(reach(clear, 0, { x: 2, y: 2 }, { x: 4, y: 2 }, false).ok).toBe(false);
   });
 
   it('gives ranged attacks disadvantage while engaged', () => {
-    expect(reach(8, { x: 0, y: 0 }, { x: 8, y: 3 }, false)).toEqual({ ok: true, mode: 'normal' });
-    expect(reach(8, { x: 0, y: 0 }, { x: 9, y: 0 }, false).ok).toBe(false);
-    expect(reach(8, { x: 0, y: 0 }, { x: 1, y: 0 }, true).mode).toBe('disadvantage');
+    expect(reach(clear, 8, { x: 0, y: 0 }, { x: 8, y: 3 }, false)).toEqual({ ok: true, mode: 'normal' });
+    expect(reach(clear, 8, { x: 0, y: 0 }, { x: 9, y: 0 }, false).ok).toBe(false);
+    expect(reach(clear, 8, { x: 0, y: 0 }, { x: 1, y: 0 }, true).mode).toBe('disadvantage');
   });
 });
 

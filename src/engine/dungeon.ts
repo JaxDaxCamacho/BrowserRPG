@@ -58,6 +58,14 @@ export interface TrapFeature extends FeatureBase {
   disarmNode?: string;
 }
 
+/** Battlefield dressing: barrels, chests, barricades and pillars. Position is on the combat grid, not the dungeon map. */
+export interface ObstacleFeature {
+  id: string;
+  kind: 'barrel' | 'chest' | 'barricade' | 'pillar';
+  x: number;
+  y: number;
+}
+
 export interface EncounterFeature extends FeatureBase {
   type: 'encounter';
   monsters: { monsterId: string; count: number }[];
@@ -67,6 +75,8 @@ export interface EncounterFeature extends FeatureBase {
   detection?: number;
   /** Agility check to move unnoticed inside the detection range. Default 12. */
   stealthDifficulty?: number;
+  /** Obstacles dressing this fight's battlefield. */
+  obstacles?: ObstacleFeature[];
 }
 
 export const DEFAULT_DETECTION = 4;

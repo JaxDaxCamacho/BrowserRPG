@@ -1,7 +1,7 @@
 ﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackOutcome, type AttackProfile } from './attack';
 import { makeCheck } from './checks';
 import { rollD20, type RollMode } from './dice';
-import { featureById, type DungeonDefinition, type Pos } from './dungeon';
+import { featureById, type DungeonDefinition, type ObstacleFeature, type Pos } from './dungeon';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import { weaponAttack, type AmmoItem, type DamageStyle, type ItemEffect, type ItemLookup } from './items';
@@ -122,6 +122,8 @@ export interface AttackRoll {
   damage: number;
   /** True when this was a free attack for stepping out of reach. */
   free?: boolean;
+  /** True for a ranged or magic attack: the screen draws a projectile for it. */
+  ranged?: boolean;
 }
 
 export interface CombatState {
@@ -148,6 +150,8 @@ export interface CombatState {
   mercs: MercType[];
   /** Experience the enemies are worth. */
   xp: number;
+  /** Barrels, chests, barricades and pillars dressing the battlefield. */
+  obstacles: Obstacle[];
 }
 
 export interface CombatContext {
@@ -193,6 +197,70 @@ const UNARMED: CombatAttack = {
   animation: ANIMATIONS.unarmed,
 };
 
+// ---------- obstacles ----------
+
+export type ObstacleKind = ObstacleFeature['kind'];
+
+export interface Obstacle {
+  id: string;
+  kind: ObstacleKind;
+  pos: Pos;
+  /** Blocks a ranged attack's line of sight through its tile. */
+  blocksLoS: boolean;
+  /** Blocks walking and standing on its tile. */
+  blocksMove: boolean;
+  /** Hit points, or null when it cannot be destroyed. */
+  hp: number | null;
+  maxHp: number | null;
+}
+
+/** What each obstacle kind looks and behaves like by default. */
+export const OBSTACLE_PRESETS: Record<ObstacleKind, { name: string; icon?: string; emoji: string; blocksLoS: boolean; hp: number | null }> = {
+  barrel: { name: 'Barrel', emoji: '🛢️', blocksLoS: false, hp: 6 },
+  chest: { name: 'Chest', icon: 'loot/chest-t-01', emoji: '🧰', blocksLoS: false, hp: null },
+  barricade: { name: 'Barricade', emoji: '🚧', blocksLoS: true, hp: 10 },
+  pillar: { name: 'Pillar', emoji: '🗿', blocksLoS: true, hp: null },
+};
+
+export function obstacleById(c: CombatState, id: string): Obstacle | undefined {
+  return c.obstacles.find((o) => o.id === id);
+}
+
+/** An obstacle standing on this tile that blocks walking, if any. */
+function blockedBy(c: CombatState, p: Pos): Obstacle | undefined {
+  return c.obstacles.find((o) => o.blocksMove && o.pos.x === p.x && o.pos.y === p.y);
+}
+
+/**
+ * Whether a straight line between two tiles is clear of line-of-sight-blocking
+ * obstacles. Walks every tile the line crosses (a supercover Bresenham), the
+ * two endpoints excepted.
+ */
+export function hasLineOfSight(c: CombatState, from: Pos, to: Pos): boolean {
+  let x = from.x;
+  let y = from.y;
+  const dx = Math.abs(to.x - from.x);
+  const dy = -Math.abs(to.y - from.y);
+  const sx = from.x < to.x ? 1 : -1;
+  const sy = from.y < to.y ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    if (!(x === from.x && y === from.y) && !(x === to.x && y === to.y)) {
+      if (c.obstacles.some((o) => o.blocksLoS && o.pos.x === x && o.pos.y === y)) return false;
+    }
+    if (x === to.x && y === to.y) return true;
+    const e2 = 2 * err;
+    if (e2 >= dy) {
+      err += dy;
+      x += sx;
+    }
+    if (e2 <= dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+}
+
 // ---------- reading the fight ----------
 
 export function combatantById(c: CombatState, id: string): Combatant {
@@ -220,6 +288,11 @@ const key = (p: Pos) => `${p.x},${p.y}`;
 /** Someone standing on this tile, if anyone. Those who are down lie where they fell but do not block. */
 export function occupant(c: CombatState, p: Pos): Combatant | undefined {
   return c.combatants.find((x) => isStanding(x) && x.pos.x === p.x && x.pos.y === p.y);
+}
+
+/** True when nobody and nothing can stand or pass through this tile. */
+export function tileBlocked(c: CombatState, p: Pos): boolean {
+  return !!occupant(c, p) || !!blockedBy(c, p);
 }
 
 /** True while a standing enemy is next to this combatant. */
@@ -261,16 +334,23 @@ export function ammoLeft(c: CombatState, x: Combatant): number | null {
  * Melee reaches the eight tiles around the attacker. A ranged attack reaches
  * `range` tiles, with disadvantage while an enemy is next to the shooter.
  */
-export function reach(range: number, from: Pos, to: Pos, engaged: boolean): { ok: boolean; mode: RollMode } {
+export function reach(c: CombatState, range: number, from: Pos, to: Pos, engaged: boolean): { ok: boolean; mode: RollMode } {
   const d = distance(from, to);
   if (range === 0) return { ok: d <= 1, mode: 'normal' };
-  return { ok: d <= range, mode: engaged ? 'disadvantage' : 'normal' };
+  if (d > range || !hasLineOfSight(c, from, to)) return { ok: false, mode: 'normal' };
+  return { ok: true, mode: engaged ? 'disadvantage' : 'normal' };
 }
 
 /** Targets the actor's basic attack can reach right now. */
 export function attackTargets(c: CombatState, actor: Combatant): Combatant[] {
   if (ammoLeft(c, actor) === 0) return [];
-  return standing(c, opposite(actor.side)).filter((t) => reach(actor.attack.range, actor.pos, t.pos, false).ok);
+  return standing(c, opposite(actor.side)).filter((t) => reach(c, actor.attack.range, actor.pos, t.pos, false).ok);
+}
+
+/** Destructible obstacles the actor's basic attack can reach right now. */
+export function obstacleTargets(c: CombatState, actor: Combatant): Obstacle[] {
+  if (ammoLeft(c, actor) === 0) return [];
+  return c.obstacles.filter((o) => o.hp !== null && reach(c, actor.attack.range, actor.pos, o.pos, false).ok);
 }
 
 /** Targets an ability can be aimed at right now. Area-wide abilities return everyone they would affect. */
@@ -284,7 +364,7 @@ export function abilityTargets(c: CombatState, actor: Combatant, ability: Abilit
       return friends.filter((t) => distance(actor.pos, t.pos) <= Math.max(1, ability.range));
     case 'enemy':
     case 'area':
-      return foes.filter((t) => reach(ability.range, actor.pos, t.pos, false).ok);
+      return foes.filter((t) => reach(c, ability.range, actor.pos, t.pos, false).ok);
     case 'allAllies':
       return friends;
     case 'allEnemies':
@@ -311,7 +391,7 @@ export function reachableTiles(c: CombatState, actor: Combatant, budget = c.move
           if (!dx && !dy) continue;
           const q = { x: p.x + dx, y: p.y + dy };
           if (q.x < 0 || q.y < 0 || q.x >= c.width || q.y >= c.height) continue;
-          if (paths.has(key(q)) || occupant(c, q)) continue;
+          if (paths.has(key(q)) || tileBlocked(c, q)) continue;
           paths.set(key(q), [...paths.get(key(p))!, q]);
           next.push(q);
         }
@@ -388,7 +468,12 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     return r.value.natural + statModifier(agility);
   };
 
-  const taken = new Set<string>();
+  const obstacles: Obstacle[] = (feature.obstacles ?? []).map((o) => {
+    const preset = OBSTACLE_PRESETS[o.kind];
+    return { id: o.id, kind: o.kind, pos: { x: o.x, y: o.y }, blocksLoS: preset.blocksLoS, blocksMove: true, hp: preset.hp, maxHp: preset.hp };
+  });
+
+  const taken = new Set<string>(obstacles.map((o) => key(o.pos)));
   const living = state.party.filter((m) => !m.dead);
   const partyRow = ambush ? Math.floor(height / 2) : height - 1;
   const partySpots = lineUp(living.length, width, partyRow, -1, taken);
@@ -493,6 +578,7 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     seq: 0,
     mercs: state.party.map((m) => structuredClone(m)),
     xp,
+    obstacles,
   };
   combat = checkOutcome(skipDownedTurn(combat));
   return { ...state, rngSeed: seed, screen: 'combat', encounter: { ...encounter, combat } };
@@ -629,6 +715,7 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     extraDamage: r.extraDamage,
     damage: r.damage,
     ...(s.free ? { free: true } : {}),
+    ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
   };
   const events: CombatEvent[] = [
     {
@@ -670,6 +757,75 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
   return { combat: { ...next, events: [...next.events, ...events] }, seed: nextSeed };
 }
 
+/** Rolls one attack against a destructible obstacle: it cannot dodge, so this always hits unless a natural 1 misses. */
+function strikeObstacle(
+  c: CombatState,
+  seed: number,
+  s: { attacker: Combatant; obstacle: Obstacle; profile: AttackProfile; label: string; mode: RollMode; critThreshold: number; animation: string },
+): { combat: CombatState; seed: number } {
+  const modifier = statModifier(effectiveStats(s.attacker)[ATTACK_STAT[s.profile.kind]]);
+  const result = resolveAttack(seed, {
+    profile: s.profile,
+    modifier,
+    targetDefense: 0,
+    targetArmour: { physical: 0, magic: 0 },
+    mode: s.mode,
+    critThreshold: s.critThreshold,
+  });
+  const r = result.value;
+  const name = OBSTACLE_PRESETS[s.obstacle.kind].name.toLowerCase();
+  const hp = Math.max(0, (s.obstacle.hp ?? 0) - r.damage);
+  const destroyed = hp === 0 && s.obstacle.hp !== null;
+  const obstacles = destroyed
+    ? c.obstacles.filter((o) => o.id !== s.obstacle.id)
+    : c.obstacles.map((o) => (o.id === s.obstacle.id ? { ...o, hp } : o));
+  let next = withLog(
+    { ...c, obstacles },
+    `${s.attacker.name} ${describeOutcome(r.outcome)} the ${name}${r.damage ? ` for ${r.damage}` : ''}${destroyed ? ', smashing it apart' : ''}.`,
+  );
+  const detail: AttackRoll = {
+    label: s.label,
+    dice: r.roll.dice,
+    natural: r.roll.natural,
+    mode: r.roll.mode,
+    modifier,
+    stat: ATTACK_STAT[s.profile.kind],
+    total: r.total,
+    defense: r.defense,
+    critThreshold: r.critThreshold,
+    grazeRoll: r.grazeRoll,
+    hitRoll: r.hitRoll,
+    armour: r.armour,
+    extraDamage: r.extraDamage,
+    damage: r.damage,
+    ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
+  };
+  const events: CombatEvent[] = [
+    {
+      kind: 'attack',
+      actorId: s.attacker.id,
+      targetId: s.obstacle.id,
+      outcome: r.outcome,
+      amount: r.damage,
+      roll: detail,
+      animation: s.animation,
+      shown: {
+        who: s.attacker.name,
+        what: `${s.label} → the ${name}`,
+        sides: 20,
+        dice: r.roll.dice,
+        kept: r.roll.natural,
+        total: r.total,
+        target: r.defense,
+        result: `${OUTCOME_WORD[r.outcome]}${r.damage ? `, ${r.damage} damage` : ''}`,
+        good: r.outcome !== 'miss',
+      },
+    },
+  ];
+  next = { ...next, events: [...next.events, ...events] };
+  return { combat: next, seed: result.seed };
+}
+
 function spendShot(c: CombatState, actor: Combatant): CombatState {
   if (!actor.attack.ammoId || !actor.mercId) return c;
   return {
@@ -699,12 +855,27 @@ function finishAction(state: GameState, c: CombatState, seed: number): GameState
   return withRolls({ ...state, rngSeed: seed, encounter: { ...state.encounter!, combat: done } });
 }
 
-/** The active combatant attacks with their weapon. */
+/** The active combatant attacks with their weapon, hitting an enemy or a destructible obstacle. */
 export function attack(state: GameState, targetId: string): GameState {
   const { c, actor } = beginAction(state);
+  const obstacle = obstacleById(c, targetId);
+  if (obstacle) {
+    if (!obstacleTargets(c, actor).some((o) => o.id === targetId)) throw new Error(`${actor.name} cannot reach that.`);
+    const { mode: obMode } = reach(c, actor.attack.range, actor.pos, obstacle.pos, isEngaged(c, actor));
+    const obHit = strikeObstacle(spendShot(c, actor), state.rngSeed, {
+      attacker: actor,
+      obstacle,
+      profile: actor.attack.profile,
+      label: actor.attack.name,
+      mode: obMode,
+      critThreshold: actor.critThreshold,
+      animation: actor.attack.animation,
+    });
+    return finishAction(state, obHit.combat, obHit.seed);
+  }
   const target = combatantById(c, targetId);
   if (!attackTargets(c, actor).some((t) => t.id === targetId)) throw new Error(`${actor.name} cannot reach ${target.name}.`);
-  const { mode } = reach(actor.attack.range, actor.pos, target.pos, isEngaged(c, actor));
+  const { mode } = reach(c, actor.attack.range, actor.pos, target.pos, isEngaged(c, actor));
   const hit = strike(spendShot(c, actor), state.rngSeed, {
     attacker: actor,
     target,
@@ -771,7 +942,7 @@ export function castAbility(state: GameState, abilityId: string, targetId: strin
         target,
         profile: ability.attack,
         label: ability.name,
-        mode: reach(ability.range, actor.pos, target.pos, engaged).mode,
+        mode: reach(c, ability.range, actor.pos, target.pos, engaged).mode,
         critThreshold: ability.attack.critThreshold ?? DEFAULT_CRIT_THRESHOLD,
         animation: ability.animation ?? defaultAttackAnimation(ability.attack),
       });
