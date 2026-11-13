@@ -429,3 +429,113 @@ select {
   height: 20px;
   accent-color: var(--accent);
 }
+
+/* ---------- adventure select ---------- */
+
+.adventure-list {
+  max-width: 640px;
+}
+
+.adventure-difficulty,
+.adventure-summary {
+  margin: 0;
+}
+
+/* ---------- dialogue screen: text on top, image in the centre, options below ---------- */
+
+.screen.dialogue {
+  justify-content: flex-start;
+  align-items: center;
+  text-align: left;
+  gap: 12px;
+  padding-block: 16px;
+  overflow-y: auto;
+}
+
+.dialogue-text,
+.dialogue-options {
+  width: min(100%, 720px);
+}
+
+.dialogue-text p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  font-size: 1.05rem;
+}
+
+.speaker {
+  margin-bottom: 8px;
+  font-size: 1.2rem;
+}
+
+.dialogue-image {
+  flex: 1 1 120px;
+  min-height: 120px;
+  max-height: 320px;
+  width: min(100%, 720px);
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.dialogue-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+button.option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.option-note {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.check-readout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.check-readout.success {
+  border-color: #7fb069;
+}
+
+.check-readout.failure {
+  border-color: #e07a5f;
+}
+
+.die {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  font-weight: bold;
+  background: var(--panel);
+  border: 2px solid currentColor;
+  border-radius: 8px;
+}
+
+.check-readout.success .die {
+  color: #7fb069;
+}
+
+.check-readout.failure .die {
+  color: #e07a5f;
+}

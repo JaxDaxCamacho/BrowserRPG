@@ -1,8 +1,11 @@
-import { validateDraft, type MercDraft, type RaceDefinition } from '../engine';
+import { validateDraft, type DialogueDefinition, type MercDraft, type RaceDefinition } from '../engine';
+import greywaterFord from './adventures/greywater-ford.json';
 import classesJson from './classes.json';
 import premadesJson from './premades.json';
 import racesJson from './races.json';
 import {
+  adventureSchema,
+  type AdventureDefinition,
   classSchema,
   parseList,
   premadeSchema,
@@ -32,6 +35,28 @@ function byId<T extends { id: string }>(list: T[], what: string) {
 export const getClass = byId(CLASSES, 'class');
 export const getRace = byId(RACES, 'race');
 export const getWeapon = byId(WEAPONS, 'weapon');
+
+/** Adventures are one file each; add new ones to this list. */
+export const ADVENTURES: AdventureDefinition[] = parseList(adventureSchema, [greywaterFord], 'adventure');
+export const getAdventure = byId(ADVENTURES, 'adventure');
+
+export function getDialogue(adventureId: string, dialogueId: string): DialogueDefinition {
+  const dialogue = getAdventure(adventureId).dialogues.find((d) => d.id === dialogueId);
+  if (!dialogue) throw new Error(`Adventure "${adventureId}" has no dialogue "${dialogueId}".`);
+  return dialogue;
+}
+
+// Dialogue conditions must name classes and races that exist.
+for (const adventure of ADVENTURES) {
+  for (const dialogue of adventure.dialogues) {
+    for (const option of dialogue.nodes.flatMap((n) => n.options)) {
+      for (const condition of option.requires ?? []) {
+        if (condition.type === 'partyHasClass') getClass(condition.classId);
+        if (condition.type === 'partyHasRace') getRace(condition.raceId);
+      }
+    }
+  }
+}
 
 export function premadeToDraft(premade: PremadeDefinition): MercDraft {
   return {

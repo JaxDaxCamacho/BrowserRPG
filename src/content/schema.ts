@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidDice, STAT_NAMES, WEAPON_TYPES } from '../engine';
+import { isValidDice, SCREENS, STAT_NAMES, WEAPON_TYPES } from '../engine';
 
 /**
  * Schemas for the JSON content files. Every file is checked when the game
@@ -76,6 +76,93 @@ export const weaponSchema = z
   .refine((w) => (w.attack.kind === 'melee') === (w.range === 0), {
     message: 'melee weapons have range 0; every other weapon needs a range of 1 or more',
   });
+
+const flagValue = z.union([z.boolean(), z.number(), z.string()]);
+const screenName = z.enum(SCREENS);
+
+const conditionSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('flag'), flag: z.string().min(1), equals: flagValue }),
+  z.strictObject({ type: z.literal('partyHasClass'), classId: id }),
+  z.strictObject({ type: z.literal('partyHasRace'), raceId: id }),
+]);
+
+const effectSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('setFlag'), flag: z.string().min(1), value: flagValue }),
+  z.strictObject({ type: z.literal('gold'), amount: z.number().int() }),
+]);
+
+const outcomeSchema = z
+  .strictObject({
+    text: z.string().min(1).optional(),
+    effects: z.array(effectSchema).optional(),
+    goto: id.optional(),
+    end: screenName.optional(),
+  })
+  .refine((o) => (o.goto === undefined) !== (o.end === undefined), {
+    message: 'an outcome needs exactly one of "goto" and "end"',
+  });
+
+const optionSchema = z
+  .strictObject({
+    id,
+    text: z.string().min(1),
+    requires: z.array(conditionSchema).optional(),
+    check: z
+      .strictObject({ stat: statName, difficulty: z.number().int().min(1), by: z.enum(['leader', 'best']) })
+      .optional(),
+    outcome: outcomeSchema.optional(),
+    success: outcomeSchema.optional(),
+    failure: outcomeSchema.optional(),
+  })
+  .refine((o) => (o.check ? o.success && o.failure && !o.outcome : o.outcome && !o.success && !o.failure), {
+    message: 'an option with a check needs "success" and "failure"; one without needs "outcome"',
+  });
+
+const nodeSchema = z.strictObject({
+  id,
+  speaker: z.string().min(1).optional(),
+  image: id.optional(),
+  text: z.string().min(1),
+  options: z.array(optionSchema).min(1),
+});
+
+export const dialogueSchema = z
+  .strictObject({ id, start: id, nodes: z.array(nodeSchema).min(1) })
+  .superRefine((dialogue, ctx) => {
+    const nodeIds = new Set(dialogue.nodes.map((n) => n.id));
+    if (nodeIds.size !== dialogue.nodes.length) ctx.addIssue({ code: 'custom', message: 'node ids must be unique' });
+    if (!nodeIds.has(dialogue.start)) {
+      ctx.addIssue({ code: 'custom', message: `start node "${dialogue.start}" does not exist` });
+    }
+    for (const node of dialogue.nodes) {
+      for (const option of node.options) {
+        for (const outcome of [option.outcome, option.success, option.failure]) {
+          if (outcome?.goto && !nodeIds.has(outcome.goto)) {
+            ctx.addIssue({
+              code: 'custom',
+              message: `option "${option.id}" in node "${node.id}" goes to missing node "${outcome.goto}"`,
+            });
+          }
+        }
+      }
+    }
+  });
+
+export const adventureSchema = z
+  .strictObject({
+    id,
+    title: z.string().min(1),
+    summary: z.string().min(1),
+    difficulty: z.string().min(1),
+    /** The dialogue that opens the adventure. */
+    debrief: id,
+    dialogues: z.array(dialogueSchema).min(1),
+  })
+  .refine((a) => a.dialogues.some((d) => d.id === a.debrief), {
+    message: 'the debrief must be one of the adventure\'s dialogues',
+  });
+
+export type AdventureDefinition = z.infer<typeof adventureSchema>;
 
 const statValue = z.number().int().min(1);
 

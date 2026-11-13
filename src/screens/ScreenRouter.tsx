@@ -1,4 +1,6 @@
 import { useGameStore } from '../state/store';
+import { AdventureSelect } from './AdventureSelect';
+import { DialogueScreen } from './DialogueScreen';
 import { LeaderSelect } from './LeaderSelect';
 import { MainMenu } from './MainMenu';
 import { PartyCreation } from './PartyCreation';
@@ -16,9 +18,9 @@ export function ScreenRouter() {
     case 'leaderSelect':
       return <LeaderSelect />;
     case 'adventureSelect':
-      return <PlaceholderScreen title="Pick an adventure" milestone={4} next="dialogue" />;
+      return <AdventureSelect />;
     case 'dialogue':
-      return <PlaceholderScreen title="Dialogue" milestone={4} next="dungeon" />;
+      return <DialogueScreen />;
     case 'dungeon':
       return <PlaceholderScreen title="Dungeon" milestone={5} next="combat" />;
     case 'combat':

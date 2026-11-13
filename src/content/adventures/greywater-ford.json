@@ -1,0 +1,105 @@
+{
+  "id": "greywater-ford",
+  "title": "The Toll at Greywater Ford",
+  "summary": "Bandits hold the old watchtower above the river crossing and have taken the merchant guild's strongbox. Clear them out and bring it back.",
+  "difficulty": "Starter",
+  "debrief": "debrief",
+  "dialogues": [
+    {
+      "id": "debrief",
+      "start": "office",
+      "nodes": [
+        {
+          "id": "office",
+          "speaker": "Factor Ilse Maren",
+          "image": "guild-office",
+          "text": "The counting room of the Greywater Merchants' Guild smells of ink and lamp oil. Factor Ilse Maren does not look up from her ledger until the door closes.\n\n\"Three caravans in a month. All of them lost at Greywater Ford. I am told your company solves problems of this kind.\"",
+          "options": [
+            { "id": "ask-ford", "text": "Ask what happened at the ford.", "outcome": { "goto": "ford" } },
+            { "id": "ask-pay", "text": "Ask what the job pays.", "outcome": { "goto": "pay" } }
+          ]
+        },
+        {
+          "id": "ford",
+          "speaker": "Factor Ilse Maren",
+          "image": "watchtower-map",
+          "text": "She unrolls a stained map across the desk.\n\n\"Bandits. They have taken the old watchtower above the crossing and they toll every wagon that passes. The last caravan carried the guild strongbox. The drivers who came back say the cellars under the tower run deep.\"",
+          "options": [
+            {
+              "id": "study-map",
+              "text": "Study her map of the watchtower.",
+              "check": { "stat": "intellect", "difficulty": 12, "by": "best" },
+              "success": {
+                "text": "There are mason's marks along the cellar passages: the lower floors were built with trapped flagstones. You will know to look for them.",
+                "effects": [{ "type": "setFlag", "flag": "knowsTraps", "value": true }],
+                "goto": "pay"
+              },
+              "failure": {
+                "text": "The map is water-stained and decades old. It tells you little you could not have guessed.",
+                "goto": "pay"
+              }
+            },
+            { "id": "to-pay", "text": "Ask what the job pays.", "outcome": { "goto": "pay" } }
+          ]
+        },
+        {
+          "id": "pay",
+          "speaker": "Factor Ilse Maren",
+          "image": "guild-office",
+          "text": "\"One hundred gold crowns when the strongbox is back on this desk. Unopened.\"",
+          "options": [
+            {
+              "id": "accept",
+              "text": "Accept the offer.",
+              "outcome": { "effects": [{ "type": "setFlag", "flag": "fee", "value": 100 }], "goto": "agreed" }
+            },
+            {
+              "id": "negotiate",
+              "text": "Argue that three lost caravans make this dangerous work.",
+              "check": { "stat": "charisma", "difficulty": 12, "by": "leader" },
+              "success": {
+                "text": "She weighs you for a long moment, then dips her pen.\n\n\"One hundred and fifty. Do not make me regret it.\"",
+                "effects": [{ "type": "setFlag", "flag": "fee", "value": 150 }],
+                "goto": "agreed"
+              },
+              "failure": {
+                "text": "\"The price is the price.\" Her pen does not pause.",
+                "effects": [{ "type": "setFlag", "flag": "fee", "value": 100 }],
+                "goto": "agreed"
+              }
+            },
+            {
+              "id": "intimidate",
+              "text": "Have your Barbarian lean on the desk.",
+              "requires": [{ "type": "partyHasClass", "classId": "barbarian" }],
+              "check": { "stat": "strength", "difficulty": 16, "by": "best" },
+              "success": {
+                "text": "The desk creaks. So does her composure.\n\n\"One hundred and seventy-five. And you will leave the furniture alone.\"",
+                "effects": [{ "type": "setFlag", "flag": "fee", "value": 175 }],
+                "goto": "agreed"
+              },
+              "failure": {
+                "text": "She rings a small bell. Two guild guards step into the room.\n\n\"Ninety. For the insult.\"",
+                "effects": [{ "type": "setFlag", "flag": "fee", "value": 90 }],
+                "goto": "agreed"
+              }
+            }
+          ]
+        },
+        {
+          "id": "agreed",
+          "speaker": "Factor Ilse Maren",
+          "image": "guild-office",
+          "text": "\"Then we are agreed. Follow the river road north and you will see the tower before dusk. Bring back the strongbox, and bring it back sealed.\"",
+          "options": [
+            {
+              "id": "set-out",
+              "text": "Set out for Greywater Ford.",
+              "outcome": { "effects": [{ "type": "setFlag", "flag": "debriefDone", "value": true }], "end": "dungeon" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ export * from './attack';
 export * from './checks';
 export * from './commands';
 export * from './derived';
+export * from './dialogue';
 export * from './dice';
 export * from './gameState';
 export * from './merc';
