@@ -24,6 +24,7 @@ import {
   castAbility,
   drinkPotion,
   type AbilityDefinition,
+  type AttackRoll,
   type CombatEvent,
   type Combatant,
   type CombatState,
@@ -59,6 +60,85 @@ function flashesFrom(events: CombatEvent[], seq: number): Flash[] {
     if (e.kind === 'defend') return [{ key, targetId: e.actorId, text: 'Defend', tone: 'buff' }];
     return [];
   });
+}
+
+const STAT_SHORT: Record<string, string> = {
+  strength: 'STR',
+  agility: 'AGI',
+  toughness: 'TOU',
+  intellect: 'INT',
+  spirit: 'SPI',
+  charisma: 'CHA',
+};
+
+const OUTCOME_LABEL: Record<string, string> = { miss: 'Miss', graze: 'Graze', hit: 'Hit', crit: 'Critical!' };
+
+function signed(n: number): string {
+  return n >= 0 ? `+ ${n}` : `− ${Math.abs(n)}`;
+}
+
+/** The damage working for one attack, e.g. "Hit 5 + 2 STR − 2 armour = 5". */
+function damageWorking(r: AttackRoll, outcome: string): string {
+  const stat = STAT_SHORT[r.stat] ?? r.stat;
+  const main = r.damage - r.extraDamage;
+  const armour = r.armour > 0 ? ` − ${r.armour} armour` : '';
+  const extra = r.extraDamage > 0 ? `, + ${r.extraDamage} extra` : '';
+  switch (outcome) {
+    case 'miss':
+      return 'A natural 1 always misses: no damage.';
+    case 'graze':
+      return `Graze ${r.grazeRoll} ${signed(r.modifier)} ${stat}${armour} = ${main}${extra}`;
+    case 'hit':
+      return `Hit ${r.hitRoll} ${signed(r.modifier)} ${stat}${armour} = ${main}${extra}`;
+    default:
+      return `(graze ${r.grazeRoll} + hit ${r.hitRoll} ${signed(r.modifier)} ${stat}) × 2${armour} = ${main}${extra}`;
+  }
+}
+
+interface ShownRoll {
+  key: string;
+  attacker: string;
+  target: string;
+  outcome: string;
+  roll: AttackRoll;
+}
+
+/** The last attack rolls, with the dice, the sum against Defense and the damage. Stays up until the next attack. */
+function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
+  if (rolls.length === 0) {
+    return <p className="dim roll-empty">Attack rolls appear here.</p>;
+  }
+  return (
+    <div className="roll-readout" aria-live="polite">
+      {rolls.map(({ key, attacker, target, outcome, roll }) => (
+        <div key={key} className={`roll-card outcome-${outcome}`}>
+          <div className="roll-dice" aria-hidden="true">
+            {roll.dice.map((d, i) => {
+              const kept = roll.dice.length === 1 || (d === roll.natural && roll.dice.indexOf(roll.natural) === i);
+              return (
+                <span key={i} className={`d20${kept ? ' kept' : ' dropped'}`}>
+                  {d}
+                </span>
+              );
+            })}
+          </div>
+          <div className="roll-text">
+            <p className="roll-who">
+              {roll.free && <span className="dim">Free attack · </span>}
+              <strong>{attacker}</strong> → {target} <span className="dim">· {roll.label}</span>
+            </p>
+            <p className="roll-sum">
+              {roll.natural} {signed(roll.modifier)} {STAT_SHORT[roll.stat]} = <strong>{roll.total}</strong> vs Defense {roll.defense}
+              {roll.mode !== 'normal' && <span className="dim"> · {roll.mode} (rolled {roll.dice.join(' and ')})</span>}
+              {roll.critThreshold < 20 && <span className="dim"> · crits on {roll.critThreshold}+</span>}
+              <span className="roll-outcome"> {OUTCOME_LABEL[outcome]}</span>
+            </p>
+            <p className="roll-damage dim">{damageWorking(roll, outcome)}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** The natural roll the actor needs to hit (not graze) this target, for the targeting hint. */
@@ -116,9 +196,27 @@ export function CombatScreen() {
   const assets = useAssetIndex();
   const [targeting, setTargeting] = useState<Targeting | null>(null);
   const [flashes, setFlashes] = useState<Flash[]>([]);
+  const [rolls, setRolls] = useState<ShownRoll[]>([]);
   const lastSeq = useRef(-1);
 
   const combat = game.encounter?.combat;
+
+  // Keep the dice of the latest attacks on screen until someone attacks again.
+  useEffect(() => {
+    if (!combat) return;
+    const attacks = combat.events.filter((e) => e.kind === 'attack' && e.roll && e.targetId);
+    if (attacks.length === 0) return;
+    const nameOf = (id: string) => combat.combatants.find((x) => x.id === id)?.name ?? id;
+    setRolls(
+      attacks.map((e, i) => ({
+        key: `${combat.seq}-${i}`,
+        attacker: nameOf(e.actorId),
+        target: nameOf(e.targetId!),
+        outcome: e.outcome ?? 'miss',
+        roll: e.roll!,
+      })),
+    );
+  }, [combat]);
 
   // Start the fight the first time this screen opens for an encounter.
   useEffect(() => {
@@ -316,6 +414,7 @@ export function CombatScreen() {
             <p className="turn-title dim">{actor ? `${actor.name} is acting…` : ''}</p>
           )}
         </div>
+        <RollReadout rolls={rolls} />
         <ol className="combat-log" aria-live="polite">
           {combat.log.slice(-6).map((line, i) => (
             <li key={`${combat.log.length}-${i}`}>{line}</li>

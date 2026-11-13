@@ -163,6 +163,42 @@ describe('the party\'s turn', () => {
     expect(hurt).toBe(true);
   });
 
+  it('records the dice and the damage working for every attack, and the working adds up', () => {
+    for (let seed = 1; seed < 80; seed++) {
+      let s = place(giveTurnTo(fight(def, FOUR, seed).state, 'merc-1'), { 'merc-1': 2 });
+      s = attack(s, 'bandit-thug-1');
+      const event = combatOf(s).events.find((e) => e.kind === 'attack')!;
+      const r = event.roll!;
+      expect(r.label).toBe('Arming Sword');
+      expect(r.stat).toBe('strength');
+      expect(r.dice).toEqual([r.natural]);
+      expect(r.total).toBe(r.natural + r.modifier);
+      const main = r.damage - r.extraDamage;
+      const raw =
+        event.outcome === 'miss' ? 0
+        : event.outcome === 'graze' ? r.grazeRoll + r.modifier
+        : event.outcome === 'hit' ? r.hitRoll + r.modifier
+        : (r.grazeRoll + r.hitRoll + r.modifier) * 2;
+      expect(main).toBe(event.outcome === 'miss' ? 0 : Math.max(0, raw - r.armour));
+    }
+  });
+
+  it('shows both dice for a ranged shot in the same row', () => {
+    let s = place(giveTurnTo(fight(def).state, 'merc-3'), { 'merc-3': 2 });
+    s = attack(s, 'bandit-thug-1');
+    const r = combatOf(s).events[0]!.roll!;
+    expect(r.mode).toBe('disadvantage');
+    expect(r.dice).toHaveLength(2);
+    expect(r.natural).toBe(Math.min(...r.dice));
+    expect(r.critThreshold).toBe(19);
+  });
+
+  it('marks a free attack for leaving a row', () => {
+    let s = place(giveTurnTo(fight(def).state, 'merc-1'), { 'merc-1': 2, 'bandit-thug-1': 2 });
+    s = moveCombatant(s, -1);
+    expect(combatOf(s).events.find((e) => e.kind === 'attack')?.roll?.free).toBe(true);
+  });
+
   it('spends an arrow per shot', () => {
     let s = giveTurnTo(fight(def).state, 'merc-3');
     s = attack(s, 'bandit-thug-1');

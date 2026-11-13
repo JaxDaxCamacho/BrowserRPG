@@ -74,6 +74,35 @@ export interface CombatEvent {
   outcome?: AttackOutcome;
   amount?: number;
   animation?: string;
+  /** For attacks: the dice and arithmetic behind the result, so the screen can show the working. */
+  roll?: AttackRoll;
+}
+
+/** Everything about one attack roll that the player should be able to see. */
+export interface AttackRoll {
+  /** What was used, e.g. "Arming Sword" or "Aimed Shot". */
+  label: string;
+  /** Every d20 rolled: two with advantage or disadvantage. */
+  dice: number[];
+  /** The d20 that counts. */
+  natural: number;
+  mode: RollMode;
+  /** Stat modifier added to the roll and to the damage. */
+  modifier: number;
+  /** Name of the stat behind the modifier. */
+  stat: string;
+  total: number;
+  defense: number;
+  /** Lowest natural roll that crits. */
+  critThreshold: number;
+  /** Damage dice as rolled (0 when not needed). */
+  grazeRoll: number;
+  hitRoll: number;
+  armour: number;
+  extraDamage: number;
+  damage: number;
+  /** True when this was a free attack for leaving a row. */
+  free?: boolean;
 }
 
 export interface CombatState {
@@ -409,6 +438,7 @@ interface Strike {
   mode: RollMode;
   critThreshold: number;
   animation?: string;
+  free?: boolean;
 }
 
 function describeOutcome(outcome: AttackOutcome): string {
@@ -435,8 +465,33 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     next,
     `${s.attacker.name} ${verb} ${s.target.name} with ${s.label}${r.damage ? ` for ${r.damage}` : ''} (${roll}${modifier >= 0 ? '+' : ''}${modifier} vs ${r.defense}${s.mode === 'disadvantage' ? ', disadvantage' : ''}).`,
   );
+  const detail: AttackRoll = {
+    label: s.label,
+    dice: r.roll.dice,
+    natural: r.roll.natural,
+    mode: r.roll.mode,
+    modifier,
+    stat: ATTACK_STAT[s.profile.kind],
+    total: r.total,
+    defense: r.defense,
+    critThreshold: r.critThreshold,
+    grazeRoll: r.grazeRoll,
+    hitRoll: r.hitRoll,
+    armour: r.armour,
+    extraDamage: r.extraDamage,
+    damage: r.damage,
+    ...(s.free ? { free: true } : {}),
+  };
   const events: CombatEvent[] = [
-    { kind: 'attack', actorId: s.attacker.id, targetId: s.target.id, outcome: r.outcome, amount: r.damage, ...(s.animation ? { animation: s.animation } : {}) },
+    {
+      kind: 'attack',
+      actorId: s.attacker.id,
+      targetId: s.target.id,
+      outcome: r.outcome,
+      amount: r.damage,
+      roll: detail,
+      ...(s.animation ? { animation: s.animation } : {}),
+    },
   ];
   if (hp === 0 && s.target.hp > 0) {
     next = withLog(next, `${s.target.name} goes down.`);
@@ -641,6 +696,7 @@ export function moveCombatant(state: GameState, direction: 1 | -1): GameState {
       label: punisher.attack.name,
       mode: 'normal',
       critThreshold: punisher.critThreshold,
+      free: true,
       ...(punisher.attack.animation ? { animation: punisher.attack.animation } : {}),
     });
     next = r.combat;

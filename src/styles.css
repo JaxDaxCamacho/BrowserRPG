@@ -1674,3 +1674,128 @@ button.option {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------- attack dice readout ---------- */
+
+.combat-footer {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.9fr);
+}
+
+.roll-empty {
+  margin: 0;
+  align-self: center;
+  font-size: 0.85rem;
+}
+
+.roll-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.roll-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 25%);
+}
+
+.roll-card.outcome-miss {
+  border-left-color: #8a8f99;
+}
+
+.roll-card.outcome-graze {
+  border-left-color: #c9963c;
+}
+
+.roll-card.outcome-hit {
+  border-left-color: #e07a5f;
+}
+
+.roll-card.outcome-crit {
+  border-left-color: #ff4d4d;
+  background: rgb(255 77 77 / 10%);
+}
+
+.roll-dice {
+  display: flex;
+  gap: 4px;
+}
+
+.d20 {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: var(--ink);
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  animation: tumble 0.45s ease-out;
+}
+
+.d20.dropped {
+  opacity: 0.35;
+  border-color: var(--border);
+}
+
+.outcome-crit .d20.kept {
+  background: #5a1d1d;
+}
+
+.outcome-miss .d20.kept {
+  background: #2a2a30;
+}
+
+@keyframes tumble {
+  0% {
+    transform: rotate(-200deg) scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: rotate(15deg) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(0) scale(1);
+  }
+}
+
+.roll-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.roll-outcome {
+  font-weight: bold;
+  margin-left: 6px;
+}
+
+.outcome-crit .roll-outcome {
+  color: #ff6b6b;
+}
+
+.outcome-hit .roll-outcome {
+  color: #f0a08a;
+}
+
+.outcome-graze .roll-outcome {
+  color: #f0c870;
+}
+
+.outcome-miss .roll-outcome {
+  color: #b0b4bc;
+}
+
+@media (max-width: 900px) {
+  .combat-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

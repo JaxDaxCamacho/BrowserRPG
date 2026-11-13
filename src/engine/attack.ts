@@ -111,6 +111,12 @@ export interface AttackResult {
   damage: number;
   /** The part of `damage` that came from the attack's extra damage. */
   extraDamage: number;
+  /** Graze and hit dice as rolled (0 when the outcome did not need them), for showing the working. */
+  grazeRoll: number;
+  hitRoll: number;
+  /** Armour subtracted from the main damage. */
+  armour: number;
+  critThreshold: number;
 }
 
 export interface AttackInput {
@@ -160,6 +166,10 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
       outcome,
       damage: damage + extraDamage,
       extraDamage,
+      grazeRoll,
+      hitRoll,
+      armour,
+      critThreshold,
     },
     seed: next,
   };
