@@ -13,13 +13,15 @@ import {
   finishCombat,
   flee,
   isAiControlled,
+  kick,
+  kickTargets,
   isEngaged,
   moveTo,
   obstacleTargets,
   OBSTACLE_PRESETS,
   reachableTiles,
   retryCombat,
-  runEnemyTurn,
+  runEnemyStep,
   shareXp,
   startCombat,
   statModifier,
@@ -39,16 +41,21 @@ import { combatContext } from '../state/context';
 import { useGameStore } from '../state/store';
 import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
 import { ActionBar, needsPick, slotsFor } from './ActionBar';
+import { CombatantDetails } from './CombatantDetails';
+import { PartyWindow } from './PartyWindow';
 import { DieFace } from './Dice';
+import { MuteButton } from './MuteButton';
+import { playSound, playSteps, soundFor, UI_SOUNDS } from './sound';
+import { TUMBLE_MS } from './DiceTray';
 import { initials } from './MercCard';
 
 /** Pause before each enemy acts, so the player can follow the fight. */
-const ENEMY_DELAY_MS = 750;
+const ENEMY_DELAY_MS = 900;
 const FLASH_MS = 1100;
 /** How long a projectile takes to cross the battlefield before it lands or goes wide. */
 const PROJECTILE_MS = 420;
 
-type Targeting = { kind: 'attack' } | { kind: 'ability'; ability: AbilityDefinition };
+type Targeting = { kind: 'attack' } | { kind: 'kick' } | { kind: 'ability'; ability: AbilityDefinition };
 
 interface Flash {
   key: string;
@@ -93,6 +100,7 @@ const STATUS_FLAIR: Record<StatusKind, { icon: string; name: string }> = {
   reflecting: { icon: '🪞', name: 'Reflecting' },
   frozen: { icon: '🧊', name: 'Frozen' },
   warded: { icon: '✨', name: 'Warded' },
+  prone: { icon: '🤕', name: 'Prone' },
 };
 
 interface ProjectileSpec {
@@ -147,7 +155,7 @@ function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; target
       title={`${preset.name}${destructible ? ` (${o.hp}/${o.maxHp} HP)` : ''}`}
       aria-label={preset.name}
     >
-      <span aria-hidden="true">{preset.emoji}</span>
+      <AssetImage id={preset.icon} fallback={preset.emoji} size={56} className="obstacle-icon" />
       {destructible && o.hp !== null && o.maxHp !== null && (
         <span className="obstacle-hp">
           <span style={{ width: `${(o.hp / o.maxHp) * 100}%` }} />
@@ -254,19 +262,28 @@ interface TokenProps {
   hint?: string;
   flashes: Flash[];
   frames: (id: string) => number | undefined;
+  /** Shown as the merc whose action bar is on screen. */
+  viewed?: boolean;
   onPick: () => void;
+  /** A left click that is not picking a target: select the token. */
+  onSelect: () => void;
+  /** A right click: two in quick succession open the details. */
+  onInspect: () => void;
 }
 
-function CombatToken({ x, active, targetable, hint, flashes, frames, onPick }: TokenProps) {
+function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, onPick, onSelect, onInspect }: TokenProps) {
   const down = x.hp === 0;
   const pct = Math.max(0, (x.hp / x.maxHp) * 100);
   return (
     <button
       type="button"
-      className={`combat-token side-${x.side}${active ? ' active' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}`}
-      disabled={!targetable}
-      onClick={onPick}
-      aria-label={`${x.name}, ${x.hp} of ${x.maxHp} HP${targetable ? `, target${hint ? `: ${hint}` : ''}` : ''}`}
+      className={`combat-token side-${x.side}${active ? ' active' : ''}${viewed ? ' viewed' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}`}
+      onClick={() => (targetable ? onPick() : onSelect())}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onInspect();
+      }}
+      aria-label={`${x.name}, ${x.hp} of ${x.maxHp} HP${targetable ? `, target${hint ? `: ${hint}` : ''}` : ''}. Double right-click for details.`}
     >
       <span className="token-face">
         <AssetImage id={x.portrait} fallback={initials(x.name)} className="token" size={64} />
@@ -305,12 +322,47 @@ export function CombatScreen() {
   const assets = useAssetIndex();
   const [targeting, setTargeting] = useState<Targeting | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  /** The merc whose action bar is shown; by default whoever is acting. */
+  const [viewId, setViewId] = useState<string | null>(null);
+  /** The token whose details are open. */
+  const [inspecting, setInspecting] = useState<string | null>(null);
+  const lastRightClick = useRef<{ id: string; at: number } | null>(null);
   const [flashes, setFlashes] = useState<Flash[]>([]);
   const [projectiles, setProjectiles] = useState<ProjectileSpec[]>([]);
   const [rolls, setRolls] = useState<ShownRoll[]>([]);
   const lastSeq = useRef(-1);
+  const frames = useMemo(() => {
+    const map = new Map((assets ?? []).map((a) => [a.id, a.frames]));
+    return (id: string) => map.get(id);
+  }, [assets]);
 
-  const combat = game.encounter?.combat;
+  /** The fight as it really is. */
+  const live = game.encounter?.combat;
+  /**
+   * The fight as shown. After an action that rolls dice it holds the moment
+   * before the roll while the dice tumble, then catches up: movement, the
+   * projectile and the damage play out in order instead of all at once.
+   */
+  const [held, setHeld] = useState<CombatState | undefined>(live);
+  const combat = held && live && held.featureId === live.featureId ? held : live;
+  const revealing = !!live && combat !== live;
+  useEffect(() => {
+    if (!live) {
+      setHeld(undefined);
+      return;
+    }
+    setHeld((prev) => {
+      if (!prev || prev.featureId !== live.featureId || prev.seq === live.seq) return live;
+      return prev;
+    });
+    const rolled = live.events.some((e) => e.kind === 'attack' || !!e.shown || e.label === 'Kicked' || e.label === 'Shrugged off');
+    if (!rolled) {
+      setHeld(live);
+      return;
+    }
+    const timer = window.setTimeout(() => setHeld(live), TUMBLE_MS + 150);
+    return () => window.clearTimeout(timer);
+  }, [live]);
 
   // Keep the dice of the latest attacks on screen until someone attacks again.
   useEffect(() => {
@@ -342,26 +394,46 @@ export function CombatScreen() {
     const nextShots = projectilesFrom(combat, combat.seq);
     let flashTimer: number | undefined;
     let shotTimer: number | undefined;
+    let showTimer: number | undefined;
+    // A shot lands before its damage shows (and is heard).
+    const wait = nextShots.length > 0 ? PROJECTILE_MS : 0;
+    for (const e of combat.events) {
+      if (e.kind === 'move') playSteps(3);
+      else playSound(soundFor(e), { delay: e.kind === 'attack' && e.roll?.ranged ? wait : 0 });
+    }
     if (nextFlashes.length > 0) {
-      setFlashes(nextFlashes);
-      flashTimer = window.setTimeout(() => setFlashes([]), FLASH_MS);
+      // Long spell effects get the time to play out, within reason.
+      const longest = Math.max(0, ...nextFlashes.map((f) => (f.animation ? ((frames(f.animation) ?? 15) * 1000) / 15 : 0)));
+      const linger = Math.min(2500, Math.max(FLASH_MS, longest));
+      showTimer = window.setTimeout(() => {
+        setFlashes(nextFlashes);
+        flashTimer = window.setTimeout(() => setFlashes([]), linger);
+      }, wait);
     }
     if (nextShots.length > 0) {
       setProjectiles(nextShots);
       shotTimer = window.setTimeout(() => setProjectiles([]), PROJECTILE_MS + 150);
     }
     return () => {
+      if (showTimer) window.clearTimeout(showTimer);
       if (flashTimer) window.clearTimeout(flashTimer);
       if (shotTimer) window.clearTimeout(shotTimer);
     };
-  }, [combat]);
+  }, [combat, frames]);
 
-  // Enemies take their turns by themselves.
-  const actor = combat && !combat.outcome ? activeCombatant(combat) : null;
-  const enemyTurnKey = actor && isAiControlled(actor) ? `${combat!.round}-${combat!.turn}-${combat!.seq}` : null;
+  // The end of a fight has its own sound.
+  const shownOutcome = combat?.outcome;
+  useEffect(() => {
+    if (shownOutcome === 'victory') playSound(UI_SOUNDS.victory);
+    else if (shownOutcome === 'defeat') playSound(UI_SOUNDS.defeat);
+  }, [shownOutcome]);
+
+  // Enemies (and summons) take their turns by themselves, one step at a time, each once the last has played out.
+  const actor = live && !live.outcome ? activeCombatant(live) : null;
+  const enemyTurnKey = actor && isAiControlled(actor) && !revealing ? `${live!.round}-${live!.turn}-${live!.seq}` : null;
   useEffect(() => {
     if (!enemyTurnKey) return;
-    const timer = window.setTimeout(() => apply((g) => runEnemyTurn(g, combatContext)), ENEMY_DELAY_MS);
+    const timer = window.setTimeout(() => apply((g) => runEnemyStep(g, combatContext)), ENEMY_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [enemyTurnKey, apply]);
 
@@ -369,33 +441,48 @@ export function CombatScreen() {
   useEffect(() => {
     setTargeting(null);
     setSelected(null);
-  }, [combat?.turn, combat?.round]);
+    setViewId(null);
+  }, [live?.turn, live?.round]);
 
-  const frames = useMemo(() => {
-    const map = new Map((assets ?? []).map((a) => [a.id, a.frames]));
-    return (id: string) => map.get(id);
-  }, [assets]);
 
-  if (!game.encounter || !combat || !game.dungeon) return <main className="screen">Preparing the fight…</main>;
+  if (!game.encounter || !combat || !live || !game.dungeon) return <main className="screen">Preparing the fight…</main>;
 
   const def = getDungeon(game.dungeon.dungeonId);
-  const feature = featureById(def, combat.featureId);
+  const feature = featureById(def, live.featureId);
   const yourTurn = !!actor && !isAiControlled(actor);
-  const merc = yourTurn ? combat.mercs.find((m) => m.id === actor.mercId) : undefined;
+  // The bar shows the selected merc, or else whoever is acting; only the acting merc's bar can be used.
+  const picked = viewId ? live.combatants.find((x) => x.id === viewId && x.side === 'party' && !x.summoned) : undefined;
+  const viewed = picked ?? (yourTurn ? actor : undefined);
+  const usable = !!viewed && yourTurn && viewed.id === actor!.id && !revealing;
+  const viewedMerc = viewed ? live.mercs.find((m) => m.id === viewed.mercId) : undefined;
+
+  /** Two right clicks on the same token within a short while open its details. */
+  const rightClick = (id: string) => {
+    const now = Date.now();
+    const last = lastRightClick.current;
+    if (last && last.id === id && now - last.at < 450) {
+      lastRightClick.current = null;
+      setInspecting(id);
+    } else {
+      lastRightClick.current = { id, at: now };
+    }
+  };
 
   // Who can be picked right now, and the roll needed against each.
   const targets = new Map<string, string>();
-  if (yourTurn && targeting && actor) {
+  if (yourTurn && targeting && actor && !revealing) {
     if (targeting.kind === 'attack') {
-      for (const t of attackTargets(combat, actor)) {
-        const dis = actor.attack.range > 0 && isEngaged(combat, actor);
+      for (const t of attackTargets(live, actor)) {
+        const dis = actor.attack.range > 0 && isEngaged(live, actor);
         targets.set(t.id, `hit on ${hitOn(actor, t, actor.attack.profile.kind)}+${dis ? ', disadvantage' : ''}`);
       }
-      for (const o of obstacleTargets(combat, actor)) targets.set(o.id, 'destroy');
+      for (const o of obstacleTargets(live, actor)) targets.set(o.id, 'destroy');
+    } else if (targeting.kind === 'kick') {
+      for (const t of kickTargets(live, actor)) targets.set(t.id, `push on ${Math.min(20, Math.max(2, effectiveDefense(t) + 1))}+`);
     } else {
       const ability = targeting.ability;
       const kind = ability.weaponAttack ? actor.attack.profile.kind : ability.attack?.kind;
-      for (const t of abilityTargets(combat, actor, ability)) {
+      for (const t of abilityTargets(live, actor, ability)) {
         targets.set(t.id, kind && t.side !== actor.side ? `hit on ${hitOn(actor, t, kind)}+` : t.side === actor.side ? 'ally' : '');
       }
     }
@@ -409,18 +496,27 @@ export function CombatScreen() {
   const pick = (id: string) => {
     if (!targeting) return;
     if (targeting.kind === 'attack') apply((g) => attack(g, id));
+    else if (targeting.kind === 'kick') apply((g) => kick(g, id));
     else apply((g) => castAbility(g, targeting.ability.id, id, combatContext));
     cancel();
   };
 
-  const slots = yourTurn && actor ? slotsFor(actor, merc) : [];
+  const slots = viewed ? slotsFor(viewed, viewedMerc) : { bar: [], extras: [] };
+  const allSlots = [...slots.bar, ...slots.extras];
   const useSlot = (i: number) => {
-    const slot = slots[i];
-    if (!slot || !actor) return;
+    const slot = allSlots[i];
+    if (!slot || !actor || !usable) return;
+    if (slot.kind !== 'empty') playSound(UI_SOUNDS.select, { volume: 0.5 });
     switch (slot.kind) {
       case 'attack':
         setTargeting({ kind: 'attack' });
         setSelected(i);
+        return;
+      case 'kick':
+        setTargeting({ kind: 'kick' });
+        setSelected(i);
+        return;
+      case 'empty':
         return;
       case 'ability':
         if (needsPick(slot.ability)) {
@@ -443,7 +539,7 @@ export function CombatScreen() {
   };
 
   // Tiles the active merc can walk to, when not choosing a target.
-  const reachable = yourTurn && actor && !targeting ? reachableTiles(combat, actor) : new Map<string, unknown>();
+  const reachable = yourTurn && actor && !targeting && !revealing ? reachableTiles(live, actor) : new Map<string, unknown>();
   const cells = Array.from({ length: combat.height }, (_, y) => Array.from({ length: combat.width }, (_, x) => ({ x, y })));
 
   return (
@@ -453,7 +549,11 @@ export function CombatScreen() {
         <span className="dim">
           Round {combat.round}
           {combat.ambush ? ' · ambush' : ''}
+          {game.dungeon.world && ` · world round ${game.dungeon.world.round}`}
+          {(game.otherEncounters?.length ?? 0) > 0 &&
+            ` · ${game.otherEncounters!.length} other fight${game.otherEncounters!.length === 1 ? '' : 's'} going on`}
         </span>
+        <MuteButton />
         <ol className="initiative" aria-label="Turn order">
           {combat.order.map((id, i) => {
             const x = combat.combatants.find((k) => k.id === id)!;
@@ -512,7 +612,12 @@ export function CombatScreen() {
                   hint={targets.get(x.id)}
                   flashes={flashes.filter((f) => f.targetId === x.id)}
                   frames={frames}
+                  viewed={viewed?.id === x.id && viewed.id !== actor?.id}
                   onPick={() => pick(x.id)}
+                  onSelect={() => {
+                    if (x.side === 'party' && !x.summoned && !targeting) setViewId(x.id === actor?.id ? null : x.id);
+                  }}
+                  onInspect={() => rightClick(x.id)}
                 />
               </div>
             ))}
@@ -529,27 +634,40 @@ export function CombatScreen() {
         <div className="combat-actions">
           {combat.outcome ? (
             <Outcome combat={combat} onContinue={() => apply((g) => finishCombat(g, combatContext))} onRetry={() => apply((g) => retryCombat(g, combatContext))} onMenu={backToMenu} />
-          ) : yourTurn && actor ? (
+          ) : viewed ? (
             <>
               <p className="turn-title">
-                <strong>{actor.name}</strong>
+                <strong>{viewed.name}</strong>
                 <span className="dim">
-                  {combat.moveLeft} of {actor.movement} moves left · {combat.acted ? 'acted' : 'can act'}
-                  {combat.moveLeft > 0 && !targeting && ' · click a lit tile to move'}
+                  {usable ? (
+                    <>
+                      {live.moveLeft} of {viewed.movement} moves left · {live.acted ? 'acted' : 'can act'}
+                      {live.moveLeft > 0 && !targeting && ' · click a lit tile to move'}
+                    </>
+                  ) : (
+                    <>Looking at {viewed.name}’s actions · {actor ? `${actor.name} is acting` : ''}</>
+                  )}
                 </span>
+                {!usable && (
+                  <button type="button" className="link-button" onClick={() => setViewId(null)}>
+                    Back
+                  </button>
+                )}
               </p>
-              {targeting && (
+              {targeting && actor && (
                 <p className="targeting-hint">
                   {targets.size > 0
-                    ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.ability.name}.`
+                    ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.kind === 'kick' ? 'Kick' : targeting.ability.name}.`
                     : 'No target in reach.'}{' '}
                   <span className="dim">Esc to cancel.</span>
                 </p>
               )}
               <ActionBar
-                combat={combat}
-                actor={actor}
-                slots={slots}
+                combat={live}
+                actor={viewed}
+                bar={slots.bar}
+                extras={slots.extras}
+                usable={usable}
                 selected={selected}
                 onUse={useSlot}
                 onCancel={cancel}
@@ -564,7 +682,7 @@ export function CombatScreen() {
               />
             </>
           ) : (
-            <p className="turn-title dim">{actor ? `${actor.name} is acting…` : ''}</p>
+            <p className="turn-title dim">{actor ? `${actor.name} is acting… Click one of your mercs to see their actions.` : ''}</p>
           )}
         </div>
         <RollReadout rolls={rolls} />
@@ -574,6 +692,13 @@ export function CombatScreen() {
           ))}
         </ol>
       </footer>
+      {inspecting &&
+        (() => {
+          const x = combat.combatants.find((k) => k.id === inspecting);
+          if (!x) return null;
+          if (x.mercId) return <PartyWindow readOnly initialMercId={x.mercId} onClose={() => setInspecting(null)} />;
+          return <CombatantDetails x={x} onClose={() => setInspecting(null)} />;
+        })()}
     </main>
   );
 }

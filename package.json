@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "assets:sync": "node scripts/sync-assets.mjs"
+    "assets:sync": "node scripts/sync-assets.mjs",
+    "assets:unpack": "python3 scripts/unpack-assets.py"
   },
   "dependencies": {
     "pixi.js": "^8.23.0",

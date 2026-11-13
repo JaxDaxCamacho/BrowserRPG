@@ -8,6 +8,7 @@
   combatantById,
   defend,
   distance,
+  effectiveMovement,
   isAiControlled,
   effectiveDefense,
   endTurn,
@@ -195,6 +196,42 @@ function act(state: GameState, plan: Plan, ctx: Pick<CombatContext, 'getAbility'
     case 'none':
       return endTurn(state);
   }
+}
+
+/**
+ * Plays one step of the active AI combatant's turn, so the screen can show
+ * each in turn: first its move (if it wants one and has not moved yet), and
+ * on the next call its action, after which the turn ends.
+ */
+export function runEnemyStep(state: GameState, ctx: Pick<CombatContext, 'getAbility'> & Partial<Pick<CombatContext, 'getMonster'>>): GameState {
+  const c = state.encounter?.combat;
+  if (!c || c.outcome) return state;
+  const actor = activeCombatant(c);
+  if (!isAiControlled(actor)) return state;
+  const fresh = !c.acted && c.moveLeft === effectiveMovement(actor);
+
+  // The frightened only run: one step to move, then the turn is over.
+  const fear = statusOf(actor, 'feared');
+  const scarer = fear?.sourceId ? c.combatants.find((x) => x.id === fear.sourceId && x.hp > 0) : undefined;
+  if (scarer) {
+    const away = fresh ? fleeFrom(c, actor, scarer.pos) : null;
+    if (away) return moveTo(state, away);
+    return endTurn(state);
+  }
+
+  if (fresh) {
+    const target = chooseMove(c, actor, ctx);
+    if (target) {
+      const moved = moveTo(state, target);
+      const after = moved.encounter?.combat;
+      if (after && !after.outcome && after.order[after.turn] === actor.id && combatantById(after, actor.id).hp === 0) return endTurn(moved);
+      return moved;
+    }
+  }
+  let next = act(state, chooseAction(c, actor, ctx), ctx);
+  const end = next.encounter?.combat;
+  if (end && !end.outcome && end.order[end.turn] === actor.id) next = endTurn(next);
+  return next;
 }
 
 /**

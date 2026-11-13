@@ -6,9 +6,10 @@ A party-based dungeon crawler for browser, PC and Android, built once in TypeScr
 
 Requires Node.js 20.19 or newer.
 
-**One click (Windows with WSL):** double-click `Play.bat`. It starts the game inside WSL, installs
-packages on the first run, and opens your browser at http://127.0.0.1:5173. Close its window to stop
-the game; double-clicking again while it is running just reopens the browser.
+**One click (Windows with WSL):** double-click `Play.bat`. The game opens in its own window (Edge, or
+Chrome, in app mode) while the server runs hidden in WSL; closing the game window stops the server. The
+first run installs packages, which takes a minute. If the server fails to start, a message box says how
+to see why. `scripts/play.ps1 -ServerOnly` starts just the server.
 
 ```bash
 npm install
@@ -21,7 +22,15 @@ npm run build    # type-check and build to dist/
 ## Art assets
 
 The icon, portrait and animation packs are commercial and are **not** in this repository.
-Put the packs in `../assets` (next to this folder) and run:
+Put the packs in `../assets` (next to this folder) and/or the git-ignored `Assets/` folder inside it
+(ability icons, the Fairytale item icons, class and race icons, obstacle containers, `Tokens/`
+portraits, and the zipped `Animations/` and `SFX/` packs). Unzip what the game uses, then sync:
+
+```bash
+npm run assets:unpack   # Animations/ and SFX/ zips -> Assets/_unpacked (30 FPS sheets, combat and UI sounds)
+```
+
+Then run:
 
 ```bash
 npm run assets:sync

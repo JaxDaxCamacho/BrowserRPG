@@ -60,17 +60,23 @@ type Picked = { kind: 'pack'; index: number } | { kind: 'slot'; slot: EquipSlot 
 
 const CELL = 46;
 
-export function PartyWindow({ onClose }: { onClose: () => void }) {
+/**
+ * The party's character sheets and gear. `readOnly` is for looking during a
+ * fight: the fight works on its own copy of each merc, so gear cannot change mid-fight.
+ */
+export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onClose: () => void; initialMercId?: string; readOnly?: boolean }) {
   const game = useGameStore((s) => s.game);
   const apply = useGameStore((s) => s.apply);
-  const [mercId, setMercId] = useState(() => game.party.find((m) => !m.dead)?.id ?? game.party[0]!.id);
+  const [mercId, setMercId] = useState(
+    () => (initialMercId && game.party.some((m) => m.id === initialMercId) ? initialMercId : undefined) ?? game.party.find((m) => !m.dead)?.id ?? game.party[0]!.id,
+  );
   const [picked, setPicked] = useState<Picked>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   // Older saves and freshly looted items may not have a place in the grid yet.
   useEffect(() => {
-    apply((g) => arrangeParty(g, getItem));
-  }, [apply]);
+    if (!readOnly) apply((g) => arrangeParty(g, getItem));
+  }, [apply, readOnly]);
 
   const merc = game.party.find((m) => m.id === mercId)!;
   const race = getRace(merc.raceId);
@@ -85,6 +91,11 @@ export function PartyWindow({ onClose }: { onClose: () => void }) {
 
   /** Runs a change, showing why if it is refused. */
   const tryApply = (change: (g: GameState) => GameState) => {
+    if (readOnly) {
+      setMessage('Gear cannot be changed in the middle of a fight.');
+      setPicked(null);
+      return;
+    }
     try {
       apply(change);
       setMessage(null);

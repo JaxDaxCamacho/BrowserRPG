@@ -14,6 +14,7 @@ import {
 import { useGameStore } from '../state/store';
 import { AssetImage } from './assets';
 import { RESOURCE_LABEL } from './ActionBar';
+import { Tip, useTip } from './Tip';
 
 /** A talent's icon: its own, or the icon of the ability it teaches. */
 function iconOf(talent: TalentDefinition): string | undefined {
@@ -95,30 +96,16 @@ export function TalentTreeView({ merc }: { merc: Merc }) {
                           const why = blocked ?? talentBlocker(planned, tree, t.id);
                           const line = abilityLine(t);
                           return (
-                            <button
+                            <TalentButton
                               key={t.id}
-                              type="button"
-                              className={`talent${rank > 0 ? ' learned' : ''}${pending ? ' pending' : ''}${why ? ' unavailable' : ''}`}
-                              onClick={() => add(t.id)}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                                remove(t.id);
-                              }}
-                              aria-label={`${t.name}, rank ${rank} of ${t.maxRanks}${why ? `, ${why}` : ''}`}
-                            >
-                              <AssetImage id={iconOf(t)} fallback={t.name.slice(0, 2)} size={40} className="talent-icon" />
-                              <span className="talent-rank">
-                                {rank}/{t.maxRanks}
-                              </span>
-                              {t.abilityId && <span className="talent-active" title="Teaches an ability">✦</span>}
-                              <span className="slot-tip" role="tooltip">
-                                <strong>{t.name}</strong>
-                                <span>{t.description}</span>
-                                {line && <span className="dim">{line}</span>}
-                                {why && rank < t.maxRanks && <span className="slot-why">{why}</span>}
-                                {pending > 0 && <span className="dim">Right-click to take back a pending rank.</span>}
-                              </span>
-                            </button>
+                              talent={t}
+                              rank={rank}
+                              pending={pending}
+                              why={why}
+                              line={line}
+                              onAdd={() => add(t.id)}
+                              onRemove={() => remove(t.id)}
+                            />
                           );
                         })}
                     </div>
@@ -138,5 +125,46 @@ export function TalentTreeView({ merc }: { merc: Merc }) {
         </button>
       </div>
     </div>
+  );
+}
+
+interface TalentButtonProps {
+  talent: TalentDefinition;
+  rank: number;
+  pending: number;
+  why: string | null;
+  line: string | null;
+  onAdd: () => void;
+  onRemove: () => void;
+}
+
+/** One talent: click for a rank, right-click to take a pending one back. */
+function TalentButton({ talent: t, rank, pending, why, line, onAdd, onRemove }: TalentButtonProps) {
+  const tip = useTip();
+  return (
+    <button
+      {...tip.bind}
+      type="button"
+      className={`talent${rank > 0 ? ' learned' : ''}${pending ? ' pending' : ''}${why ? ' unavailable' : ''}`}
+      onClick={onAdd}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onRemove();
+      }}
+      aria-label={`${t.name}, rank ${rank} of ${t.maxRanks}${why ? `, ${why}` : ''}`}
+    >
+      <AssetImage id={iconOf(t)} fallback={t.name.slice(0, 2)} size={40} className="talent-icon" />
+      <span className="talent-rank">
+        {rank}/{t.maxRanks}
+      </span>
+      {t.abilityId && <span className="talent-active" title="Teaches an ability">✦</span>}
+      <Tip anchor={tip.anchor}>
+        <strong>{t.name}</strong>
+        <span>{t.description}</span>
+        {line && <span className="dim">{line}</span>}
+        {why && rank < t.maxRanks && <span className="slot-why">{why}</span>}
+        {pending > 0 && <span className="dim">Right-click to take back a pending rank.</span>}
+      </Tip>
+    </button>
   );
 }

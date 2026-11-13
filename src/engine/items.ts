@@ -89,6 +89,8 @@ export interface WeaponItem extends ItemBase {
   ammo?: AmmoType;
   /** Sprite-sheet animation for its attacks; a default by style is used when missing. */
   animation?: string;
+  /** Sound of its blows landing; a default by style is used when missing. */
+  sound?: string;
   effects: ItemEffect[];
 }
 

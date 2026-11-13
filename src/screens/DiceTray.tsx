@@ -4,7 +4,7 @@ import { useGameStore } from '../state/store';
 import { DieFace, DieRolling } from './Dice';
 
 /** How long the dice bounce before landing, and how long the result stays up after. */
-const TUMBLE_MS = 900;
+export const TUMBLE_MS = 900;
 const SHOW_MS = 2600;
 
 function TumblingDie({ value, index, settled, dropped }: { value: number; index: number; settled: boolean; dropped: boolean }) {

@@ -11,6 +11,8 @@ import {
   combatantById,
   endTurn,
   isAiControlled,
+  kick,
+  kickTargets,
   enterDungeon,
   moveTo,
   planEnemyTurn,
@@ -481,3 +483,62 @@ describe('the Wizard', () => {
 function statusOfWard(x: Combatant): number | undefined {
   return x.statuses.find((st) => st.kind === 'warded')?.amount;
 }
+
+// ---------- kick ----------
+
+describe('kick', () => {
+  const kicker = () => fight(party([{ premade: 'korg-the-unbowed' }]));
+  const placed = (s: GameState, change: Partial<Combatant> = {}) =>
+    setUp(s, 'merc-1', { 'merc-1': { pos: at(3, 3) }, 'bandit-thug-1': { pos: at(4, 3), ...change }, 'bandit-thug-2': { pos: at(7, 0) } });
+
+  it('a kick that beats the enemy’s Defense pushes it one tile back', () => {
+    let s = placed(kicker(), { baseDefense: 5, stats: { strength: 10, agility: 10, toughness: 30, intellect: 10, spirit: 10, charisma: 10 } });
+    s = withSeed(s, (g) => who(kick(g, 'bandit-thug-1'), 'bandit-thug-1').pos.x === 5);
+    const after = kick(s, 'bandit-thug-1');
+    expect(who(after, 'bandit-thug-1').pos).toEqual(at(5, 3));
+    expect(who(after, 'bandit-thug-1').hp).toBe(who(s, 'bandit-thug-1').hp); // a kick does no damage
+    expect(combatOf(after).acted || combatOf(after).order[combatOf(after).turn] !== 'merc-1').toBe(true);
+  });
+
+  it('pushed, an enemy that fails its Toughness check falls prone', () => {
+    let s = placed(kicker(), { baseDefense: -50, stats: { strength: 10, agility: 10, toughness: 1, intellect: 10, spirit: 10, charisma: 10 } });
+    s = withSeed(s, (g) => who(kick(g, 'bandit-thug-1'), 'bandit-thug-1').statuses.some((st) => st.kind === 'prone'));
+    const after = kick(s, 'bandit-thug-1');
+    expect(who(after, 'bandit-thug-1').statuses.map((st) => st.kind)).toEqual(['prone']);
+    expect(after.rollFeed!.rolls.map((r) => r.what)).toEqual(['Kick → Bandit Thug 1', 'Keep footing (Toughness)']);
+  });
+
+  it('a missed kick moves nothing', () => {
+    let s = placed(kicker(), { baseDefense: 99 });
+    s = withSeed(s, (g) => who(kick(g, 'bandit-thug-1'), 'bandit-thug-1').pos.x === 4);
+    expect(who(kick(s, 'bandit-thug-1'), 'bandit-thug-1').pos).toEqual(at(4, 3));
+  });
+
+  it('an enemy with its back to the wall holds its ground', () => {
+    let s = setUp(kicker(), 'merc-1', { 'merc-1': { pos: at(6, 3) }, 'bandit-thug-1': { pos: at(7, 3), baseDefense: -50 }, 'bandit-thug-2': { pos: at(0, 0) } });
+    s = withSeed(s, (g) => combatOf(kick(g, 'bandit-thug-1')).log.some((l) => /nowhere to go/.test(l)));
+    const after = kick(s, 'bandit-thug-1');
+    expect(who(after, 'bandit-thug-1').pos).toEqual(at(7, 3));
+    expect(who(after, 'bandit-thug-1').statuses).toEqual([]);
+  });
+
+  it('only reaches enemies right next to the kicker', () => {
+    const s = setUp(kicker(), 'merc-1', { 'merc-1': { pos: at(1, 3) }, 'bandit-thug-1': { pos: at(4, 3) } });
+    expect(kickTargets(combatOf(s), who(s, 'merc-1'))).toEqual([]);
+    expect(() => kick(s, 'bandit-thug-1')).toThrow(/cannot reach/);
+  });
+
+  it('a prone enemy spends its next move getting up, and melee hits on it have advantage', () => {
+    let s = placed(kicker(), { statuses: [{ kind: 'prone', rounds: 1 }] });
+    const swing = attack(s, 'bandit-thug-1');
+    expect(combatOf(swing).events.find((e) => e.kind === 'attack')!.roll!.mode).toBe('advantage');
+
+    const c = combatOf(s);
+    s = { ...s, encounter: { ...s.encounter!, combat: { ...c, order: ['merc-1', 'bandit-thug-1', ...c.order.filter((x) => x !== 'merc-1' && x !== 'bandit-thug-1')] } } };
+    const up = endTurn(s);
+    expect(combatOf(up).order[combatOf(up).turn]).toBe('bandit-thug-1');
+    expect(combatOf(up).moveLeft).toBe(0);
+    // Its turn over, it is back on its feet.
+    expect(who(endTurn(up), 'bandit-thug-1').statuses).toEqual([]);
+  });
+});

@@ -43,8 +43,10 @@ export interface GameState {
   dialogue: DialogueState | null;
   /** The map being explored, including its fog of war. */
   dungeon: DungeonState | null;
-  /** The fight in progress, or null. */
+  /** The fight on screen, or null. */
   encounter: EncounterState | null;
+  /** Other fights going on at the same time, while the party is split. */
+  otherEncounters?: EncounterState[];
   /** The dice just rolled, for the dice tray to animate. `seq` goes up with each new batch. */
   rollFeed?: { seq: number; rolls: ShownRoll[] };
 }

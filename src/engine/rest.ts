@@ -17,6 +17,7 @@ export function restBlocker(state: GameState): string | null {
   const d = state.dungeon;
   if (!d || state.screen !== 'dungeon') return 'You can only make camp while exploring.';
   if (d.rested) return 'You have already made camp on this level.';
+  if ((d.otherGroups?.length ?? 0) > 0) return 'Regroup the party before making camp.';
   if (d.path.length > 0) return 'Stop walking first.';
   if (state.party.every((m) => m.dead)) return 'No one is left to rest.';
   return null;

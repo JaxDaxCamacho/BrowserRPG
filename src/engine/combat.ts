@@ -1,7 +1,7 @@
 ﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackOutcome, type AttackProfile } from './attack';
 import { makeCheck } from './checks';
 import { rollD20, rollDice, type RollMode } from './dice';
-import { featureById, type DungeonDefinition, type ObstacleFeature, type Pos } from './dungeon';
+import { featureById, groupsOf, roomAt, setGroups, type DungeonDefinition, type ObstacleFeature, type Pos } from './dungeon';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import { awardXp } from './levels';
@@ -44,6 +44,12 @@ export interface CombatAttack {
   /** Ammunition item spent per shot, if any. */
   ammoId?: string;
   animation: string;
+  /** The weapon's icon, for the action bar. */
+  icon?: string;
+  /** How the weapon deals its blows, for default sounds. */
+  style?: DamageStyle;
+  /** Sound of a blow landing, when the data names one. */
+  sound?: string;
 }
 
 /** A temporary change from an ability or potion. */
@@ -140,6 +146,10 @@ export interface CombatEvent {
   shown?: ShownRoll;
   /** For status events: what took hold, or what hurt. */
   label?: string;
+  /** The sound to play, when the data names one; otherwise the screen picks one by kind. */
+  sound?: string;
+  /** For attacks: how the blow was dealt, for default sounds. */
+  style?: DamageStyle;
 }
 
 /** Everything about one attack roll that the player should be able to see. */
@@ -197,6 +207,11 @@ export interface CombatState {
   mercs: MercType[];
   /** Experience the enemies are worth. */
   xp: number;
+  /**
+   * Every merc here has fallen, but others are still out exploring: the fight
+   * waits, with the enemies holding the room, until someone comes to the rescue.
+   */
+  dormant?: boolean;
   /** Barrels, chests, barricades and pillars dressing the battlefield. */
   obstacles: Obstacle[];
 }
@@ -215,15 +230,15 @@ const LOG_LIMIT = 40;
 // ---------- effects for every attack ----------
 
 const ANIMATIONS = {
-  slash: 'animations/quantum/ac2q001-slash',
-  blunt: 'animations/cursed-kingdoms/acck004-bludgeon',
-  pierce: 'animations/cursed-kingdoms/acck002-lacerate',
-  shot: 'animations/quantum/ac2q003-shot',
+  slash: 'animations/wind/aswind-04-breeze',
+  blunt: 'animations/earth/asearth-04-tremor',
+  pierce: 'animations/earth/asearth-03-stone',
+  shot: 'animations/earth/asearth-03-stone',
   magic: 'animations/thunder/asthunder-03-spark',
   spiritual: 'animations/dark/asdark-04-sting',
-  unarmed: 'animations/quantum/ac2q002-blow',
-  heal: 'animations/quantum/ac2q022-star-heal',
-  buff: 'animations/quantum/ac2q023-star-aura',
+  unarmed: 'animations/earth/asearth-03-stone',
+  heal: 'animations/light/aslight-05-sparkle',
+  buff: 'animations/light/aslight-03-glare',
 } as const;
 
 /** The effect an attack plays when its data names none. */
@@ -263,9 +278,9 @@ export interface Obstacle {
 
 /** What each obstacle kind looks and behaves like by default. */
 export const OBSTACLE_PRESETS: Record<ObstacleKind, { name: string; icon?: string; emoji: string; blocksLoS: boolean; hp: number | null }> = {
-  barrel: { name: 'Barrel', emoji: '🛢️', blocksLoS: false, hp: 6 },
-  chest: { name: 'Chest', icon: 'loot/chest-t-01', emoji: '🧰', blocksLoS: false, hp: null },
-  barricade: { name: 'Barricade', emoji: '🚧', blocksLoS: true, hp: 10 },
+  barrel: { name: 'Barrel', icon: 'obstacles/containers/barrel', emoji: '🛢️', blocksLoS: false, hp: 6 },
+  chest: { name: 'Chest', icon: 'obstacles/containers/bagsandboxes-94-t', emoji: '🧰', blocksLoS: false, hp: null },
+  barricade: { name: 'Barricade', icon: 'obstacles/containers/bagsandboxes-40-t', emoji: '🚧', blocksLoS: true, hp: 10 },
   pillar: { name: 'Pillar', emoji: '🗿', blocksLoS: true, hp: null },
 };
 
@@ -595,6 +610,9 @@ function mercAttack(merc: MercType, ctx: CombatContext): { attack: CombatAttack;
       profile,
       weaponType: weapon.weaponType,
       animation: weapon.animation ?? defaultAttackAnimation(profile, weapon.style),
+      ...(weapon.icon ? { icon: weapon.icon } : {}),
+      style: weapon.style,
+      ...(weapon.sound ? { sound: weapon.sound } : {}),
       ...(weapon.ammo ? { ammoId: merc.equipment.ammo ?? `no-${weapon.ammo}` } : {}),
     },
     critThreshold: raceCritThreshold(ctx.raceOf(merc), weapon.weaponType, profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD),
@@ -625,6 +643,51 @@ function gridFor(def: DungeonDefinition, at: Pos): { width: number; height: numb
   if (!room) return CORRIDOR_GRID;
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   return { width: clamp(room.width, GRID_MIN.width, GRID_MAX.width), height: clamp(room.height, GRID_MIN.height, GRID_MAX.height) };
+}
+
+/** A merc as a combatant: their sheet with gear and talents, potions still working, and resource pools. */
+function mercCombatant(merc: MercType, pos: Pos, roll: (agility: number) => number, ctx: CombatContext): Combatant {
+  const sheet = ctx.sheetOf(merc);
+  const race = ctx.raceOf(merc);
+  const { attack, critThreshold, twoHanded } = mercAttack(merc, ctx);
+  const abilities = sheet.abilityIds.map((id) => ctx.getAbility(id));
+  const potionBuffs: Buff[] = (merc.potionEffects ?? []).map((p) => {
+    const item = ctx.getItem(p.itemId);
+    return { source: item.name, effects: 'effects' in item ? item.effects.filter((e) => e.type !== 'heal') : [], roundsLeft: null };
+  });
+  return {
+    id: merc.id,
+    side: 'party',
+    name: merc.name,
+    ...(merc.portrait ? { portrait: merc.portrait } : {}),
+    mercId: merc.id,
+    pos,
+    movement: Math.max(1, (race.movement ?? 3) + statModifier(sheet.stats.agility) + sheet.movementBonus),
+    hp: merc.down ? 0 : Math.max(0, sheet.maxHp - merc.wounds),
+    maxHp: sheet.maxHp,
+    baseDefense: sheet.defense,
+    armour: sheet.armour,
+    stats: sheet.stats,
+    initiative: roll(sheet.stats.agility),
+    defending: false,
+    buffs: potionBuffs,
+    cooldowns: {},
+    abilityIds: sheet.abilityIds,
+    attack,
+    critThreshold: Math.max(2, critThreshold - sheet.critRange),
+    deathSave: raceDeathSaveDifficulty(race),
+    dead: false,
+    statuses: [],
+    resources: startingResources(abilities, sheet.stats),
+    damageBonus: sheet.damageBonus + (twoHanded ? sheet.twoHandedDamageBonus : 0),
+    retaliate: sheet.retaliate,
+    twoHanded,
+    bloodrage: sheet.bloodrage,
+    statusResist: sheet.statusResist,
+    manaBurn: sheet.manaBurn,
+    caster: abilities.some(isSpell) || attack.profile.kind === 'magic' || attack.profile.kind === 'spiritual',
+    undead: false,
+  };
 }
 
 /** A monster as a combatant, on either side (summons fight for the party). */
@@ -661,6 +724,7 @@ function monsterCombatant(
       range: monster.attack.range,
       profile: monster.attack.profile,
       animation: monster.attack.animation ?? defaultAttackAnimation(monster.attack.profile),
+      ...(monster.attack.sound ? { sound: monster.attack.sound } : {}),
     },
     critThreshold: monster.attack.profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD,
     deathSave: null,
@@ -703,54 +767,12 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   });
 
   const taken = new Set<string>(obstacles.map((o) => key(o.pos)));
-  const living = state.party.filter((m) => !m.dead);
+  // Only the mercs in this fight: with the party split, the rest are elsewhere.
+  const living = state.party.filter((m) => !m.dead && (!encounter.mercIds || encounter.mercIds.includes(m.id)));
   const partyRow = ambush ? Math.floor(height / 2) : height - 1;
   const partySpots = lineUp(living.length, width, partyRow, -1, taken);
 
-  const combatants: Combatant[] = [];
-  living.forEach((merc, i) => {
-    const sheet = ctx.sheetOf(merc);
-    const race = ctx.raceOf(merc);
-    const { attack, critThreshold, twoHanded } = mercAttack(merc, ctx);
-    const abilities = sheet.abilityIds.map((id) => ctx.getAbility(id));
-    const potionBuffs: Buff[] = (merc.potionEffects ?? []).map((p) => {
-      const item = ctx.getItem(p.itemId);
-      return { source: item.name, effects: 'effects' in item ? item.effects.filter((e) => e.type !== 'heal') : [], roundsLeft: null };
-    });
-    combatants.push({
-      id: merc.id,
-      side: 'party',
-      name: merc.name,
-      ...(merc.portrait ? { portrait: merc.portrait } : {}),
-      mercId: merc.id,
-      pos: partySpots[i]!,
-      movement: Math.max(1, (race.movement ?? 3) + statModifier(sheet.stats.agility) + sheet.movementBonus),
-      hp: merc.down ? 0 : Math.max(0, sheet.maxHp - merc.wounds),
-      maxHp: sheet.maxHp,
-      baseDefense: sheet.defense,
-      armour: sheet.armour,
-      stats: sheet.stats,
-      initiative: roll(sheet.stats.agility),
-      defending: false,
-      buffs: potionBuffs,
-      cooldowns: {},
-      abilityIds: sheet.abilityIds,
-      attack,
-      critThreshold: Math.max(2, critThreshold - sheet.critRange),
-      deathSave: raceDeathSaveDifficulty(race),
-      dead: false,
-      statuses: [],
-      resources: startingResources(abilities, sheet.stats),
-      damageBonus: sheet.damageBonus + (twoHanded ? sheet.twoHandedDamageBonus : 0),
-      retaliate: sheet.retaliate,
-      twoHanded,
-      bloodrage: sheet.bloodrage,
-      statusResist: sheet.statusResist,
-      manaBurn: sheet.manaBurn,
-      caster: abilities.some(isSpell) || attack.profile.kind === 'magic' || attack.profile.kind === 'spiritual',
-      undead: false,
-    });
-  });
+  const combatants: Combatant[] = living.map((merc, i) => mercCombatant(merc, partySpots[i]!, roll, ctx));
 
   const monsters = feature.monsters.flatMap((group) =>
     Array.from({ length: group.count }, (_, n) => ({ monster: ctx.getMonster(group.monsterId), n: n + 1, count: group.count })),
@@ -790,7 +812,7 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     log: [ambush ? `Ambush! ${feature.name} close in from both sides.` : `${feature.name} attack!`],
     events: [],
     seq: 0,
-    mercs: state.party.map((m) => structuredClone(m)),
+    mercs: living.map((m) => structuredClone(m)),
     xp,
     obstacles,
   };
@@ -812,7 +834,10 @@ function updateCombatant(c: CombatState, id: string, change: (x: Combatant) => C
 function checkOutcome(c: CombatState): CombatState {
   if (c.outcome) return c;
   if (standing(c, 'enemy').length === 0) return withLog({ ...c, outcome: 'victory' }, 'Victory!');
-  if (standing(c, 'party').filter((x) => x.mercId).length === 0) return withLog({ ...c, outcome: 'defeat' }, 'The party has fallen.');
+  if (standing(c, 'party').filter((x) => x.mercId).length === 0) {
+    if (c.dormant) return c;
+    return withLog({ ...c, outcome: 'defeat' }, 'The party has fallen.');
+  }
   return c;
 }
 
@@ -825,7 +850,9 @@ const DOT_WORDS: Partial<Record<StatusKind, string>> = { poisoned: 'poison', ble
 function beginTurn(c: CombatState, seed: number): { combat: CombatState; seed: number } {
   const actor = activeCombatant(c);
   const cooldowns = Object.fromEntries(Object.entries(actor.cooldowns).map(([k, v]) => [k, Math.max(0, v - 1)]));
-  let next = updateCombatant({ ...c, moveLeft: effectiveMovement(actor), acted: false }, actor.id, (x) =>
+  // Getting back up from the floor takes the whole move.
+  const moveLeft = hasStatus(actor, 'prone') ? 0 : effectiveMovement(actor);
+  let next = updateCombatant({ ...c, moveLeft, acted: false }, actor.id, (x) =>
     changeResource({ ...x, defending: false, cooldowns }, 'mana', 1),
   );
   for (const st of actor.statuses) {
@@ -940,6 +967,8 @@ interface Strike {
   bonusDamage?: number;
   /** The stat behind the roll, when not the usual one for the attack's kind. */
   stat?: StatName;
+  sound?: string;
+  style?: DamageStyle;
   /** A weapon blow: mana burn applies. */
   weapon?: boolean;
 }
@@ -1000,7 +1029,11 @@ function applyDamage(c: CombatState, seed: number, targetId: string, amount: num
 /** Rolls one attack and applies its damage. A blinded attacker rolls with disadvantage. */
 function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState; seed: number; outcome: AttackOutcome } {
   const attacker = combatantById(c, s.attacker.id);
-  const mode = combineModes(s.mode, hasStatus(attacker, 'blinded') ? 'disadvantage' : 'normal');
+  // Blinded attackers roll with disadvantage; a melee blow on someone lying on the floor has advantage.
+  const mode = combineModes(
+    combineModes(s.mode, hasStatus(attacker, 'blinded') ? 'disadvantage' : 'normal'),
+    s.profile.kind === 'melee' && hasStatus(combatantById(c, s.target.id), 'prone') ? 'advantage' : 'normal',
+  );
   const stat = s.stat ?? ATTACK_STAT[s.profile.kind];
   const modifier = statModifier(effectiveStats(attacker)[stat]);
   // Mage hunters hit casters harder with their weapons.
@@ -1051,6 +1084,8 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
         amount: r.damage,
         roll: detail,
         animation: s.animation,
+        ...(s.sound ? { sound: s.sound } : {}),
+        ...(s.style ? { style: s.style } : {}),
         shown: {
           who: attacker.name,
           what: `${s.free ? 'Free attack: ' : ''}${s.label} → ${s.target.name}`,
@@ -1221,6 +1256,8 @@ export function attack(state: GameState, targetId: string): GameState {
     animation: actor.attack.animation,
     bonusDamage: actor.damageBonus,
     weapon: true,
+    ...(actor.attack.sound ? { sound: actor.attack.sound } : {}),
+    ...(actor.attack.style ? { style: actor.attack.style } : {}),
   });
   return finishAction(state, reveal(hit.combat, actor.id), hit.seed);
 }
@@ -1352,6 +1389,8 @@ function grantedAttack(c: CombatState, seed: number, ally: Combatant): { combat:
     animation: ally.attack.animation,
     bonusDamage: ally.damageBonus,
     weapon: true,
+    ...(ally.attack.sound ? { sound: ally.attack.sound } : {}),
+    ...(ally.attack.style ? { style: ally.attack.style } : {}),
     free: true,
   });
   return { combat: r.combat, seed: r.seed };
@@ -1366,12 +1405,24 @@ function applyBuffOrHeal(c: CombatState, actor: Combatant, target: Combatant, ab
     const hp = Math.min(current.maxHp, current.hp + heal);
     next = updateCombatant(next, target.id, (x) => ({ ...x, hp }));
     next = withLog(next, `${actor.name} heals ${target.name} for ${hp - current.hp}.`);
-    next = { ...next, events: [...next.events, { kind: 'heal', actorId: actor.id, targetId: target.id, amount: hp - current.hp, animation: ability.animation ?? ANIMATIONS.heal }] };
+    next = {
+      ...next,
+      events: [
+        ...next.events,
+        { kind: 'heal', actorId: actor.id, targetId: target.id, amount: hp - current.hp, animation: ability.animation ?? ANIMATIONS.heal, ...(ability.sound ? { sound: ability.sound } : {}) },
+      ],
+    };
   }
   if (lasting.length > 0) {
     const buff: Buff = { source: ability.name, effects: lasting, roundsLeft: ability.duration ?? 1 };
     next = updateCombatant(next, target.id, (x) => ({ ...x, buffs: [...x.buffs.filter((b) => b.source !== ability.name), buff] }));
-    next = { ...next, events: [...next.events, { kind: 'buff', actorId: actor.id, targetId: target.id, animation: ability.animation ?? ANIMATIONS.buff }] };
+    next = {
+      ...next,
+      events: [
+        ...next.events,
+        { kind: 'buff', actorId: actor.id, targetId: target.id, animation: ability.animation ?? ANIMATIONS.buff, ...(ability.sound ? { sound: ability.sound } : {}) },
+      ],
+    };
   }
   return next;
 }
@@ -1457,6 +1508,8 @@ export function castAbility(
         bonusDamage: bonus,
         ...(ability.attackStat ? { stat: ability.attackStat } : {}),
         ...(ability.weaponAttack ? { weapon: true } : {}),
+        ...((ability.sound ?? (ability.weaponAttack ? user.attack.sound : undefined)) ? { sound: ability.sound ?? user.attack.sound } : {}),
+        ...(ability.weaponAttack && user.attack.style ? { style: user.attack.style } : {}),
       });
       next = r.combat;
       seed = r.seed;
@@ -1533,6 +1586,82 @@ export function drinkPotion(state: GameState, itemId: string, ctx: Pick<CombatCo
   return finishAction(state, next, state.rngSeed);
 }
 
+// ---------- kick ----------
+
+/** Enemies the active combatant can kick: those right next to them. */
+export function kickTargets(c: CombatState, actor: Combatant): Combatant[] {
+  return visibleFoes(c, actor).filter((t) => distance(t.pos, actor.pos) <= 1);
+}
+
+/**
+ * Kick an enemy next to you: a d20 with no modifier against its Defense. Beat it
+ * and the enemy is pushed one tile straight back (if there is room). Pushed, it
+ * makes a Toughness check against 10 + your Strength modifier, or falls prone.
+ */
+export function kick(state: GameState, targetId: string): GameState {
+  const { c, actor } = beginAction(state);
+  const target = kickTargets(c, actor).find((t) => t.id === targetId);
+  if (!target) throw new Error(`${actor.name} cannot reach that to kick it.`);
+  const defense = effectiveDefense(target);
+  const kickRoll = rollD20(state.rngSeed);
+  let seed = kickRoll.seed;
+  const natural = kickRoll.value.natural;
+  const landed = natural === 20 || (natural !== 1 && natural > defense);
+  const shown: ShownRoll[] = [
+    {
+      who: actor.name,
+      what: `Kick → ${target.name}`,
+      sides: 20,
+      dice: kickRoll.value.dice,
+      kept: natural,
+      total: natural,
+      target: defense,
+      result: landed ? 'Pushed' : 'Shrugged off',
+      good: actor.side === 'party' ? landed : !landed,
+    },
+  ];
+  let next = withLog(c, `${actor.name} kicks at ${target.name} (${natural} vs ${defense}): ${landed ? 'it connects!' : 'it does not budge.'}`);
+  next = { ...next, events: [{ kind: 'status', actorId: actor.id, targetId: target.id, label: landed ? 'Kicked' : 'Shrugged off' }] };
+
+  if (landed) {
+    const dx = Math.sign(target.pos.x - actor.pos.x);
+    const dy = Math.sign(target.pos.y - actor.pos.y);
+    const to = { x: target.pos.x + dx, y: target.pos.y + dy };
+    const room = to.x >= 0 && to.y >= 0 && to.x < next.width && to.y < next.height && !tileBlocked(next, to);
+    if (!room) {
+      next = withLog(next, `${target.name} has nowhere to go and holds its ground.`);
+    } else {
+      next = updateCombatant(next, target.id, (x) => ({ ...x, pos: to }));
+      next = { ...next, events: [...next.events, { kind: 'move', actorId: target.id }] };
+      // Keeping its feet: Toughness against 10 + the kicker's Strength.
+      const difficulty = 10 + statModifier(effectiveStats(actor).strength);
+      const check = makeCheck(seed, statModifier(effectiveStats(target).toughness), difficulty);
+      seed = check.seed;
+      const fell = !check.value.success;
+      shown.push({
+        who: target.name,
+        what: 'Keep footing (Toughness)',
+        sides: 20,
+        dice: check.value.roll.dice,
+        kept: check.value.roll.natural,
+        total: check.value.total,
+        target: difficulty,
+        result: fell ? 'Falls down' : 'Stays up',
+        good: target.side === 'party' ? !fell : fell,
+      });
+      if (fell) {
+        next = updateCombatant(next, target.id, (x) => withStatus(x, { status: 'prone', rounds: 1 }, actor.id));
+        next = withLog(next, `${target.name} is knocked off its feet (${check.value.total} vs ${difficulty})!`);
+        next = { ...next, events: [...next.events, { kind: 'status', actorId: actor.id, targetId: target.id, label: 'prone' }] };
+      } else {
+        next = withLog(next, `${target.name} staggers back but keeps its feet (${check.value.total} vs ${difficulty}).`);
+      }
+    }
+  }
+  const done = finishAction(state, next, seed);
+  return announceRolls(done, shown);
+}
+
 /** +2 Defense until the defender's next turn. */
 export function defend(state: GameState): GameState {
   const { c, actor } = beginAction(state);
@@ -1544,7 +1673,8 @@ export function defend(state: GameState): GameState {
 export function flee(state: GameState, ctx: Pick<CombatContext, 'sheetOf'>): GameState {
   const { c, actor } = beginAction(state);
   if (actor.side !== 'party') throw new Error('Only the party can flee.');
-  const leader = getLeader(state) ?? state.party[0]!;
+  const present = getLeader(state);
+  const leader = present && c.mercs.some((m) => m.id === present.id) ? present : c.mercs[0]!;
   const agility = ctx.sheetOf(leader).stats.agility;
   const rolled = makeCheck(state.rngSeed, statModifier(agility), FLEE_DIFFICULTY);
   const ok = rolled.value.success;
@@ -1606,6 +1736,8 @@ export function moveTo(state: GameState, to: Pos): GameState {
         animation: punisher.attack.animation,
         bonusDamage: punisher.damageBonus,
         weapon: true,
+        ...(punisher.attack.sound ? { sound: punisher.attack.sound } : {}),
+        ...(punisher.attack.style ? { style: punisher.attack.style } : {}),
         free: true,
       });
       next = r.combat;
@@ -1645,7 +1777,7 @@ export function finishCombat(state: GameState, ctx: CombatContext): GameState {
   if (!c || !c.outcome || c.outcome === 'defeat' || !dungeon || !state.encounter) return state;
   const xp = c.outcome === 'victory' ? shareXp(c, ctx) : {};
 
-  const party = c.mercs.map((merc) => {
+  const fought = c.mercs.map((merc) => {
     const x = c.combatants.find((k) => k.mercId === merc.id);
     // Mercs who were already dead took no part.
     if (!x || merc.dead) return { ...merc, down: true };
@@ -1658,21 +1790,99 @@ export function finishCombat(state: GameState, ctx: CombatContext): GameState {
     return { ...merc, wounds: x.maxHp - hp, down, potionEffects };
   });
   // Levelling up raises max HP; wounds stay as they are, so the new hit points come in full.
-  const awarded = awardXp(party, xp);
+  const awarded = awardXp(fought, xp);
+  // Only the mercs in this fight change; the rest of the party may be busy elsewhere.
+  const party = state.party.map((m) => awarded.party.find((x) => x.id === m.id) ?? m);
+  const fled = c.outcome !== 'victory';
 
   const gained = Object.values(xp)[0];
   const line = c.outcome === 'victory' ? `Victory${gained ? `: +${gained} XP each` : ''}.` : 'You escape the fight.';
-  return ensureLiveLeader({
+  let next: GameState = {
     ...state,
-    party: awarded.party,
+    party,
     screen: 'dungeon',
     encounter: null,
     dungeon: {
       ...dungeon,
-      ...(c.outcome === 'victory' ? { resolved: [...dungeon.resolved, c.featureId] } : { pos: state.encounter.returnTo, path: [] }),
+      ...(fled ? {} : { resolved: [...dungeon.resolved, c.featureId] }),
       log: [...dungeon.log, line, ...awarded.lines].slice(-30),
     },
-  });
+  };
+  if (fled) {
+    // Everyone who fought falls back to where they came from.
+    const inFight = new Set(c.mercs.map((m) => m.id));
+    const back = state.encounter.returnTo;
+    const groups = groupsOf(next).map((g) => (g.mercIds.some((id) => inFight.has(id)) ? { ...g, pos: back, path: [] } : g));
+    next = setGroups(next, groups, groupsOf(next)[0]!.id);
+  }
+  return ensureLiveLeader(next);
+}
+
+/**
+ * Mercs walk into a room where the fight on screen is going on. Each rolls
+ * initiative and takes their place in the turn order, appearing on a random
+ * open square along the edge of the battlefield they came in from.
+ */
+export function joinCombat(state: GameState, mercIds: string[], from: Pos, ctx: CombatContext): GameState {
+  const c = state.encounter?.combat;
+  if (!c || c.outcome || !state.encounter || !state.dungeon) return state;
+  const def = ctx.getDungeon(state.dungeon.dungeonId);
+  const feature = featureById(def, c.featureId);
+  const room = roomAt(def, feature);
+  // Which edge: the side of the room the newcomers stepped in from.
+  type Edge = 'west' | 'east' | 'north' | 'south';
+  let edge: Edge = 'south';
+  if (room) {
+    if (from.x < room.x) edge = 'west';
+    else if (from.x >= room.x + room.width) edge = 'east';
+    else if (from.y < room.y) edge = 'north';
+  }
+  const onEdge = (p: Pos) =>
+    edge === 'west' ? p.x === 0 : edge === 'east' ? p.x === c.width - 1 : edge === 'north' ? p.y === 0 : p.y === c.height - 1;
+
+  let seed = state.rngSeed;
+  const pickFrom = (spots: Pos[]): Pos | undefined => {
+    if (spots.length === 0) return undefined;
+    const r = rollDice(seed, `1d${spots.length}`);
+    seed = r.seed;
+    return spots[r.value - 1];
+  };
+  const roll = (agility: number) => {
+    const r = rollD20(seed);
+    seed = r.seed;
+    return r.value.natural + statModifier(agility);
+  };
+
+  let next = c;
+  const newcomers = state.party.filter((m) => mercIds.includes(m.id) && !m.dead && !c.combatants.some((x) => x.id === m.id));
+  for (const merc of newcomers) {
+    const free: Pos[] = [];
+    for (let y = 0; y < next.height; y++) for (let x = 0; x < next.width; x++) if (!tileBlocked(next, { x, y })) free.push({ x, y });
+    const pos = pickFrom(free.filter(onEdge)) ?? pickFrom(free);
+    if (!pos) break;
+    const joiner = mercCombatant(merc, pos, roll, ctx);
+    // A place in the turn order by initiative; the one acting now keeps their turn.
+    const order = [...next.order];
+    let at = order.findIndex((id) => combatantById(next, id).initiative < joiner.initiative);
+    if (at < 0) at = order.length;
+    order.splice(at, 0, joiner.id);
+    const turn = at <= next.turn ? next.turn + 1 : next.turn;
+    next = withLog(
+      { ...next, combatants: [...next.combatants, joiner], order, turn, mercs: [...next.mercs, structuredClone(merc)] },
+      `${merc.name} joins the fight from the ${edge}!`,
+    );
+  }
+  // Help has arrived: a fight left waiting over the fallen comes back to life.
+  if (newcomers.length > 0 && next.dormant) {
+    const { dormant: _d, ...awake } = next;
+    next = withLog(awake, 'The fallen are not alone any more!');
+  }
+  const encounter = { ...state.encounter, combat: next, mercIds: [...new Set([...encounterMercIdsOf(state), ...newcomers.map((m) => m.id)])] };
+  return { ...state, rngSeed: seed, encounter };
+}
+
+function encounterMercIdsOf(state: GameState): string[] {
+  return state.encounter?.mercIds ?? state.party.filter((m) => !m.dead).map((m) => m.id);
 }
 
 /** After a defeat: start the same fight again from the moment it began. */

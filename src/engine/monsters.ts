@@ -34,6 +34,7 @@ export type Resource = (typeof RESOURCES)[number];
  * - reflecting: the next hostile spell aimed at it bounces back at the caster
  * - frozen: loses its turns, but taking damage shatters the ice
  * - warded: a shield that soaks up `amount` damage before it breaks
+ * - prone: knocked off its feet; its next turn's movement goes on getting up, and melee attacks on it have advantage
  */
 export const STATUS_KINDS = [
   'stunned',
@@ -51,6 +52,7 @@ export const STATUS_KINDS = [
   'reflecting',
   'frozen',
   'warded',
+  'prone',
 ] as const;
 export type StatusKind = (typeof STATUS_KINDS)[number];
 
@@ -93,6 +95,8 @@ export interface AbilityDefinition {
   icon?: string;
   /** Asset id of the sprite-sheet animation played when it is used. */
   animation?: string;
+  /** Asset id of the sound played when it lands. */
+  sound?: string;
   description: string;
   activation: 'action' | 'passive';
   usableBy: 'mercs' | 'monsters' | 'both';
@@ -153,6 +157,7 @@ export interface MonsterAttack {
   range: number;
   profile: AttackProfile;
   animation?: string;
+  sound?: string;
 }
 
 export interface MonsterDefinition {

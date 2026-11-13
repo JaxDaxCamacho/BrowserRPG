@@ -133,6 +133,44 @@ export interface DungeonState {
   rested: boolean;
   /** The party is at camp right now: points can be spent until it moves on. */
   camping?: boolean;
+  /**
+   * When the party has split: the group whose token is `pos` above. Without it,
+   * the whole party moves as one.
+   */
+  group?: { id: string; mercIds: string[] };
+  /** The other groups, waiting while the active one moves. */
+  otherGroups?: GroupState[];
+  /** Turn order while the party is split: fights and exploration take turns. */
+  world?: WorldState;
+  /** The active group just walked into a room with a fight going on: it joins next. */
+  pendingJoin?: { featureId: string; from: Pos };
+}
+
+/** A part of the party with its own token on the map. */
+export interface GroupState {
+  id: string;
+  mercIds: string[];
+  pos: Pos;
+  previous: Pos;
+  path: Pos[];
+}
+
+/** Whose go it is while the party is split: a fight's next round, or a group's exploration turn. */
+export type WorldSlot = { kind: 'fight'; featureId: string } | { kind: 'explore'; groupId: string };
+
+/**
+ * A world round: every fight plays one full round, then every group not in a
+ * fight takes one exploration turn of up to its movement in tiles.
+ */
+export interface WorldState {
+  round: number;
+  current: WorldSlot | null;
+  /** Slots still to come this round. */
+  queue: WorldSlot[];
+  /** For a fight's slot: its round when the slot began, so a full round can be spotted. */
+  fightRound?: number;
+  /** For an exploration slot: tiles left to walk. */
+  movesLeft?: number;
 }
 
 export interface EncounterState {
@@ -141,10 +179,69 @@ export interface EncounterState {
   returnTo: Pos;
   /** The fight itself, once it has started. */
   combat?: CombatState;
+  /** The mercs in this fight. Without it, every living merc is. */
+  mercIds?: string[];
 }
 
 const LOG_LIMIT = 30;
 export const SIGHT_RADIUS = 2;
+
+// ---------- groups ----------
+
+export const MAIN_GROUP = 'g1';
+
+export function isSplit(state: GameState): boolean {
+  return (state.dungeon?.otherGroups?.length ?? 0) > 0;
+}
+
+/** The mercs in the group whose token is on `pos`. */
+export function activeMercIds(state: GameState): string[] {
+  const d = state.dungeon;
+  if (d?.group) return d.group.mercIds;
+  const elsewhere = new Set((d?.otherGroups ?? []).flatMap((g) => g.mercIds));
+  return state.party.filter((m) => !elsewhere.has(m.id)).map((m) => m.id);
+}
+
+/** Every group, the active one first. */
+export function groupsOf(state: GameState): GroupState[] {
+  const d = state.dungeon;
+  if (!d) return [];
+  const active: GroupState = { id: d.group?.id ?? MAIN_GROUP, mercIds: activeMercIds(state), pos: d.pos, previous: d.previous, path: d.path };
+  return [active, ...(d.otherGroups ?? [])];
+}
+
+/** Writes groups back, with `activeId` as the one on `pos`. One group left means the party is whole again. */
+export function setGroups(state: GameState, groups: GroupState[], activeId: string): GameState {
+  const d = state.dungeon;
+  if (!d) return state;
+  const active = groups.find((g) => g.id === activeId) ?? groups[0]!;
+  const others = groups.filter((g) => g.id !== active.id);
+  const { group: _g, otherGroups: _o, ...rest } = d;
+  const dungeon: DungeonState = {
+    ...rest,
+    pos: active.pos,
+    previous: active.previous,
+    path: active.path,
+    ...(others.length > 0 ? { group: { id: active.id, mercIds: active.mercIds }, otherGroups: others } : {}),
+  };
+  return { ...state, dungeon };
+}
+
+/** The fight on screen and any others going on elsewhere. */
+export function allEncounters(state: GameState): EncounterState[] {
+  return [...(state.encounter ? [state.encounter] : []), ...(state.otherEncounters ?? [])];
+}
+
+/** The mercs in a fight. */
+export function encounterMercIds(state: GameState, e: EncounterState): string[] {
+  return e.mercIds ?? state.party.filter((m) => !m.dead).map((m) => m.id);
+}
+
+/** True while any merc of the group is in a fight. */
+export function groupInFight(state: GameState, group: GroupState): boolean {
+  const fighting = new Set(allEncounters(state).flatMap((e) => encounterMercIds(state, e)));
+  return group.mercIds.some((id) => fighting.has(id));
+}
 
 // ---------- reading the map ----------
 
@@ -342,7 +439,7 @@ export function goalReached(dungeon: DungeonState, def: DungeonDefinition): bool
 /** The party may leave: the goal is done and it stands at the entrance. */
 export function canLeave(state: GameState, def: DungeonDefinition): boolean {
   const d = state.dungeon;
-  return !!d && state.screen === 'dungeon' && goalReached(d, def) && samePos(d.pos, def.start);
+  return !!d && state.screen === 'dungeon' && !isSplit(state) && goalReached(d, def) && samePos(d.pos, def.start);
 }
 
 /** Walks out with the goal done: plays the adventure's ending, or finishes it at once if it has none. */
@@ -397,7 +494,11 @@ function quietestMerc(state: GameState, ctx: DungeonContext) {
 
 function openFeatureDialogue(state: GameState, f: FeatureDefinition, nodeId: string | undefined, ctx: DungeonContext): GameState {
   if (f.type === 'encounter') return state;
-  return startDialogue(state, ctx.getDialogue(f.dialogueId), { nodeId, source: f.id });
+  return startDialogue(state, ctx.getDialogue(f.dialogueId), {
+    nodeId,
+    source: f.id,
+    ...(isSplit(state) ? { mercIds: activeMercIds(state) } : {}),
+  });
 }
 
 /**
@@ -408,6 +509,12 @@ function openFeatureDialogue(state: GameState, f: FeatureDefinition, nodeId: str
 export function stepParty(state: GameState, def: DungeonDefinition, ctx: DungeonContext): GameState {
   const start = state.dungeon;
   if (!start || start.path.length === 0 || state.screen !== 'dungeon') return state;
+  // While split, a group only moves on its own exploration turn, and only as far as its movement.
+  const w = start.world;
+  if (w) {
+    const mine = w.current?.kind === 'explore' && w.current.groupId === (start.group?.id ?? MAIN_GROUP);
+    if (!mine || (w.movesLeft ?? 0) <= 0) return { ...state, dungeon: { ...start, path: [] } };
+  }
   const [next, ...rest] = start.path;
   if (!next) return state;
 
@@ -415,10 +522,24 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
     ...start,
     previous: start.pos,
     pos: next,
-    path: rest,
+    path: w && (w.movesLeft ?? 0) <= 1 ? [] : rest,
     seen: reveal(def, start.seen, next),
+    ...(w ? { world: { ...w, movesLeft: (w.movesLeft ?? 0) - 1 } } : {}),
   };
   let game: GameState = { ...state, dungeon };
+  // Fights already going on: their groups are not new encounters, but walking into their room joins them.
+  const ongoing = new Set(allEncounters(state).map((e) => e.featureId));
+  const room = roomAt(def, next);
+  if (room && roomAt(def, start.pos) !== room) {
+    const fight = allEncounters(state).find((e) => {
+      const f = def.features.find((x) => x.id === e.featureId);
+      return f && roomAt(def, f) === room;
+    });
+    if (fight) {
+      dungeon = withLog({ ...dungeon, path: [], pendingJoin: { featureId: fight.featureId, from: start.pos } }, 'You run into the fight!');
+      return { ...game, dungeon };
+    }
+  }
   const halt = (extra: Partial<DungeonState> = {}, ...lines: string[]) => {
     dungeon = withLog({ ...dungeon, ...extra, path: [] }, ...lines);
     game = { ...game, dungeon };
@@ -447,11 +568,11 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
 
   // 2. An enemy group in reach: on any of the eight tiles around the party.
   const foes = def.features.find(
-    (f): f is EncounterFeature => f.type === 'encounter' && !dungeon.resolved.includes(f.id) && chebyshev(f, next) <= 1,
+    (f): f is EncounterFeature => f.type === 'encounter' && !dungeon.resolved.includes(f.id) && !ongoing.has(f.id) && chebyshev(f, next) <= 1,
   );
   if (foes) {
     halt({ noticed: [...new Set([...dungeon.noticed, foes.id])] }, `${describeGroup(foes, ctx)} attack!`);
-    return { ...game, screen: 'combat', encounter: { featureId: foes.id, returnTo: dungeon.previous } };
+    return beginEncounter(game, def, foes, dungeon.previous);
   }
 
   // 2b. Sneaking: inside a group's detection range and in its sight, every step needs a stealth check.
@@ -459,6 +580,7 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
     (f): f is EncounterFeature =>
       f.type === 'encounter' &&
       !dungeon.resolved.includes(f.id) &&
+      !ongoing.has(f.id) &&
       Math.hypot(f.x - next.x, f.y - next.y) <= (f.detection ?? DEFAULT_DETECTION) + 0.5 &&
       lineOfSight(def, f, next),
   );
@@ -485,7 +607,7 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
         { noticed: [...new Set([...dungeon.noticed, group.id])] },
         `${describeGroup(group, ctx)} spot ${sneak.merc.name} and attack!`,
       );
-      return { ...game, screen: 'combat', encounter: { featureId: group.id, returnTo: dungeon.previous } };
+      return beginEncounter(game, def, group, dungeon.previous);
     }
   }
 
@@ -532,7 +654,7 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
   const visible = visibleFrom(def, next);
   const sighted = def.features.filter(
     (f): f is EncounterFeature =>
-      f.type === 'encounter' && !dungeon.resolved.includes(f.id) && !dungeon.noticed.includes(f.id) && visible.has(indexOf(def, f)),
+      f.type === 'encounter' && !dungeon.resolved.includes(f.id) && !ongoing.has(f.id) && !dungeon.noticed.includes(f.id) && visible.has(indexOf(def, f)),
   );
   if (sighted.length > 0) {
     halt(
@@ -541,6 +663,22 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
     );
   }
   return game;
+}
+
+/**
+ * An enemy group attacks. With the party whole, everyone fights. Split up, the
+ * fight takes the active group plus any other group standing in the same room.
+ */
+function beginEncounter(state: GameState, def: DungeonDefinition, foes: EncounterFeature, returnTo: Pos): GameState {
+  const encounter: EncounterState = { featureId: foes.id, returnTo };
+  if (!isSplit(state)) return { ...state, screen: 'combat', encounter };
+  const room = roomAt(def, foes);
+  const mercIds = [...activeMercIds(state)];
+  for (const g of (state.dungeon?.otherGroups ?? [])) {
+    if (room && roomAt(def, g.pos) === room && !groupInFight(state, g)) mercIds.push(...g.mercIds);
+  }
+  const living = new Set(state.party.filter((m) => !m.dead).map((m) => m.id));
+  return { ...state, screen: 'combat', encounter: { ...encounter, mercIds: mercIds.filter((id) => living.has(id)) } };
 }
 
 /** A fight is over (or the party fled): back to the map. */

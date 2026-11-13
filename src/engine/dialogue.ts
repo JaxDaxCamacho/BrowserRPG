@@ -115,6 +115,8 @@ export interface DialogueState {
   result: DialogueResult | null;
   /** The map feature (trap, event, goal) that opened this dialogue, if any. */
   source?: string;
+  /** With the party split: the mercs present. Checks and effects only involve them. */
+  mercIds?: string[];
 }
 
 /** Things the engine needs from outside: final stats and hit points depend on content data. */
@@ -130,7 +132,7 @@ export interface DialogueContext {
 export function startDialogue(
   state: GameState,
   dialogue: DialogueDefinition,
-  options: { nodeId?: string; source?: string } = {},
+  options: { nodeId?: string; source?: string; mercIds?: string[] } = {},
 ): GameState {
   return {
     ...state,
@@ -140,6 +142,7 @@ export function startDialogue(
       nodeId: options.nodeId ?? dialogue.start,
       result: null,
       ...(options.source ? { source: options.source } : {}),
+      ...(options.mercIds ? { mercIds: options.mercIds } : {}),
     },
   };
 }
@@ -173,9 +176,10 @@ export function unmetConditions(state: GameState, option: DialogueOption): Condi
   return (option.requires ?? []).filter((c) => !conditionMet(state, c));
 }
 
-/** Mercs still on their feet. */
+/** Mercs on their feet and present: with the party split, only those in the dialogue's group. */
 export function standingMercs(state: GameState): Merc[] {
-  return state.party.filter((m) => !m.down);
+  const present = state.dialogue?.mercIds;
+  return state.party.filter((m) => !m.down && !m.dead && (!present || present.includes(m.id)));
 }
 
 /** Who makes a check, and with what modifier. A merc who is down cannot. */
@@ -186,7 +190,8 @@ export function checkMaker(
 ): { merc: Merc; modifier: number } {
   const standing = standingMercs(state);
   const leader = getLeader(state);
-  const candidates = check.by === 'leader' ? [leader && !leader.down ? leader : standing[0]] : standing;
+  const leaderHere = leader && standing.some((m) => m.id === leader.id) ? leader : undefined;
+  const candidates = check.by === 'leader' ? [leaderHere ?? standing[0]] : standing;
   let best: { merc: Merc; modifier: number } | null = null;
   for (const merc of candidates) {
     if (!merc) continue;
@@ -202,7 +207,8 @@ function targetsOf(state: GameState, target: EffectTarget, rollerId: string | nu
   if (target === 'party') return standing;
   const leader = getLeader(state);
   const roller = rollerId ? state.party.find((m) => m.id === rollerId) : null;
-  const pick = target === 'roller' && roller ? roller : leader && !leader.down ? leader : standing[0];
+  const leaderHere = leader && standing.some((m) => m.id === leader.id) ? leader : undefined;
+  const pick = target === 'roller' && roller ? roller : (leaderHere ?? standing[0]);
   return pick ? [pick] : [];
 }
 

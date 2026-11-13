@@ -139,6 +139,7 @@ const weaponItem = z.strictObject({
   attack: attackProfileSchema,
   ammo: z.enum(AMMO_TYPES).optional(),
   animation: assetId.optional(),
+  sound: assetId.optional(),
   effects,
 });
 
@@ -236,6 +237,7 @@ export const abilitySchema = z.strictObject({
   name: z.string().min(1),
   icon: assetId.optional(),
   animation: assetId.optional(),
+  sound: assetId.optional(),
   description: z.string().min(1),
   activation: z.enum(['action', 'passive']),
   usableBy: z.enum(['mercs', 'monsters', 'both']),
@@ -320,6 +322,7 @@ export const monsterSchema = z.strictObject({
     range: z.number().int().min(0).max(12),
     profile: attackProfileSchema,
     animation: assetId.optional(),
+    sound: assetId.optional(),
   }),
   abilityIds: z.array(id),
   xp: z.number().int().min(0),

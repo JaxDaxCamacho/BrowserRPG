@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getDungeon, PREMADES, premadeToDraft } from '../content';
-import { addMerc, createInitialState, enterDungeon, setLeader, startNewGame, type GameState } from '../engine';
+import { addMerc, createInitialState, enterDungeon, setLeader, settle, startNewGame, type GameState } from '../engine';
+import { combatContext } from './context';
 import { createDefaultSaveStore, type SaveRecord } from '../platform/saveStore';
 
 export type Tool = 'contentEditor' | 'dungeonMaker';
@@ -77,7 +78,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ tool: 'dungeonMaker', testPlay: null, game: createInitialState() });
   },
 
-  apply: (command) => set((s) => ({ game: command(s.game) })),
+  // Every command is followed by settle, which keeps a split party's turns in order.
+  apply: (command) => set((s) => ({ game: settle(command(s.game), combatContext) })),
 
   refreshSaves: async () => {
     await pendingWrites;

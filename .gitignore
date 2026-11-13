@@ -6,3 +6,6 @@ dist
 .vite
 src-tauri/target
 src-tauri/gen
+
+# The project's own commercial icon packs, read by `npm run assets:sync`.
+Assets/

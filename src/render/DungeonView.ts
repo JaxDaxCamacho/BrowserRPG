@@ -51,6 +51,10 @@ interface ViewState {
   dungeon: DungeonState;
   leaderPortrait?: string;
   leaderInitials: string;
+  /** Which group the main token is, while the party is split. */
+  groupId?: string;
+  /** The other groups' tokens. */
+  others?: { id: string; pos: Pos; portrait?: string; initials: string; fighting: boolean }[];
 }
 
 /**
@@ -66,6 +70,7 @@ export class DungeonView {
   private pathLayer = new Graphics();
   private markers = new Container();
   private token = new Container();
+  private otherTokens = new Container();
   private textures = new Map<string, Texture | null>();
   private state: ViewState | null = null;
   private ready = false;
@@ -99,7 +104,7 @@ export class DungeonView {
 
     this.fog.filters = [new BlurFilter({ strength: TILE * 0.35, quality: 4 })];
     // Markers sit above the fog so the goal can be seen from the start; only seen markers are drawn otherwise.
-    this.world.addChild(this.tiles, this.fog, this.pathLayer, this.markers, this.token);
+    this.world.addChild(this.tiles, this.fog, this.pathLayer, this.markers, this.otherTokens, this.token);
     this.app.stage.addChild(this.world);
     this.app.stage.eventMode = 'static';
     this.app.stage.hitArea = new Rectangle(-1e6, -1e6, 2e6, 2e6);
@@ -124,11 +129,18 @@ export class DungeonView {
   update(next: ViewState): void {
     const moved = !this.state || this.state.dungeon.pos.x !== next.dungeon.pos.x || this.state.dungeon.pos.y !== next.dungeon.pos.y;
     const newMap = !this.state || this.state.def.id !== next.def.id;
+    // The turn passed to another group: jump to it rather than slide across the map.
+    const switched = !!this.state && this.state.groupId !== next.groupId;
     this.state = next;
     if (newMap) this.hasCentred = false;
     if (!this.ready) return;
     this.redraw();
-    if (moved) this.keepPartyInView();
+    if (switched) {
+      const p = next.dungeon.pos;
+      this.token.position.set((p.x + 0.5) * TILE, (p.y + 0.5) * TILE);
+      this.tokenTarget = { x: this.token.x, y: this.token.y };
+      this.centreOnParty();
+    } else if (moved) this.keepPartyInView();
   }
 
   /** Centres the camera on the party. */
@@ -343,7 +355,14 @@ export class DungeonView {
     }
   }
 
-  private drawToken({ dungeon, leaderPortrait, leaderInitials }: ViewState): void {
+  private drawToken({ dungeon, leaderPortrait, leaderInitials, others }: ViewState): void {
+    this.otherTokens.removeChildren().forEach((c) => c.destroy({ children: true }));
+    for (const o of others ?? []) {
+      const t = this.disc(o.portrait, o.initials, TILE * 0.36, o.fighting ? ENEMY : QUIET);
+      t.position.set((o.pos.x + 0.5) * TILE, (o.pos.y + 0.5) * TILE);
+      t.alpha = 0.85;
+      this.otherTokens.addChild(t);
+    }
     this.token.removeChildren().forEach((c) => c.destroy({ children: true }));
     const glow = new Graphics().circle(0, 0, TILE * 0.5).fill({ color: GOLD, alpha: 0.25 });
     this.token.addChild(glow, this.disc(leaderPortrait, leaderInitials, TILE * 0.42, GOLD));

@@ -1,20 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { getDungeon, getMonster } from '../content';
 import {
+  activeMercIds,
+  allEncounters,
+  encounterMercIds,
   canLeave,
+  endExploreTurn,
   getLeader,
   goalReached,
+  groupInFight,
+  groupingBlocker,
+  groupsHere,
+  groupsOf,
+  isSplit,
   leaveDungeon,
+  regroup,
+  restBlocker,
   setDestination,
+  splitOff,
   stepParty,
   stopWalking,
   type FeatureDefinition,
+  type GameState,
+  type GroupState,
+  type Merc,
 } from '../engine';
 import { DungeonView, type MarkerInfo } from '../render/DungeonView';
 import { currentHp, dungeonContext } from '../state/context';
 import { useGameStore } from '../state/store';
 import { assetUrl } from './assets';
 import { initials, Token } from './MercCard';
+import { MuteButton } from './MuteButton';
 import { PartyWindow } from './PartyWindow';
 import { RestDialog } from './RestDialog';
 
@@ -43,7 +59,9 @@ export function DungeonScreen() {
 
   const dungeon = game.dungeon;
   const def = dungeon ? getDungeon(dungeon.dungeonId) : null;
-  const leader = getLeader(game) ?? game.party[0];
+  const groups = groupsOf(game);
+  const active = groups[0];
+  const leader = active ? tokenMerc(game, active) : (getLeader(game) ?? game.party[0]);
 
   // Create the renderer once.
   useEffect(() => {
@@ -69,13 +87,21 @@ export function DungeonScreen() {
   // Feed it the latest state.
   useEffect(() => {
     if (!def || !dungeon || !viewRef.current) return;
+    const others = groupsOf(game)
+      .slice(1)
+      .map((g) => {
+        const face = tokenMerc(game, g);
+        return { id: g.id, pos: g.pos, ...(face?.portrait ? { portrait: face.portrait } : {}), initials: face ? initials(face.name) : '?', fighting: groupInFight(game, g) };
+      });
     viewRef.current.update({
       def,
       dungeon,
       leaderPortrait: leader?.portrait,
       leaderInitials: leader ? initials(leader.name) : '?',
+      ...(dungeon.group ? { groupId: dungeon.group.id } : {}),
+      others,
     });
-  }, [def, dungeon, leader]);
+  }, [def, dungeon, leader, game]);
 
   // Walk the planned path one tile at a time.
   const walking = (dungeon?.path.length ?? 0) > 0;
@@ -102,6 +128,19 @@ export function DungeonScreen() {
   }
 
   const goalDone = goalReached(dungeon, def);
+  const split = isSplit(game);
+  const world = dungeon.world;
+  const here = new Set(activeMercIds(game));
+  const groupBlock = groupingBlocker(game);
+  const canRegroup = !groupBlock && groupsHere(game).length > 0;
+  const restBlock = restBlocker(game);
+  const turnNames = game.party.filter((m) => here.has(m.id)).map((m) => m.name);
+  // Mercs who fell in a fight that now waits for a rescue.
+  const awaitingRescue = new Set(
+    allEncounters(game)
+      .filter((e) => e.combat?.dormant)
+      .flatMap((e) => encounterMercIds(game, e)),
+  );
   const atExit = canLeave(game, def);
   const headOut = () =>
     apply((g) => {
@@ -117,8 +156,14 @@ export function DungeonScreen() {
         <ul className="party-strip">
           {game.party.map((m) => {
             const hp = currentHp(m);
+            const inGroup = here.has(m.id);
+            const canGo = inGroup && here.size > 1 && !m.dead && !groupBlock;
             return (
-              <li key={m.id} className={m.down ? 'down' : ''} title={`${m.name}: ${hp.current} / ${hp.max} HP`}>
+              <li
+                key={m.id}
+                className={`${m.down ? 'down' : ''}${split && !inGroup ? ' elsewhere' : ''}`}
+                title={`${m.name}: ${hp.current} / ${hp.max} HP${split && !inGroup ? ' · in another group' : ''}`}
+              >
                 <Token name={m.name} portrait={m.portrait} size={36} />
                 <span className="party-info">
                   <span className="party-name">
@@ -129,14 +174,20 @@ export function DungeonScreen() {
                     <span style={{ width: `${(hp.current / hp.max) * 100}%` }} />
                   </span>
                   <span className="dim hp-text">
-                    {m.dead ? 'Dead' : m.down ? 'Down' : `${hp.current} / ${hp.max}`}
+                    {m.dead ? 'Dead' : awaitingRescue.has(m.id) ? 'Fallen · awaiting rescue' : m.down ? 'Down' : `${hp.current} / ${hp.max}`}
                     {!m.dead && m.injuries.length > 0 && ` · ${m.injuries.length} injur${m.injuries.length === 1 ? 'y' : 'ies'}`}
                   </span>
                 </span>
+                {canGo && (
+                  <button type="button" className="go-alone" title={`${m.name} leaves the group with their own token`} onClick={() => apply((g) => splitOff(g, m.id))}>
+                    Go alone
+                  </button>
+                )}
               </li>
             );
           })}
         </ul>
+        <MuteButton />
         <button type="button" className={testPlay ? 'primary' : ''} onClick={backToMenu}>
           {testPlay ? 'Back to the dungeon maker' : 'Menu'}
         </button>
@@ -150,10 +201,24 @@ export function DungeonScreen() {
             <li key={`${dungeon.log.length}-${i}`}>{line}</li>
           ))}
         </ol>
+        {world && (
+          <p className="world-banner" aria-live="polite">
+            <strong>World round {world.round}</strong>
+            {world.current?.kind === 'explore' ? (
+              <>
+                {' '}
+                · {turnNames.join(', ')} {turnNames.length === 1 ? 'explores' : 'explore'} · {world.movesLeft ?? 0} move{world.movesLeft === 1 ? '' : 's'} left
+              </>
+            ) : (
+              ' · a fight is under way'
+            )}
+          </p>
+        )}
         <div className="row">
           {testPlay && <span className="goal-banner">Test play: nothing is saved.</span>}
           {goalDone && <span className="goal-banner">Goal reached. Make your way back to the entrance.</span>}
-          {goalDone && (
+          {goalDone && split && <span className="goal-banner">Regroup the party to leave.</span>}
+          {goalDone && !split && (
             <button type="button" className="primary" disabled={walking} onClick={headOut}>
               {atExit ? 'Leave the dungeon' : 'Head for the exit'}
             </button>
@@ -163,13 +228,23 @@ export function DungeonScreen() {
               Stop
             </button>
           )}
+          {world?.current?.kind === 'explore' && (
+            <button type="button" className="primary" disabled={walking} onClick={() => apply(endExploreTurn)}>
+              End turn
+            </button>
+          )}
+          {split && (
+            <button type="button" disabled={!canRegroup} title={canRegroup ? undefined : 'Move onto another group’s tile to regroup.'} onClick={() => apply(regroup)}>
+              Regroup
+            </button>
+          )}
           <button type="button" onClick={() => setPanel('party')}>
             Party
           </button>
           <button
             type="button"
-            disabled={dungeon.rested && !dungeon.camping}
-            title={dungeon.rested && !dungeon.camping ? 'You have already made camp on this level.' : undefined}
+            disabled={!dungeon.camping && !!restBlock}
+            title={!dungeon.camping && restBlock ? restBlock : undefined}
             onClick={() => setPanel('rest')}
           >
             {dungeon.camping ? 'Back to camp' : dungeon.rested ? 'Camp used' : 'Make camp'}
@@ -183,4 +258,10 @@ export function DungeonScreen() {
       {panel === 'rest' && <RestDialog onClose={() => setPanel(null)} />}
     </main>
   );
+}
+
+/** Who a group's token shows: the leader if they are in it, otherwise its first living merc. */
+function tokenMerc(game: GameState, group: GroupState): Merc | undefined {
+  const members = group.mercIds.map((id) => game.party.find((m) => m.id === id)).filter((m): m is Merc => !!m);
+  return members.find((m) => m.id === game.leaderId) ?? members.find((m) => !m.dead) ?? members[0];
 }

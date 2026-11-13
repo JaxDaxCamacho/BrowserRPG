@@ -23,3 +23,4 @@ export * from './rng';
 export * from './save';
 export * from './stats';
 export * from './talents';
+export * from './world';

@@ -173,7 +173,7 @@
       "name": "Supply crate",
       "x": 2,
       "y": 16,
-      "icon": "loot/action/actionloot-12",
+      "icon": "obstacles/containers/bagsandboxes-29-t",
       "type": "event",
       "dialogueId": "event-crate"
     },
@@ -242,7 +242,7 @@
       "name": "Guild strongbox",
       "x": 17,
       "y": 25,
-      "icon": "loot/action/actionloot-30",
+      "icon": "obstacles/containers/bagsandboxes-77-t",
       "type": "goal",
       "dialogueId": "goal-strongbox"
     }
