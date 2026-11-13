@@ -77,6 +77,25 @@ export const weaponSchema = z
     message: 'melee weapons have range 0; every other weapon needs a range of 1 or more',
   });
 
+const statValue = z.number().int().min(1);
+
+export const premadeSchema = z.strictObject({
+  id,
+  name: z.string().min(1),
+  raceId: id,
+  classId: id,
+  baseStats: z.strictObject({
+    strength: statValue,
+    agility: statValue,
+    toughness: statValue,
+    intellect: statValue,
+    spirit: statValue,
+    charisma: statValue,
+  }),
+  raceChoices: z.array(statName),
+});
+
+export type PremadeDefinition = z.infer<typeof premadeSchema>;
 export type ClassDefinition = z.infer<typeof classSchema>;
 export type WeaponDefinition = z.infer<typeof weaponSchema>;
 

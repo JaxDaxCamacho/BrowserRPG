@@ -1,0 +1,66 @@
+[
+  {
+    "id": "aldric-vane",
+    "name": "Aldric Vane",
+    "raceId": "human",
+    "classId": "knight",
+    "baseStats": { "strength": 13, "agility": 8, "toughness": 12, "intellect": 8, "spirit": 8, "charisma": 11 },
+    "raceChoices": ["strength", "toughness"]
+  },
+  {
+    "id": "brunna-stonehand",
+    "name": "Brunna Stonehand",
+    "raceId": "dwarf",
+    "classId": "knight",
+    "baseStats": { "strength": 12, "agility": 9, "toughness": 13, "intellect": 8, "spirit": 10, "charisma": 8 },
+    "raceChoices": []
+  },
+  {
+    "id": "korg-the-unbowed",
+    "name": "Korg the Unbowed",
+    "raceId": "goliath",
+    "classId": "barbarian",
+    "baseStats": { "strength": 14, "agility": 10, "toughness": 12, "intellect": 8, "spirit": 8, "charisma": 8 },
+    "raceChoices": []
+  },
+  {
+    "id": "dagna-ironbrow",
+    "name": "Dagna Ironbrow",
+    "raceId": "dwarf",
+    "classId": "barbarian",
+    "baseStats": { "strength": 13, "agility": 10, "toughness": 13, "intellect": 8, "spirit": 8, "charisma": 8 },
+    "raceChoices": []
+  },
+  {
+    "id": "sylwen-ashbow",
+    "name": "Sylwen Ashbow",
+    "raceId": "elf",
+    "classId": "ranger",
+    "baseStats": { "strength": 8, "agility": 14, "toughness": 10, "intellect": 9, "spirit": 11, "charisma": 8 },
+    "raceChoices": []
+  },
+  {
+    "id": "maelis-thorne",
+    "name": "Maelis Thorne",
+    "raceId": "human",
+    "classId": "wizard",
+    "baseStats": { "strength": 8, "agility": 10, "toughness": 10, "intellect": 15, "spirit": 9, "charisma": 8 },
+    "raceChoices": ["intellect", "toughness"]
+  },
+  {
+    "id": "vesper",
+    "name": "Vesper",
+    "raceId": "cursed",
+    "classId": "warlock",
+    "baseStats": { "strength": 8, "agility": 10, "toughness": 11, "intellect": 9, "spirit": 14, "charisma": 8 },
+    "raceChoices": []
+  },
+  {
+    "id": "pip-larkspur",
+    "name": "Pip Larkspur",
+    "raceId": "human",
+    "classId": "rogue",
+    "baseStats": { "strength": 8, "agility": 13, "toughness": 10, "intellect": 9, "spirit": 8, "charisma": 12 },
+    "raceChoices": ["agility", "charisma"]
+  }
+]

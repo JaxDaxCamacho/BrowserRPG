@@ -88,3 +88,344 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ---------- shared pieces ---------- */
+
+h1,
+h2 {
+  margin: 0;
+  color: var(--accent);
+}
+
+h2 {
+  font-size: 1.1rem;
+}
+
+.dim {
+  color: var(--ink-dim);
+}
+
+.error {
+  color: #e07a5f;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+button.danger {
+  border-color: #e07a5f;
+}
+
+.badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+/* ---------- save slots ---------- */
+
+.slot-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 520px);
+}
+
+.slot {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.slot span {
+  font-size: 0.9rem;
+}
+
+.slot-confirm {
+  padding: 10px 20px;
+  border: 1px solid #e07a5f;
+  border-radius: 6px;
+}
+
+/* ---------- wide screens: party creation, leader ---------- */
+
+.screen.wide {
+  justify-content: flex-start;
+  align-items: stretch;
+  text-align: left;
+  overflow-y: auto;
+  gap: 12px;
+  padding-block: 16px;
+}
+
+.screen-header p {
+  margin: 4px 0 0;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.screen-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  /* Stays in reach at the bottom while a long merc list scrolls behind it. */
+  position: sticky;
+  bottom: -16px;
+  padding-block: 8px 16px;
+  margin-bottom: -16px;
+  background: var(--bg);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tabs button {
+  flex: 1;
+}
+
+.tabs button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tabs button.active:hover,
+.tabs button.active:focus-visible {
+  color: var(--accent-ink);
+}
+
+/* ---------- merc cards ---------- */
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leader-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.merc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.merc-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.merc-card.empty {
+  min-height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+}
+
+.merc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+button.merc-select {
+  padding: 0;
+  text-align: left;
+  font-size: 1rem;
+  background: none;
+  border: none;
+  color: inherit;
+}
+
+button.merc-select:hover,
+button.merc-select:focus-visible {
+  background: none;
+  color: inherit;
+}
+
+button.merc-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.merc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.merc-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.merc-actions {
+  justify-content: flex-end;
+}
+
+.merc-actions button {
+  font-size: 0.95rem;
+}
+
+.token {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  color: var(--accent);
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+}
+
+.stat-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.stat-chip {
+  white-space: nowrap;
+}
+
+/* ---------- merc builder ---------- */
+
+.builder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+input[type='text'],
+select {
+  min-height: 44px;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.note,
+.points,
+.problems {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.points {
+  font-size: 1rem;
+}
+
+.problems {
+  padding-left: 18px;
+}
+
+.stat-table {
+  border-collapse: collapse;
+}
+
+.stat-table th {
+  text-align: left;
+  font-weight: normal;
+  padding-right: 8px;
+}
+
+.stat-table td {
+  padding: 3px 6px;
+  font-size: 0.9rem;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stepper button {
+  min-width: 44px;
+  padding: 0;
+  font-size: 1.3rem;
+}
+
+.stat-value {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.choice input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}

@@ -1,4 +1,4 @@
-import type { Screen } from '../engine';
+import { goToScreen, type Screen } from '../engine';
 import { useGameStore } from '../state/store';
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 
 /** Stand-in for a screen that a later milestone builds. */
 export function PlaceholderScreen({ title, milestone, next }: Props) {
-  const goTo = useGameStore((s) => s.goTo);
+  const apply = useGameStore((s) => s.apply);
   const backToMenu = useGameStore((s) => s.backToMenu);
 
   return (
@@ -19,7 +19,7 @@ export function PlaceholderScreen({ title, milestone, next }: Props) {
       <p>Built in milestone {milestone}.</p>
       <nav className="menu-buttons">
         {next && (
-          <button type="button" onClick={() => goTo(next)}>
+          <button type="button" onClick={() => apply((g) => goToScreen(g, next))}>
             Next screen
           </button>
         )}

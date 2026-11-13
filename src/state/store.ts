@@ -1,20 +1,77 @@
 import { create } from 'zustand';
-import { createInitialState, goToScreen, returnToMenu, startNewGame, type GameState, type Screen } from '../engine';
+import { createInitialState, startNewGame, type GameState } from '../engine';
+import { createDefaultSaveStore, type SaveRecord } from '../platform/saveStore';
 
 interface GameStore {
   game: GameState;
-  newGame: () => void;
-  goTo: (screen: Screen) => void;
+  /** The save slot the current game autosaves into; null on the main menu. */
+  activeSlot: string | null;
+  saves: SaveRecord[];
+  /** False until the first read of storage finishes. */
+  savesLoaded: boolean;
+  /** Set when reading or writing storage fails, so the menu can say so. */
+  saveError: string | null;
+
+  /** Runs an engine command against the current game. */
+  apply: (command: (game: GameState) => GameState) => void;
+  refreshSaves: () => Promise<void>;
+  newGame: (slotId: string) => void;
+  continueGame: (slotId: string) => void;
   backToMenu: () => void;
 }
 
-/** Thin wrapper: holds the GameState and forwards every action to the engine. */
-export const useGameStore = create<GameStore>((set) => ({
+const saveStore = createDefaultSaveStore();
+
+/** Writes are queued so they land in order and a refresh never reads a half-finished save. */
+let pendingWrites: Promise<void> = Promise.resolve();
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export const useGameStore = create<GameStore>((set, get) => ({
   game: createInitialState(),
-  newGame: () => set({ game: startNewGame(randomSeed()) }),
-  goTo: (screen) => set((s) => ({ game: goToScreen(s.game, screen) })),
-  backToMenu: () => set((s) => ({ game: returnToMenu(s.game) })),
+  activeSlot: null,
+  saves: [],
+  savesLoaded: false,
+  saveError: null,
+
+  apply: (command) => set((s) => ({ game: command(s.game) })),
+
+  refreshSaves: async () => {
+    await pendingWrites;
+    try {
+      const saves = await saveStore.list();
+      set({ saves, savesLoaded: true, saveError: null });
+    } catch (error) {
+      set({ saves: [], savesLoaded: true, saveError: `Could not read saved games: ${describe(error)}` });
+    }
+  },
+
+  newGame: (slotId) => set({ game: startNewGame(randomSeed()), activeSlot: slotId }),
+
+  continueGame: (slotId) => {
+    const record = get().saves.find((s) => s.slotId === slotId);
+    if (record) set({ game: record.state, activeSlot: slotId });
+  },
+
+  backToMenu: () => {
+    set({ game: createInitialState(), activeSlot: null });
+    void get().refreshSaves();
+  },
 }));
+
+// Autosave: every change to a game in progress is written to its slot.
+useGameStore.subscribe((now, before) => {
+  if (now.game === before.game && now.activeSlot === before.activeSlot) return;
+  const { game, activeSlot } = now;
+  if (!activeSlot || game.screen === 'menu') return;
+  pendingWrites = pendingWrites
+    .then(() => saveStore.save(activeSlot, game))
+    .catch((error: unknown) => {
+      useGameStore.setState({ saveError: `Could not save the game: ${describe(error)}` });
+    });
+});
 
 function randomSeed(): number {
   return Math.floor(Math.random() * 0x7fffffff);

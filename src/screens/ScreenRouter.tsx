@@ -1,5 +1,7 @@
 import { useGameStore } from '../state/store';
+import { LeaderSelect } from './LeaderSelect';
 import { MainMenu } from './MainMenu';
+import { PartyCreation } from './PartyCreation';
 import { PlaceholderScreen } from './PlaceholderScreen';
 
 /** Shows the screen named by `game.screen`. Routing is game state, not URLs. */
@@ -10,9 +12,9 @@ export function ScreenRouter() {
     case 'menu':
       return <MainMenu />;
     case 'partyCreation':
-      return <PlaceholderScreen title="Create your party" milestone={3} next="leaderSelect" />;
+      return <PartyCreation />;
     case 'leaderSelect':
-      return <PlaceholderScreen title="Choose your leader" milestone={3} next="adventureSelect" />;
+      return <LeaderSelect />;
     case 'adventureSelect':
       return <PlaceholderScreen title="Pick an adventure" milestone={4} next="dialogue" />;
     case 'dialogue':
