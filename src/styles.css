@@ -338,8 +338,11 @@ button.danger {
   gap: 8px;
   padding: 10px;
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 12px solid transparent;
+  border-image-source: var(--ui-panel);
+  border-image-slice: 32 fill;
+  border-image-width: 12px;
+  border-image-repeat: stretch;
 }
 
 .merc-card.selected {
@@ -627,21 +630,10 @@ button.option {
   flex: none;
   width: 44px;
   height: 44px;
-  display: grid;
-  place-items: center;
-  font-size: 1.3rem;
-  font-weight: bold;
-  background: var(--panel);
-  border: 2px solid currentColor;
-  border-radius: 8px;
-}
-
-.check-readout.success .die {
-  color: #7fb069;
 }
 
 .check-readout.failure .die {
-  color: #e07a5f;
+  filter: grayscale(0.5) brightness(0.85);
 }
 
 /* ---------- asset images ---------- */
@@ -1844,22 +1836,12 @@ button.option {
   opacity: 0.35;
 }
 
-.outcome-crit .d20.kept .die-facet {
-  fill: #7a2424;
+.outcome-crit .d20.kept {
+  filter: drop-shadow(0 0 6px #ff4d4dcc) saturate(1.3) brightness(1.1);
 }
 
-.outcome-crit .d20.kept .die-number {
-  fill: #ffd9d9;
-  stroke: #5a1d1dcc;
-}
-
-.outcome-miss .d20.kept .die-facet {
-  fill: #35353c;
-}
-
-.outcome-miss .d20.kept .die-number {
-  fill: var(--ink-dim);
-  stroke: #1a1408cc;
+.outcome-miss .d20.kept {
+  filter: grayscale(0.6) brightness(0.8);
 }
 
 @keyframes tumble {
@@ -2013,43 +1995,8 @@ button.portrait-choice:hover {
 .die-face {
   width: 100%;
   height: 100%;
-  overflow: visible;
-}
-
-.die-facet {
-  stroke: #0000003a;
-  stroke-width: 1;
-}
-
-.die-facet.facet-1,
-.die-facet.facet-6 {
-  fill: #f6e3b4;
-}
-
-.die-facet.facet-2,
-.die-facet.facet-5 {
-  fill: #dba84e;
-}
-
-.die-facet.facet-3,
-.die-facet.facet-4 {
-  fill: #a9722a;
-}
-
-.die-outline {
-  fill: none;
-  stroke: #1a1408;
-  stroke-width: 3;
-  stroke-linejoin: round;
-}
-
-.die-number {
-  font-size: 2.1rem;
-  font-weight: bold;
-  fill: #1a1408;
-  paint-order: stroke;
-  stroke: #f6e3b4cc;
-  stroke-width: 3px;
+  object-fit: contain;
+  display: block;
 }
 
 .tray-die.rolling {
@@ -2319,8 +2266,11 @@ button.portrait-choice:hover {
   margin: auto;
   padding: 12px 16px;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 28px solid transparent;
+  border-image-source: var(--ui-dialog);
+  border-image-slice: 48 fill;
+  border-image-width: 28px;
+  border-image-repeat: stretch;
   font-family: system-ui, sans-serif;
   font-size: 0.9rem;
 }

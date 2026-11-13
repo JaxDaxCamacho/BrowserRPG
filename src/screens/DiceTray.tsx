@@ -1,29 +1,26 @@
 import { useEffect, useState } from 'react';
 import type { ShownRoll } from '../engine';
 import { useGameStore } from '../state/store';
-import { DieFace } from './Dice';
+import { DieFace, DieRolling } from './Dice';
 
 /** How long the dice bounce before landing, and how long the result stays up after. */
 const TUMBLE_MS = 900;
 const SHOW_MS = 2600;
 
-function TumblingDie({ value, sides, index, settled, dropped }: { value: number; sides: number; index: number; settled: boolean; dropped: boolean }) {
-  const [face, setFace] = useState(() => 1 + Math.floor(Math.random() * sides));
+function TumblingDie({ value, index, settled, dropped }: { value: number; index: number; settled: boolean; dropped: boolean }) {
+  const [frame, setFrame] = useState(0);
   useEffect(() => {
-    if (settled) {
-      setFace(value);
-      return;
-    }
-    const timer = window.setInterval(() => setFace(1 + Math.floor(Math.random() * sides)), 70);
+    if (settled) return;
+    const timer = window.setInterval(() => setFrame((f) => f + 1), 70);
     return () => window.clearInterval(timer);
-  }, [settled, value, sides]);
+  }, [settled]);
   return (
     <span
       className={`tray-die${settled ? ' settled' : ' rolling'}${dropped ? ' dropped' : ''}`}
       style={{ animationDelay: `${index * 60}ms` }}
       aria-hidden="true"
     >
-      <DieFace value={face} />
+      {settled ? <DieFace value={value} /> : <DieRolling frame={frame} />}
     </span>
   );
 }
@@ -63,7 +60,6 @@ export function DiceTray() {
               <TumblingDie
                 key={j}
                 value={d}
-                sides={r.sides}
                 index={i * 2 + j}
                 settled={settled}
                 dropped={r.dice.length > 1 && !(d === r.kept && r.dice.indexOf(r.kept) === j)}

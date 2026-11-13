@@ -12,6 +12,7 @@ import {
 } from '../engine';
 import { dialogueContext } from '../state/context';
 import { useGameStore } from '../state/store';
+import { DieFace } from './Dice';
 import { formatModifier } from './MercCard';
 
 const STAT_FULL_NAMES: Record<StatName, string> = {
@@ -54,7 +55,7 @@ function CheckReadout({ check }: { check: NonNullable<DialogueResult['check']> }
   return (
     <div className={`check-readout ${check.success ? 'success' : 'failure'}`} role="status">
       <span className="die" aria-hidden="true">
-        {check.roll.natural}
+        <DieFace value={check.roll.natural} />
       </span>
       <span>
         <strong>{check.success ? 'Success' : 'Failure'}</strong>
