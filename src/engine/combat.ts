@@ -1,16 +1,16 @@
 ﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackOutcome, type AttackProfile } from './attack';
 import { makeCheck } from './checks';
-import { rollD20, type RollMode } from './dice';
+import { rollD20, rollDice, type RollMode } from './dice';
 import { featureById, type DungeonDefinition, type ObstacleFeature, type Pos } from './dungeon';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import { awardXp } from './levels';
 import { weaponAttack, type AmmoItem, type DamageStyle, type ItemEffect, type ItemLookup } from './items';
 import type { Merc as MercType, MercSheet } from './merc';
-import type { AbilityDefinition, EnemyArchetype, MonsterDefinition } from './monsters';
+import { isSpell, type AbilityDefinition, type BonusCondition, type EnemyArchetype, type MonsterDefinition, type Resource, type StatusKind, type StatusSpec } from './monsters';
 import { getLeader } from './party';
 import { raceCritThreshold, raceDeathSaveDifficulty, raceXpMultiplier, type RaceDefinition, type WeaponType } from './race';
-import { applyStatChanges, statModifier, type StatChanges, type Stats } from './stats';
+import { applyStatChanges, statModifier, type StatChanges, type StatName, type Stats } from './stats';
 
 /**
  * Turn-based fights on a square grid the size of the room. Each turn a
@@ -83,10 +83,52 @@ export interface Combatant {
   deathSave: number | null;
   /** Mercs only: killed by a fourth injury in this fight. */
   dead: boolean;
+  /** Conditions such as stunned or poisoned, counted in this combatant's turns. */
+  statuses: Status[];
+  /** Pools for whatever this combatant's abilities spend. */
+  resources: Partial<Record<Resource, ResourcePool>>;
+  /** Flat damage added to weapon attacks that land (talents, gear). */
+  damageBonus: number;
+  /** Damage dealt back to melee attackers that land a blow. */
+  retaliate: number;
+  /** Wielding a weapon that needs both hands. */
+  twoHanded: boolean;
+  /** Strength and movement per quarter of max HP missing. */
+  bloodrage: number;
+  /** Turns taken off hostile conditions. */
+  statusResist: number;
+  /** Extra damage and mana drained by weapon hits on casters. */
+  manaBurn: number;
+  /** Has spells or a magic attack: a target for mage hunters. */
+  caster: boolean;
+  /** Walking dead, for holy magic. */
+  undead: boolean;
+  /** Called up by an ability: fights for its side on its own, and fades after a number of its turns. */
+  summoned?: { ownerId: string; rounds: number };
+}
+
+/** Summoned allies and every enemy act on their own; only the party's mercs wait for the player. */
+export function isAiControlled(x: Combatant): boolean {
+  return x.side === 'enemy' || !!x.summoned;
+}
+
+export interface Status {
+  kind: StatusKind;
+  /** Turns of the affected combatant still to come. */
+  rounds: number;
+  /** Damage per turn, for poison, bleeding and burning. */
+  amount?: number;
+  /** Who caused it: the taunter, for taunts. */
+  sourceId?: string;
+}
+
+export interface ResourcePool {
+  current: number;
+  max: number;
 }
 
 export interface CombatEvent {
-  kind: 'attack' | 'heal' | 'buff' | 'move' | 'defend' | 'flee' | 'down';
+  kind: 'attack' | 'heal' | 'buff' | 'move' | 'defend' | 'flee' | 'down' | 'status';
   actorId: string;
   targetId?: string;
   outcome?: AttackOutcome;
@@ -96,6 +138,8 @@ export interface CombatEvent {
   roll?: AttackRoll;
   /** The die as the dice tray shows it. */
   shown?: ShownRoll;
+  /** For status events: what took hold, or what hurt. */
+  label?: string;
 }
 
 /** Everything about one attack roll that the player should be able to see. */
@@ -121,8 +165,10 @@ export interface AttackRoll {
   armour: number;
   extraDamage: number;
   damage: number;
-  /** True when this was a free attack for stepping out of reach. */
+  /** True when this was a free attack (for stepping out of reach, or one an ally granted). */
   free?: boolean;
+  /** Flat bonus damage included in `damage` (talents and ability bonuses). */
+  bonusDamage: number;
   /** True for a ranged or magic attack: the screen draws a projectile for it. */
   ranged?: boolean;
 }
@@ -301,15 +347,110 @@ export function isEngaged(c: CombatState, x: Combatant): boolean {
   return standing(c, opposite(x.side)).some((e) => distance(e.pos, x.pos) <= 1);
 }
 
+// ---------- statuses and resources ----------
+
+export function hasStatus(x: Combatant, kind: StatusKind): boolean {
+  return x.statuses.some((st) => st.kind === kind && st.rounds > 0);
+}
+
+export function statusOf(x: Combatant, kind: StatusKind): Status | undefined {
+  return x.statuses.find((st) => st.kind === kind && st.rounds > 0);
+}
+
+/** Puts a condition on a combatant, replacing the same condition if it is already there. */
+function withStatus(x: Combatant, spec: StatusSpec, sourceId: string): Combatant {
+  const status: Status = { kind: spec.status, rounds: spec.rounds, ...(spec.amount ? { amount: spec.amount } : {}), sourceId };
+  return { ...x, statuses: [...x.statuses.filter((st) => st.kind !== spec.status), status] };
+}
+
+const withoutStatus = (x: Combatant, kind: StatusKind): Combatant => ({ ...x, statuses: x.statuses.filter((st) => st.kind !== kind) });
+
+/** Enemies this combatant can see: the invisible are hidden from the other side. */
+export function visibleFoes(c: CombatState, x: Combatant): Combatant[] {
+  return standing(c, opposite(x.side)).filter((t) => !hasStatus(t, 'invisible'));
+}
+
+/** True when the target stands next to one of the attacker's allies: it is flanked. */
+export function isFlanked(c: CombatState, attacker: Combatant, target: Combatant): boolean {
+  return standing(c, attacker.side).some((a) => a.id !== attacker.id && distance(a.pos, target.pos) <= 1);
+}
+
+export function conditionHolds(c: CombatState, when: BonusCondition, attacker: Combatant, target: Combatant): boolean {
+  switch (when) {
+    case 'targetStunned':
+      return hasStatus(target, 'stunned');
+    case 'targetFlanked':
+      return isFlanked(c, attacker, target);
+    case 'targetOiled':
+      return hasStatus(target, 'oiled');
+    case 'targetBlinded':
+      return hasStatus(target, 'blinded');
+    case 'fromInvisible':
+      return hasStatus(attacker, 'invisible');
+    case 'targetBigger':
+      return target.maxHp > attacker.maxHp;
+    case 'targetCaster':
+      return target.caster;
+    case 'targetUndead':
+      return target.undead;
+  }
+}
+
+/** Adds (or with a negative amount takes) from a pool, staying within 0 and its max. */
+function changeResource(x: Combatant, resource: Resource, amount: number): Combatant {
+  const pool = x.resources[resource];
+  if (!pool) return x;
+  return { ...x, resources: { ...x.resources, [resource]: { ...pool, current: Math.max(0, Math.min(pool.max, pool.current + amount)) } } };
+}
+
+/** Adrenaline a fight starts with: enough for the cheapest openers. */
+export const STARTING_ADRENALINE = 2;
+
+/** Starting pools for the resources a merc's abilities use. */
+export function startingResources(abilities: AbilityDefinition[], stats: Stats): Partial<Record<Resource, ResourcePool>> {
+  const pools: Partial<Record<Resource, ResourcePool>> = {};
+  for (const a of abilities) {
+    const r = a.cost?.resource;
+    if (!r || pools[r]) continue;
+    if (r === 'mana') {
+      const max = Math.max(4, 6 + 2 * statModifier(stats.intellect));
+      pools.mana = { current: max, max };
+    } else if (r === 'adrenaline') {
+      pools.adrenaline = { current: STARTING_ADRENALINE, max: 10 };
+    } else {
+      pools.souls = { current: 0, max: 5 };
+    }
+  }
+  return pools;
+}
+
+/** Combines two reasons to roll twice: advantage and disadvantage cancel out. */
+function combineModes(a: RollMode, b: RollMode): RollMode {
+  if (a === 'normal') return b;
+  if (b === 'normal' || a === b) return a;
+  return 'normal';
+}
+
 /** All the buffs' effects of one kind added up. */
 function buffTotal(x: Combatant, pick: (e: ItemEffect) => number): number {
   return x.buffs.reduce((sum, b) => sum + b.effects.reduce((s, e) => s + pick(e), 0), 0);
 }
 
+/** Quarters of max HP missing, 0 to 3, for bloodrage. */
+export function rageLevel(x: Combatant): number {
+  if (x.bloodrage <= 0 || x.hp <= 0) return 0;
+  return Math.min(3, Math.floor(((x.maxHp - x.hp) * 4) / x.maxHp));
+}
+
 export function effectiveStats(x: Combatant): Stats {
-  const changes: StatChanges = {};
+  const changes: StatChanges = { strength: x.bloodrage * rageLevel(x) };
   for (const b of x.buffs) for (const e of b.effects) if (e.type === 'stat') changes[e.stat] = (changes[e.stat] ?? 0) + e.amount;
   return applyStatChanges(x.stats, changes);
+}
+
+/** Tiles a combatant may move this turn, with movement buffs and slows. Never below 1. */
+export function effectiveMovement(x: Combatant): number {
+  return Math.max(1, x.movement + x.bloodrage * rageLevel(x) + buffTotal(x, (e) => (e.type === 'movement' ? e.amount : 0)));
 }
 
 export function effectiveDefense(x: Combatant): number {
@@ -345,7 +486,7 @@ export function reach(c: CombatState, range: number, from: Pos, to: Pos, engaged
 /** Targets the actor's basic attack can reach right now. */
 export function attackTargets(c: CombatState, actor: Combatant): Combatant[] {
   if (ammoLeft(c, actor) === 0) return [];
-  return standing(c, opposite(actor.side)).filter((t) => reach(c, actor.attack.range, actor.pos, t.pos, false).ok);
+  return visibleFoes(c, actor).filter((t) => reach(c, actor.attack.range, actor.pos, t.pos, false).ok);
 }
 
 /** Destructible obstacles the actor's basic attack can reach right now. */
@@ -355,26 +496,60 @@ export function obstacleTargets(c: CombatState, actor: Combatant): Obstacle[] {
 }
 
 /** Targets an ability can be aimed at right now. Area-wide abilities return everyone they would affect. */
+/** The reach of an ability: a weapon ability reaches as far as the weapon. */
+export function abilityRange(actor: Combatant, ability: AbilityDefinition): number {
+  return ability.weaponAttack ? actor.attack.range : ability.range;
+}
+
 export function abilityTargets(c: CombatState, actor: Combatant, ability: AbilityDefinition): Combatant[] {
-  const foes = standing(c, opposite(actor.side));
+  const foes = visibleFoes(c, actor);
   const friends = standing(c, actor.side);
+  const range = abilityRange(actor, ability);
+  const within = (t: Combatant) => range === 0 || distance(actor.pos, t.pos) <= range;
+  const allyReach = (t: Combatant) => distance(actor.pos, t.pos) <= Math.max(1, range);
+  const foeReach = (t: Combatant) => reach(c, range, actor.pos, t.pos, false).ok;
+  // Granting an attack only helps an ally who has an enemy next to them.
+  const engagedFriend = (t: Combatant) => !ability.grantAttack || visibleFoes(c, t).some((e) => distance(e.pos, t.pos) <= 1);
+  if (ability.revive) {
+    return c.combatants.filter((t) => t.side === actor.side && t.hp === 0 && !t.dead && !t.summoned && allyReach(t));
+  }
   switch (ability.target) {
     case 'self':
       return [actor];
     case 'ally':
-      return friends.filter((t) => distance(actor.pos, t.pos) <= Math.max(1, ability.range));
+      return friends.filter((t) => allyReach(t) && engagedFriend(t) && (!ability.grantAttack || t.id !== actor.id));
     case 'enemy':
     case 'area':
-      return foes.filter((t) => reach(c, ability.range, actor.pos, t.pos, false).ok);
+      return foes.filter(foeReach);
+    case 'any':
+      return [...foes.filter(foeReach), ...friends.filter(allyReach)];
     case 'allAllies':
-      return friends;
+      return friends.filter((t) => within(t) && engagedFriend(t) && (!ability.grantAttack || t.id !== actor.id));
     case 'allEnemies':
-      return foes;
+      // A weapon sweep hits everyone the weapon reaches; otherwise everyone within the range.
+      return foes.filter(ability.weaponAttack ? foeReach : within);
   }
 }
 
+/** Why the actor cannot use an ability right now, or null when it can. */
+export function abilityBlocker(c: CombatState, actor: Combatant, ability: AbilityDefinition): string | null {
+  if (ability.activation !== 'action') return 'Passive';
+  if (hasStatus(actor, 'silenced')) return 'Silenced';
+  const cooldown = actor.cooldowns[ability.id] ?? 0;
+  if (cooldown > 0) return `Ready in ${cooldown} turn${cooldown === 1 ? '' : 's'}`;
+  if (ability.cost) {
+    const pool = actor.resources[ability.cost.resource];
+    if (pool && pool.current < ability.cost.amount) return `Needs ${ability.cost.amount} ${ability.cost.resource}`;
+    if (!pool && actor.side === 'party') return `Needs ${ability.cost.resource}`;
+  }
+  if (ability.requiresTwoHanded && !actor.twoHanded) return 'Needs a two-handed weapon';
+  if (ability.weaponAttack && ammoLeft(c, actor) === 0) return 'Out of ammunition';
+  if (abilityTargets(c, actor, ability).length === 0) return 'No target in reach';
+  return null;
+}
+
 export function canUseAbility(c: CombatState, actor: Combatant, ability: AbilityDefinition): boolean {
-  return ability.activation === 'action' && (actor.cooldowns[ability.id] ?? 0) === 0 && abilityTargets(c, actor, ability).length > 0;
+  return abilityBlocker(c, actor, ability) === null;
 }
 
 /**
@@ -406,10 +581,10 @@ export function reachableTiles(c: CombatState, actor: Combatant, budget = c.move
 
 // ---------- setting up ----------
 
-function mercAttack(merc: MercType, ctx: CombatContext): { attack: CombatAttack; critThreshold: number } {
+function mercAttack(merc: MercType, ctx: CombatContext): { attack: CombatAttack; critThreshold: number; twoHanded: boolean } {
   const weaponId = merc.equipment.mainHand;
   const weapon = weaponId ? ctx.getItem(weaponId) : null;
-  if (!weapon || weapon.kind !== 'weapon') return { attack: UNARMED, critThreshold: DEFAULT_CRIT_THRESHOLD };
+  if (!weapon || weapon.kind !== 'weapon') return { attack: UNARMED, critThreshold: DEFAULT_CRIT_THRESHOLD, twoHanded: false };
   const ammoItem = merc.equipment.ammo ? ctx.getItem(merc.equipment.ammo) : undefined;
   const ammo = ammoItem?.kind === 'ammo' && ammoItem.ammoType === weapon.ammo ? (ammoItem as AmmoItem) : undefined;
   const profile = weaponAttack(weapon, ammo);
@@ -423,6 +598,7 @@ function mercAttack(merc: MercType, ctx: CombatContext): { attack: CombatAttack;
       ...(weapon.ammo ? { ammoId: merc.equipment.ammo ?? `no-${weapon.ammo}` } : {}),
     },
     critThreshold: raceCritThreshold(ctx.raceOf(merc), weapon.weaponType, profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD),
+    twoHanded: weapon.hands === 2,
   };
 }
 
@@ -449,6 +625,58 @@ function gridFor(def: DungeonDefinition, at: Pos): { width: number; height: numb
   if (!room) return CORRIDOR_GRID;
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   return { width: clamp(room.width, GRID_MIN.width, GRID_MAX.width), height: clamp(room.height, GRID_MIN.height, GRID_MAX.height) };
+}
+
+/** A monster as a combatant, on either side (summons fight for the party). */
+function monsterCombatant(
+  monster: MonsterDefinition,
+  id: string,
+  name: string,
+  side: Side,
+  pos: Pos,
+  initiative: number,
+  ctx: Pick<CombatContext, 'getAbility'>,
+): Combatant {
+  return {
+    id,
+    side,
+    name,
+    ...(monster.portrait ? { portrait: monster.portrait } : {}),
+    monsterId: monster.id,
+    archetype: monster.archetype,
+    pos,
+    movement: monster.movement ?? DEFAULT_MONSTER_MOVEMENT,
+    hp: monster.hp,
+    maxHp: monster.hp,
+    baseDefense: monster.defense,
+    armour: monster.armour,
+    stats: monster.stats,
+    initiative,
+    defending: false,
+    buffs: [],
+    cooldowns: {},
+    abilityIds: monster.abilityIds,
+    attack: {
+      name: monster.attack.name,
+      range: monster.attack.range,
+      profile: monster.attack.profile,
+      animation: monster.attack.animation ?? defaultAttackAnimation(monster.attack.profile),
+    },
+    critThreshold: monster.attack.profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD,
+    deathSave: null,
+    dead: false,
+    statuses: [],
+    resources: monster.mana ? { mana: { current: monster.mana, max: monster.mana } } : {},
+    damageBonus: 0,
+    retaliate: 0,
+    twoHanded: false,
+    bloodrage: 0,
+    statusResist: 0,
+    manaBurn: 0,
+    caster:
+      monster.abilityIds.some((a) => isSpell(ctx.getAbility(a))) || monster.attack.profile.kind === 'magic' || monster.attack.profile.kind === 'spiritual',
+    undead: !!monster.undead,
+  };
 }
 
 /** Opens the fight for the encounter the party just walked into. */
@@ -483,7 +711,8 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   living.forEach((merc, i) => {
     const sheet = ctx.sheetOf(merc);
     const race = ctx.raceOf(merc);
-    const { attack, critThreshold } = mercAttack(merc, ctx);
+    const { attack, critThreshold, twoHanded } = mercAttack(merc, ctx);
+    const abilities = sheet.abilityIds.map((id) => ctx.getAbility(id));
     const potionBuffs: Buff[] = (merc.potionEffects ?? []).map((p) => {
       const item = ctx.getItem(p.itemId);
       return { source: item.name, effects: 'effects' in item ? item.effects.filter((e) => e.type !== 'heal') : [], roundsLeft: null };
@@ -495,7 +724,7 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
       ...(merc.portrait ? { portrait: merc.portrait } : {}),
       mercId: merc.id,
       pos: partySpots[i]!,
-      movement: Math.max(1, (race.movement ?? 3) + statModifier(sheet.stats.agility)),
+      movement: Math.max(1, (race.movement ?? 3) + statModifier(sheet.stats.agility) + sheet.movementBonus),
       hp: merc.down ? 0 : Math.max(0, sheet.maxHp - merc.wounds),
       maxHp: sheet.maxHp,
       baseDefense: sheet.defense,
@@ -505,11 +734,21 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
       defending: false,
       buffs: potionBuffs,
       cooldowns: {},
-      abilityIds: sheet.gearAbilityIds,
+      abilityIds: sheet.abilityIds,
       attack,
-      critThreshold,
+      critThreshold: Math.max(2, critThreshold - sheet.critRange),
       deathSave: raceDeathSaveDifficulty(race),
       dead: false,
+      statuses: [],
+      resources: startingResources(abilities, sheet.stats),
+      damageBonus: sheet.damageBonus + (twoHanded ? sheet.twoHandedDamageBonus : 0),
+      retaliate: sheet.retaliate,
+      twoHanded,
+      bloodrage: sheet.bloodrage,
+      statusResist: sheet.statusResist,
+      manaBurn: sheet.manaBurn,
+      caster: abilities.some(isSpell) || attack.profile.kind === 'magic' || attack.profile.kind === 'spiritual',
+      undead: false,
     });
   });
 
@@ -526,35 +765,9 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   let xp = 0;
   monsters.forEach(({ monster, n, count }, i) => {
     xp += monster.xp;
-    combatants.push({
-      id: `${monster.id}-${n}`,
-      side: 'enemy',
-      name: count > 1 ? `${monster.name} ${n}` : monster.name,
-      ...(monster.portrait ? { portrait: monster.portrait } : {}),
-      monsterId: monster.id,
-      archetype: monster.archetype,
-      pos: enemySpots.get(i)!,
-      movement: monster.movement ?? DEFAULT_MONSTER_MOVEMENT,
-      hp: monster.hp,
-      maxHp: monster.hp,
-      baseDefense: monster.defense,
-      armour: monster.armour,
-      stats: monster.stats,
-      initiative: roll(monster.stats.agility),
-      defending: false,
-      buffs: [],
-      cooldowns: {},
-      abilityIds: monster.abilityIds,
-      attack: {
-        name: monster.attack.name,
-        range: monster.attack.range,
-        profile: monster.attack.profile,
-        animation: monster.attack.animation ?? defaultAttackAnimation(monster.attack.profile),
-      },
-      critThreshold: monster.attack.profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD,
-      deathSave: null,
-      dead: false,
-    });
+    combatants.push(
+      monsterCombatant(monster, `${monster.id}-${n}`, count > 1 ? `${monster.name} ${n}` : monster.name, 'enemy', enemySpots.get(i)!, roll(monster.stats.agility), ctx),
+    );
   });
 
   // Highest initiative first; the party wins ties.
@@ -581,8 +794,9 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     xp,
     obstacles,
   };
-  combat = checkOutcome(skipDownedTurn(combat));
-  return { ...state, rngSeed: seed, screen: 'combat', encounter: { ...encounter, combat } };
+  const first = skipDownedTurn(combat, seed);
+  combat = checkOutcome(first.combat);
+  return { ...state, rngSeed: first.seed, screen: 'combat', encounter: { ...encounter, combat } };
 }
 
 // ---------- the turn loop ----------
@@ -598,27 +812,80 @@ function updateCombatant(c: CombatState, id: string, change: (x: Combatant) => C
 function checkOutcome(c: CombatState): CombatState {
   if (c.outcome) return c;
   if (standing(c, 'enemy').length === 0) return withLog({ ...c, outcome: 'victory' }, 'Victory!');
-  if (standing(c, 'party').length === 0) return withLog({ ...c, outcome: 'defeat' }, 'The party has fallen.');
+  if (standing(c, 'party').filter((x) => x.mercId).length === 0) return withLog({ ...c, outcome: 'defeat' }, 'The party has fallen.');
   return c;
 }
 
-/** Starts the turn of whoever is up: their Defend wears off, cooldowns tick down, movement refills. */
-function beginTurn(c: CombatState): CombatState {
+const DOT_WORDS: Partial<Record<StatusKind, string>> = { poisoned: 'poison', bleeding: 'bleeding', burning: 'flames' };
+
+/**
+ * Starts the turn of whoever is up: their Defend wears off, cooldowns tick down,
+ * movement refills and mana trickles back. Poison, bleeding and burning bite.
+ */
+function beginTurn(c: CombatState, seed: number): { combat: CombatState; seed: number } {
   const actor = activeCombatant(c);
   const cooldowns = Object.fromEntries(Object.entries(actor.cooldowns).map(([k, v]) => [k, Math.max(0, v - 1)]));
-  return updateCombatant({ ...c, moveLeft: actor.movement, acted: false }, actor.id, (x) => ({ ...x, defending: false, cooldowns }));
-}
-
-/** Moves past anyone who is down, wrapping into a new round when needed. */
-function skipDownedTurn(c: CombatState): CombatState {
-  let next = c;
-  for (let i = 0; i < next.order.length && !isStanding(activeCombatant(next)); i++) {
-    next = advance(next, false);
+  let next = updateCombatant({ ...c, moveLeft: effectiveMovement(actor), acted: false }, actor.id, (x) =>
+    changeResource({ ...x, defending: false, cooldowns }, 'mana', 1),
+  );
+  for (const st of actor.statuses) {
+    const word = DOT_WORDS[st.kind];
+    const me = combatantById(next, actor.id);
+    if (!word || !st.amount || st.rounds <= 0 || !isStanding(me)) continue;
+    next = withLog(next, `${actor.name} takes ${st.amount} damage from ${word}.`);
+    next = { ...next, events: [...next.events, { kind: 'status', actorId: actor.id, targetId: actor.id, amount: st.amount, label: word }] };
+    const hurt = applyDamage(next, seed, actor.id, st.amount);
+    next = hurt.combat;
+    seed = hurt.seed;
   }
-  return beginTurn(next);
+  return { combat: next, seed };
 }
 
-function advance(c: CombatState, begin = true): CombatState {
+/**
+ * Moves on to the next combatant who can act, wrapping into new rounds: anyone
+ * down is skipped, and so is anyone stunned (losing that turn).
+ */
+function skipDownedTurn(c: CombatState, seed: number): { combat: CombatState; seed: number } {
+  let next = c;
+  for (let guard = 0; guard < next.order.length * 3 + 3; guard++) {
+    if (next.outcome) break;
+    if (!isStanding(activeCombatant(next))) {
+      next = advance(next);
+      continue;
+    }
+    const begun = beginTurn(next, seed);
+    next = checkOutcome(begun.combat);
+    seed = begun.seed;
+    const actor = activeCombatant(next);
+    if (next.outcome) break;
+    if (!isStanding(actor)) {
+      next = advance(next);
+      continue;
+    }
+    if (hasStatus(actor, 'stunned') || hasStatus(actor, 'frozen')) {
+      next = withLog(next, `${actor.name} is ${hasStatus(actor, 'frozen') ? 'frozen solid' : 'stunned'} and loses the turn.`);
+      next = advance(next);
+      continue;
+    }
+    break;
+  }
+  return { combat: next, seed };
+}
+
+/** Passes the turn on. The combatant whose turn ends counts down their conditions. */
+function advance(c: CombatState): CombatState {
+  const ending = c.order[c.turn];
+  if (ending) {
+    c = updateCombatant(c, ending, (x) => ({
+      ...x,
+      statuses: x.statuses.map((st) => ({ ...st, rounds: st.rounds - 1 })).filter((st) => st.rounds > 0),
+      ...(x.summoned && x.hp > 0 ? { summoned: { ...x.summoned, rounds: x.summoned.rounds - 1 } } : {}),
+    }));
+    const done = combatantById(c, ending);
+    if (done.summoned && done.summoned.rounds <= 0 && done.hp > 0) {
+      c = withLog(updateCombatant(c, ending, (x) => ({ ...x, hp: 0 })), `${done.name} fades away.`);
+    }
+  }
   let turn = c.turn + 1;
   let round = c.round;
   let combatants = c.combatants;
@@ -633,27 +900,23 @@ function advance(c: CombatState, begin = true): CombatState {
         .filter((b) => b.roundsLeft === null || b.roundsLeft > 0),
     }));
   }
-  const next = { ...c, turn, round, combatants };
-  return begin ? beginTurn(next) : next;
+  return { ...c, turn, round, combatants };
 }
 
 /** Ends the active combatant's turn. */
 export function endTurn(state: GameState): GameState {
-  return mapCombat(state, (c) => (c.outcome ? c : skipDownedTurn(advance(c, false))));
-}
-
-function mapCombat(state: GameState, change: (c: CombatState) => CombatState): GameState {
-  const combat = state.encounter?.combat;
-  if (!combat || !state.encounter) return state;
-  return { ...state, encounter: { ...state.encounter, combat: change(combat) } };
+  const c = state.encounter?.combat;
+  if (!c || c.outcome || !state.encounter) return state;
+  const next = skipDownedTurn({ ...advance(c), events: [], seq: c.seq + 1 }, state.rngSeed);
+  return withRolls({ ...state, rngSeed: next.seed, encounter: { ...state.encounter, combat: checkOutcome(next.combat) } });
 }
 
 /** Ends the turn by itself once the active combatant has acted and has no movement left. */
-function autoEnd(c: CombatState): CombatState {
-  if (c.outcome) return c;
+function autoEnd(c: CombatState, seed: number): { combat: CombatState; seed: number } {
+  if (c.outcome) return { combat: c, seed };
   const actor = activeCombatant(c);
-  if (!isStanding(actor) || (c.acted && c.moveLeft === 0)) return skipDownedTurn(advance(c, false));
-  return c;
+  if (!isStanding(actor) || (c.acted && c.moveLeft === 0)) return skipDownedTurn(advance(c), seed);
+  return { combat: c, seed };
 }
 
 /** Hands every roll in the last action to the dice tray. */
@@ -673,6 +936,12 @@ interface Strike {
   critThreshold: number;
   animation: string;
   free?: boolean;
+  /** Flat damage added on a graze, hit or crit. */
+  bonusDamage?: number;
+  /** The stat behind the roll, when not the usual one for the attack's kind. */
+  stat?: StatName;
+  /** A weapon blow: mana burn applies. */
+  weapon?: boolean;
 }
 
 function describeOutcome(outcome: AttackOutcome): string {
@@ -681,24 +950,75 @@ function describeOutcome(outcome: AttackOutcome): string {
 
 const OUTCOME_WORD: Record<AttackOutcome, string> = { miss: 'Miss', graze: 'Graze', hit: 'Hit', crit: 'Critical!' };
 
-/** Rolls one attack and applies its damage. */
-function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState; seed: number } {
-  const modifier = statModifier(effectiveStats(s.attacker)[ATTACK_STAT[s.profile.kind]]);
+/**
+ * Takes hit points off a combatant. A merc who goes down takes a lasting
+ * injury (or dies at the fourth); anyone with souls to gather gathers one
+ * when an enemy of theirs falls.
+ */
+function applyDamage(c: CombatState, seed: number, targetId: string, amount: number): { combat: CombatState; seed: number } {
+  const target = combatantById(c, targetId);
+  if (amount <= 0 || !isStanding(target)) return { combat: c, seed };
+  let next = c;
+  // A ward soaks the blow first.
+  const ward = statusOf(target, 'warded');
+  if (ward?.amount) {
+    const soaked = Math.min(ward.amount, amount);
+    amount -= soaked;
+    const left = ward.amount - soaked;
+    next = updateCombatant(next, targetId, (x) => ({
+      ...x,
+      statuses: left > 0 ? x.statuses.map((st) => (st.kind === 'warded' ? { ...st, amount: left } : st)) : x.statuses.filter((st) => st.kind !== 'warded'),
+    }));
+    next = withLog(next, left > 0 ? `${target.name}'s ward soaks ${soaked}.` : `${target.name}'s ward soaks ${soaked} and breaks.`);
+    if (amount <= 0) return { combat: next, seed };
+  }
+  // A blow shatters the ice.
+  if (hasStatus(target, 'frozen')) next = withLog(updateCombatant(next, targetId, (x) => withoutStatus(x, 'frozen')), `${target.name} shatters free of the ice.`);
+  const hp = Math.max(0, target.hp - amount);
+  next = updateCombatant(next, targetId, (x) => changeResource({ ...x, hp }, 'adrenaline', 1));
+  let nextSeed = seed;
+  if (hp > 0) return { combat: next, seed: nextSeed };
+
+  const merc = target.mercId ? next.mercs.find((m) => m.id === target.mercId) : undefined;
+  if (merc) {
+    const fall = knockDown(merc, { deathSave: target.deathSave }, nextSeed);
+    nextSeed = fall.seed;
+    next = withLog({ ...next, mercs: next.mercs.map((m) => (m.id === merc.id ? fall.merc : m)) }, fall.line);
+    if (fall.outcome.kind === 'dead') next = updateCombatant(next, targetId, (x) => ({ ...x, dead: true }));
+    next = { ...next, events: [...next.events, { kind: 'down', actorId: targetId, ...(fall.save ? { shown: saveRoll(merc.name, fall.save) } : {}) }] };
+  } else {
+    next = withLog({ ...next, events: [...next.events, { kind: 'down', actorId: targetId }] }, `${target.name} goes down.`);
+  }
+  // The other side feeds on the fall.
+  next = {
+    ...next,
+    combatants: next.combatants.map((x) => (x.side !== target.side && isStanding(x) ? changeResource(x, 'souls', 1) : x)),
+  };
+  return { combat: next, seed: nextSeed };
+}
+
+/** Rolls one attack and applies its damage. A blinded attacker rolls with disadvantage. */
+function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState; seed: number; outcome: AttackOutcome } {
+  const attacker = combatantById(c, s.attacker.id);
+  const mode = combineModes(s.mode, hasStatus(attacker, 'blinded') ? 'disadvantage' : 'normal');
+  const stat = s.stat ?? ATTACK_STAT[s.profile.kind];
+  const modifier = statModifier(effectiveStats(attacker)[stat]);
+  // Mage hunters hit casters harder with their weapons.
+  const burn = s.weapon && s.target.caster ? attacker.manaBurn : 0;
   const result = resolveAttack(seed, {
     profile: s.profile,
     modifier,
     targetDefense: effectiveDefense(s.target),
     targetArmour: effectiveArmour(s.target),
-    mode: s.mode,
+    mode,
     critThreshold: s.critThreshold,
+    bonusDamage: (s.bonusDamage ?? 0) + burn,
   });
   const r = result.value;
-  const hp = Math.max(0, s.target.hp - r.damage);
   const roll = r.roll.dice.length > 1 ? `${r.roll.dice.join('/')}→${r.roll.natural}` : `${r.roll.natural}`;
-  let next = updateCombatant(c, s.target.id, (x) => ({ ...x, hp }));
-  next = withLog(
-    next,
-    `${s.attacker.name} ${describeOutcome(r.outcome)} ${s.target.name} with ${s.label}${r.damage ? ` for ${r.damage}` : ''} (${roll}${modifier >= 0 ? '+' : ''}${modifier} vs ${r.defense}${s.mode === 'disadvantage' ? ', disadvantage' : ''}).`,
+  let next = withLog(
+    c,
+    `${attacker.name} ${describeOutcome(r.outcome)} ${s.target.name} with ${s.label}${r.damage ? ` for ${r.damage}` : ''} (${roll}${modifier >= 0 ? '+' : ''}${modifier} vs ${r.defense}${mode === 'disadvantage' ? ', disadvantage' : mode === 'advantage' ? ', advantage' : ''}).`,
   );
   const detail: AttackRoll = {
     label: s.label,
@@ -706,7 +1026,7 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     natural: r.roll.natural,
     mode: r.roll.mode,
     modifier,
-    stat: ATTACK_STAT[s.profile.kind],
+    stat,
     total: r.total,
     defense: r.defense,
     critThreshold: r.critThreshold,
@@ -715,47 +1035,58 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     armour: r.armour,
     extraDamage: r.extraDamage,
     damage: r.damage,
+    bonusDamage: r.bonusDamage,
     ...(s.free ? { free: true } : {}),
     ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
   };
-  const events: CombatEvent[] = [
-    {
-      kind: 'attack',
-      actorId: s.attacker.id,
-      targetId: s.target.id,
-      outcome: r.outcome,
-      amount: r.damage,
-      roll: detail,
-      animation: s.animation,
-      shown: {
-        who: s.attacker.name,
-        what: `${s.free ? 'Free attack: ' : ''}${s.label} → ${s.target.name}`,
-        sides: 20,
-        dice: r.roll.dice,
-        kept: r.roll.natural,
-        total: r.total,
-        target: r.defense,
-        result: `${OUTCOME_WORD[r.outcome]}${r.damage ? `, ${r.damage} damage` : ''}`,
-        good: s.attacker.side === 'party' ? r.outcome !== 'miss' : r.outcome === 'miss',
+  next = {
+    ...next,
+    events: [
+      ...next.events,
+      {
+        kind: 'attack',
+        actorId: attacker.id,
+        targetId: s.target.id,
+        outcome: r.outcome,
+        amount: r.damage,
+        roll: detail,
+        animation: s.animation,
+        shown: {
+          who: attacker.name,
+          what: `${s.free ? 'Free attack: ' : ''}${s.label} → ${s.target.name}`,
+          sides: 20,
+          dice: r.roll.dice,
+          kept: r.roll.natural,
+          total: r.total,
+          target: r.defense,
+          result: `${OUTCOME_WORD[r.outcome]}${r.damage ? `, ${r.damage} damage` : ''}`,
+          good: attacker.side === 'party' ? r.outcome !== 'miss' : r.outcome === 'miss',
+        },
       },
-    },
-  ];
+    ],
+  };
   let nextSeed = result.seed;
-  if (hp === 0 && s.target.hp > 0) {
-    const merc = s.target.mercId ? next.mercs.find((m) => m.id === s.target.mercId) : undefined;
-    if (merc) {
-      // A merc who goes down takes a lasting injury, or dies at the fourth.
-      const fall = knockDown(merc, { deathSave: s.target.deathSave }, nextSeed);
-      nextSeed = fall.seed;
-      next = withLog({ ...next, mercs: next.mercs.map((m) => (m.id === merc.id ? fall.merc : m)) }, fall.line);
-      if (fall.outcome.kind === 'dead') next = updateCombatant(next, s.target.id, (x) => ({ ...x, dead: true }));
-      events.push({ kind: 'down', actorId: s.target.id, ...(fall.save ? { shown: saveRoll(merc.name, fall.save) } : {}) });
-    } else {
-      events.push({ kind: 'down', actorId: s.target.id });
-      next = withLog(next, `${s.target.name} goes down.`);
-    }
+  // Landing a blow gets the blood up.
+  if (r.damage > 0) next = updateCombatant(next, attacker.id, (x) => changeResource(x, 'adrenaline', 1));
+  if (burn > 0 && r.outcome !== 'miss' && s.target.resources.mana) {
+    next = updateCombatant(next, s.target.id, (x) => changeResource(x, 'mana', -burn));
+    next = withLog(next, `${attacker.name} burns away ${burn} of ${s.target.name}'s mana.`);
   }
-  return { combat: { ...next, events: [...next.events, ...events] }, seed: nextSeed };
+  const hurt = applyDamage(next, nextSeed, s.target.id, r.damage);
+  next = hurt.combat;
+  nextSeed = hurt.seed;
+
+  // Hitting a guardian in melee hurts back.
+  const target = combatantById(next, s.target.id);
+  const thorns = target.retaliate + buffTotal(target, (e) => (e.type === 'retaliate' ? e.amount : 0));
+  if (thorns > 0 && s.profile.kind === 'melee' && r.outcome !== 'miss' && isStanding(target)) {
+    next = withLog(next, `${target.name} punishes ${attacker.name} for ${thorns}.`);
+    next = { ...next, events: [...next.events, { kind: 'status', actorId: target.id, targetId: attacker.id, amount: thorns, label: 'retaliation' }] };
+    const back = applyDamage(next, nextSeed, attacker.id, thorns);
+    next = back.combat;
+    nextSeed = back.seed;
+  }
+  return { combat: next, seed: nextSeed, outcome: r.outcome };
 }
 
 /** Rolls one attack against a destructible obstacle: it cannot dodge, so this always hits unless a natural 1 misses. */
@@ -799,6 +1130,7 @@ function strikeObstacle(
     armour: r.armour,
     extraDamage: r.extraDamage,
     damage: r.damage,
+    bonusDamage: r.bonusDamage,
     ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
   };
   const events: CombatEvent[] = [
@@ -852,8 +1184,8 @@ function beginAction(state: GameState): { c: CombatState; actor: Combatant } {
 }
 
 function finishAction(state: GameState, c: CombatState, seed: number): GameState {
-  const done = autoEnd(checkOutcome({ ...c, acted: true }));
-  return withRolls({ ...state, rngSeed: seed, encounter: { ...state.encounter!, combat: done } });
+  const done = autoEnd(checkOutcome({ ...c, acted: true }), seed);
+  return withRolls({ ...state, rngSeed: done.seed, encounter: { ...state.encounter!, combat: checkOutcome(done.combat) } });
 }
 
 /** The active combatant attacks with their weapon, hitting an enemy or a destructible obstacle. */
@@ -877,21 +1209,157 @@ export function attack(state: GameState, targetId: string): GameState {
   const target = combatantById(c, targetId);
   if (!attackTargets(c, actor).some((t) => t.id === targetId)) throw new Error(`${actor.name} cannot reach ${target.name}.`);
   const { mode } = reach(c, actor.attack.range, actor.pos, target.pos, isEngaged(c, actor));
+  // Striking from hiding comes with advantage, and gives the attacker away.
+  const hidden = hasStatus(actor, 'invisible');
   const hit = strike(spendShot(c, actor), state.rngSeed, {
     attacker: actor,
     target,
     profile: actor.attack.profile,
     label: actor.attack.name,
-    mode,
+    mode: combineModes(mode, hidden ? 'advantage' : 'normal'),
     critThreshold: actor.critThreshold,
     animation: actor.attack.animation,
+    bonusDamage: actor.damageBonus,
+    weapon: true,
   });
-  return finishAction(state, hit.combat, hit.seed);
+  return finishAction(state, reveal(hit.combat, actor.id), hit.seed);
 }
 
-function applyBuffOrHeal(c: CombatState, actor: Combatant, target: Combatant, ability: AbilityDefinition): CombatState {
+/** Attacking ends invisibility. */
+function reveal(c: CombatState, id: string): CombatState {
+  const x = combatantById(c, id);
+  if (!hasStatus(x, 'invisible')) return c;
+  return withLog(updateCombatant(c, id, (k) => withoutStatus(k, 'invisible')), `${x.name} steps out of the shadows.`);
+}
+
+/** Puts an ability's conditions on a target. Those with an `if` take hold only when it held before the blow. */
+function applyStatuses(c: CombatState, actor: Combatant, target: Combatant, specs: StatusSpec[], before: CombatState): CombatState {
   let next = c;
-  const heal = ability.effects.reduce((n, e) => n + (e.type === 'heal' ? e.amount : 0), 0);
+  for (const spec of specs) {
+    if (spec.if && !conditionHolds(before, spec.if, actor, combatantById(before, target.id))) continue;
+    const victim = combatantById(next, target.id);
+    if (!isStanding(victim)) continue;
+    // Hard heads shrug off hostile conditions sooner, or entirely.
+    const rounds = victim.side !== actor.side ? spec.rounds - victim.statusResist : spec.rounds;
+    if (rounds <= 0) {
+      next = withLog(next, `${target.name} shrugs off being ${spec.status}.`);
+      continue;
+    }
+    next = updateCombatant(next, target.id, (x) => withStatus(x, { ...spec, rounds }, actor.id));
+    next = withLog(next, `${target.name} is ${spec.status}.`);
+    next = { ...next, events: [...next.events, { kind: 'status', actorId: actor.id, targetId: target.id, label: spec.status }] };
+  }
+  return next;
+}
+
+/**
+ * Calls up a monster on the summoner's side, on the nearest free tile next to
+ * them. It acts straight after the summoner each round and fades after its turns run out.
+ */
+function summonMonster(
+  c: CombatState,
+  summoner: Combatant,
+  spec: { monsterId: string; rounds: number },
+  ctx: Pick<CombatContext, 'getAbility' | 'getMonster'>,
+): CombatState {
+  const spot = [
+    [0, -1],
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+    [-1, -1],
+  ]
+    .map(([dx, dy]) => ({ x: summoner.pos.x + dx!, y: summoner.pos.y + dy! }))
+    .find((p) => p.x >= 0 && p.y >= 0 && p.x < c.width && p.y < c.height && !tileBlocked(c, p));
+  const monster = ctx.getMonster(spec.monsterId);
+  if (!spot) return withLog(c, `There is no room for the ${monster.name.toLowerCase()} to appear.`);
+  const n = c.combatants.filter((x) => x.summoned).length + 1;
+  const summon: Combatant = {
+    ...monsterCombatant(monster, `summon-${n}`, monster.name, summoner.side, spot, summoner.initiative, ctx),
+    summoned: { ownerId: summoner.id, rounds: spec.rounds },
+  };
+  // It joins the turn order right behind whoever called it.
+  const at = c.order.indexOf(summoner.id);
+  const order = [...c.order.slice(0, at + 1), summon.id, ...c.order.slice(at + 1)];
+  const turn = at < c.turn ? c.turn + 1 : c.turn;
+  return withLog(
+    { ...c, combatants: [...c.combatants, summon], order, turn, events: [...c.events, { kind: 'buff', actorId: summoner.id, targetId: summon.id, animation: ANIMATIONS.buff }] },
+    `${summoner.name} calls up a ${monster.name.toLowerCase()}!`,
+  );
+}
+
+/** Damage for slamming into a wall, an obstacle or someone else when knocked back. */
+export const COLLISION_DAMAGE = '1d6';
+
+/**
+ * Shoves the target straight away from the attacker, one tile at a time, up to
+ * `tiles`. Stopping short against the edge, an obstacle or another combatant
+ * hurts: the target takes collision damage (and so does anyone it slams into).
+ */
+function knockBack(c: CombatState, seed: number, attacker: Combatant, target: Combatant, tiles: number): { combat: CombatState; seed: number } {
+  const dx = Math.sign(target.pos.x - attacker.pos.x);
+  const dy = Math.sign(target.pos.y - attacker.pos.y);
+  if (!dx && !dy) return { combat: c, seed };
+  let pos = target.pos;
+  let moved = 0;
+  let blocker: Combatant | undefined;
+  for (; moved < tiles; moved++) {
+    const step = { x: pos.x + dx, y: pos.y + dy };
+    const offGrid = step.x < 0 || step.y < 0 || step.x >= c.width || step.y >= c.height;
+    if (offGrid || tileBlocked(c, step)) {
+      blocker = offGrid ? undefined : occupant(c, step);
+      break;
+    }
+    pos = step;
+  }
+  let next = updateCombatant(c, target.id, (x) => ({ ...x, pos }));
+  next = { ...next, events: [...next.events, { kind: 'move', actorId: target.id }] };
+  next = withLog(next, moved > 0 ? `${target.name} is hurled ${moved} tile${moved === 1 ? '' : 's'}.` : `${target.name} is slammed in place.`);
+  if (moved === tiles) return { combat: next, seed };
+  // Stopped short: something solid was in the way.
+  const rolled = rollDice(seed, COLLISION_DAMAGE);
+  let nextSeed = rolled.seed;
+  next = withLog(next, `${target.name} crashes into ${blocker ? blocker.name : 'something solid'} for ${rolled.value}.`);
+  next = { ...next, events: [...next.events, { kind: 'status', actorId: attacker.id, targetId: target.id, amount: rolled.value, label: 'collision' }] };
+  const hurt = applyDamage(next, nextSeed, target.id, rolled.value);
+  next = hurt.combat;
+  nextSeed = hurt.seed;
+  if (blocker) {
+    const second = rollDice(nextSeed, COLLISION_DAMAGE);
+    nextSeed = second.seed;
+    next = { ...next, events: [...next.events, { kind: 'status', actorId: attacker.id, targetId: blocker.id, amount: second.value, label: 'collision' }] };
+    const knocked = applyDamage(next, nextSeed, blocker.id, second.value);
+    next = knocked.combat;
+    nextSeed = knocked.seed;
+  }
+  return { combat: next, seed: nextSeed };
+}
+
+/** An ally makes a free weapon attack on the weakest enemy next to them, without using their own turn. */
+function grantedAttack(c: CombatState, seed: number, ally: Combatant): { combat: CombatState; seed: number } {
+  const foe = [...visibleFoes(c, ally)].filter((e) => distance(e.pos, ally.pos) <= 1).sort((a, b) => a.hp - b.hp)[0];
+  if (!foe || ammoLeft(c, ally) === 0) return { combat: c, seed };
+  const r = strike(spendShot(c, ally), seed, {
+    attacker: ally,
+    target: foe,
+    profile: ally.attack.profile,
+    label: ally.attack.name,
+    mode: reach(c, ally.attack.range, ally.pos, foe.pos, true).mode,
+    critThreshold: ally.critThreshold,
+    animation: ally.attack.animation,
+    bonusDamage: ally.damageBonus,
+    weapon: true,
+    free: true,
+  });
+  return { combat: r.combat, seed: r.seed };
+}
+
+function applyBuffOrHeal(c: CombatState, actor: Combatant, target: Combatant, ability: AbilityDefinition, healToo = true): CombatState {
+  let next = c;
+  const heal = healToo ? ability.effects.reduce((n, e) => n + (e.type === 'heal' ? e.amount : 0), 0) : 0;
   const lasting = ability.effects.filter((e) => e.type !== 'heal');
   if (heal > 0) {
     const current = combatantById(next, target.id);
@@ -908,51 +1376,121 @@ function applyBuffOrHeal(c: CombatState, actor: Combatant, target: Combatant, ab
   return next;
 }
 
-/** The active combatant uses an ability. `targetId` picks the target for single-target and area abilities. */
-export function castAbility(state: GameState, abilityId: string, targetId: string | null, ctx: Pick<CombatContext, 'getAbility'>): GameState {
+/**
+ * The active combatant uses an ability. `targetId` picks the target for
+ * single-target and area abilities. Attack abilities roll against each target;
+ * their effects and conditions land on a hit. Other abilities apply at once.
+ */
+export function castAbility(
+  state: GameState,
+  abilityId: string,
+  targetId: string | null,
+  ctx: Pick<CombatContext, 'getAbility'> & Partial<Pick<CombatContext, 'getMonster'>>,
+): GameState {
   const { c, actor } = beginAction(state);
   const ability = ctx.getAbility(abilityId);
   if (!actor.abilityIds.includes(abilityId)) throw new Error(`${actor.name} does not have ${ability.name}.`);
-  if (!canUseAbility(c, actor, ability)) throw new Error(`${ability.name} cannot be used now.`);
+  const blocker = abilityBlocker(c, actor, ability);
+  if (blocker) throw new Error(`${ability.name} cannot be used now: ${blocker.toLowerCase()}.`);
   const options = abilityTargets(c, actor, ability);
 
   let targets: Combatant[];
-  if (ability.target === 'enemy' || ability.target === 'ally') {
+  if (ability.target === 'enemy' || ability.target === 'ally' || ability.target === 'any') {
     const chosen = options.find((t) => t.id === targetId);
     if (!chosen) throw new Error(`Choose a target for ${ability.name}.`);
     targets = [chosen];
   } else if (ability.target === 'area') {
     // The chosen enemy and every enemy next to them.
     const chosen = options.find((t) => t.id === targetId) ?? options[0]!;
-    targets = standing(c, opposite(actor.side)).filter((t) => distance(t.pos, chosen.pos) <= 1);
+    targets = visibleFoes(c, actor).filter((t) => distance(t.pos, chosen.pos) <= 1);
   } else {
     targets = options;
   }
 
-  let next = withLog(
-    updateCombatant(c, actor.id, (x) => ({ ...x, cooldowns: { ...x.cooldowns, [abilityId]: ability.cooldown ?? 0 } })),
-    `${actor.name} uses ${ability.name}.`,
-  );
+  let next = updateCombatant(c, actor.id, (x) => {
+    const paid = ability.cost ? changeResource(x, ability.cost.resource, -ability.cost.amount) : x;
+    return { ...paid, cooldowns: { ...paid.cooldowns, [abilityId]: ability.cooldown ?? 0 } };
+  });
+  next = withLog(next, `${actor.name} uses ${ability.name}.`);
   let seed = state.rngSeed;
   const engaged = isEngaged(c, actor);
+  const user = combatantById(next, actor.id);
+  const hidden = hasStatus(user, 'invisible');
+  const profile = ability.weaponAttack ? user.attack.profile : ability.attack;
+  if (ability.weaponAttack) next = spendShot(next, user);
+
   for (const t of targets) {
-    const target = combatantById(next, t.id);
-    if (ability.attack) {
+    let target = combatantById(next, t.id);
+    // A hostile spell can fizzle on a spellguard, or bounce back off a reflection at the caster.
+    if (isSpell(ability) && target.side !== actor.side) {
+      if (hasStatus(target, 'spellguard')) {
+        next = withLog(updateCombatant(next, target.id, (x) => withoutStatus(x, 'spellguard')), `${ability.name} fizzles against ${target.name}.`);
+        next = { ...next, events: [...next.events, { kind: 'status', actorId: target.id, targetId: target.id, label: 'cancelled' }] };
+        continue;
+      }
+      if (hasStatus(target, 'reflecting')) {
+        next = withLog(updateCombatant(next, target.id, (x) => withoutStatus(x, 'reflecting')), `${target.name} throws ${ability.name} back at ${actor.name}!`);
+        next = { ...next, events: [...next.events, { kind: 'status', actorId: target.id, targetId: actor.id, label: 'reflected' }] };
+        target = combatantById(next, actor.id);
+        if (!isStanding(target)) continue;
+      }
+    }
+    if (profile && (target.side !== actor.side || target.id === actor.id)) {
+      // Bonus dice for the situation, judged before the blow lands.
+      let bonus = (ability.weaponAttack ? (ability.weaponAttack.bonus ?? 0) + user.damageBonus : 0);
+      for (const b of ability.bonuses ?? []) {
+        if (!conditionHolds(next, b.when, user, target)) continue;
+        const rolled = rollDice(seed, b.damage);
+        seed = rolled.seed;
+        bonus += rolled.value;
+      }
+      const before = next;
+      const range = abilityRange(user, ability);
       const r = strike(next, seed, {
-        attacker: actor,
+        attacker: user,
         target,
-        profile: ability.attack,
+        profile,
         label: ability.name,
-        mode: reach(c, ability.range, actor.pos, target.pos, engaged).mode,
-        critThreshold: ability.attack.critThreshold ?? DEFAULT_CRIT_THRESHOLD,
-        animation: ability.animation ?? defaultAttackAnimation(ability.attack),
+        mode: combineModes(reach(c, range, actor.pos, target.pos, engaged).mode, hidden ? 'advantage' : 'normal'),
+        critThreshold: ability.weaponAttack ? user.critThreshold : (ability.attack?.critThreshold ?? DEFAULT_CRIT_THRESHOLD),
+        animation: ability.animation ?? (ability.weaponAttack ? user.attack.animation : defaultAttackAnimation(profile)),
+        bonusDamage: bonus,
+        ...(ability.attackStat ? { stat: ability.attackStat } : {}),
+        ...(ability.weaponAttack ? { weapon: true } : {}),
       });
       next = r.combat;
       seed = r.seed;
+      if (r.outcome !== 'miss') {
+        const struck = combatantById(next, target.id);
+        if (isStanding(struck)) {
+          next = applyStatuses(next, user, struck, ability.statuses ?? [], before);
+          if (ability.effects.some((e) => e.type !== 'heal')) next = applyBuffOrHeal(next, user, struck, ability, false);
+          if (ability.consumes) next = updateCombatant(next, target.id, (x) => withoutStatus(x, ability.consumes!));
+          if (ability.knockback) {
+            const shoved = knockBack(next, seed, combatantById(next, user.id), combatantById(next, target.id), ability.knockback);
+            next = shoved.combat;
+            seed = shoved.seed;
+          }
+        }
+      }
     } else {
-      next = applyBuffOrHeal(next, actor, target, ability);
+      const wasDown = target.hp === 0;
+      next = applyBuffOrHeal(next, user, target, ability);
+      if (wasDown && combatantById(next, target.id).hp > 0) next = withLog(next, `${target.name} is back on their feet!`);
+      next = applyStatuses(next, user, target, ability.statuses ?? [], next);
+      if (ability.summon) {
+        if (!ctx.getMonster) throw new Error('Summoning needs the monster list.');
+        next = summonMonster(next, user, ability.summon, ctx as Pick<CombatContext, 'getAbility' | 'getMonster'>);
+      }
+      if (ability.grantAttack && target.side === actor.side) {
+        const g = grantedAttack(next, seed, combatantById(next, target.id));
+        next = g.combat;
+        seed = g.seed;
+      }
     }
   }
+  // Attacking from hiding gives the attacker away; going into hiding does not.
+  if (profile) next = reveal(next, actor.id);
   return finishAction(state, next, seed);
 }
 
@@ -1047,9 +1585,14 @@ export function moveTo(state: GameState, to: Pos): GameState {
   const struck = new Set<string>();
   let walked = 0;
   for (const step of path) {
-    const leavingFrom = standing(next, opposite(actor.side)).filter(
-      (e) => e.attack.range === 0 && !struck.has(e.id) && distance(e.pos, at) <= 1 && distance(e.pos, step) > 1,
-    );
+    // The evasive and the unseen slip away without giving anyone a free swing; the stunned cannot swing.
+    const mover = combatantById(next, actor.id);
+    const slips = hasStatus(mover, 'evasive') || hasStatus(mover, 'invisible');
+    const leavingFrom = slips
+      ? []
+      : standing(next, opposite(actor.side)).filter(
+          (e) => e.attack.range === 0 && !hasStatus(e, 'stunned') && !hasStatus(e, 'frozen') && !struck.has(e.id) && distance(e.pos, at) <= 1 && distance(e.pos, step) > 1,
+        );
     for (const punisher of leavingFrom) {
       struck.add(punisher.id);
       next = withLog(next, `${punisher.name} strikes as ${actor.name} breaks away.`);
@@ -1061,6 +1604,8 @@ export function moveTo(state: GameState, to: Pos): GameState {
         mode: 'normal',
         critThreshold: punisher.critThreshold,
         animation: punisher.attack.animation,
+        bonusDamage: punisher.damageBonus,
+        weapon: true,
         free: true,
       });
       next = r.combat;
@@ -1071,15 +1616,15 @@ export function moveTo(state: GameState, to: Pos): GameState {
     at = step;
     walked++;
   }
-  next = autoEnd(checkOutcome({ ...next, moveLeft: Math.max(0, next.moveLeft - walked) }));
-  return withRolls({ ...state, rngSeed: seed, encounter: { ...state.encounter!, combat: next } });
+  const ended = autoEnd(checkOutcome({ ...next, moveLeft: Math.max(0, next.moveLeft - walked) }), seed);
+  return withRolls({ ...state, rngSeed: ended.seed, encounter: { ...state.encounter!, combat: checkOutcome(ended.combat) } });
 }
 
 // ---------- the end of the fight ----------
 
 /** Splits the enemies' experience between the mercs still standing, with racial bonuses. */
 export function shareXp(c: CombatState, ctx: Pick<CombatContext, 'raceOf'>): Record<string, number> {
-  const earners = standing(c, 'party');
+  const earners = standing(c, 'party').filter((x) => x.mercId);
   if (earners.length === 0) return {};
   const share = c.xp / earners.length;
   return Object.fromEntries(

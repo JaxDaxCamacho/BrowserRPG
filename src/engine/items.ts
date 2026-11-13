@@ -50,7 +50,21 @@ export type ItemEffect =
   | { type: 'maxHp'; amount: number }
   | { type: 'ability'; abilityId: string }
   /** Potions only: restores hit points once, when drunk. */
-  | { type: 'heal'; amount: number };
+  | { type: 'heal'; amount: number }
+  /** Extra tiles of movement in a fight. */
+  | { type: 'movement'; amount: number }
+  /** Flat damage added to every weapon attack that lands; with `twoHandedOnly`, only while wielding a two-handed weapon. */
+  | { type: 'damage'; amount: number; twoHandedOnly?: boolean }
+  /** Widens the weapon's critical range: 1 means it crits on one number lower. */
+  | { type: 'critRange'; amount: number }
+  /** Melee attackers that land a blow take this much damage back. */
+  | { type: 'retaliate'; amount: number }
+  /** For every quarter of max HP missing: +amount Strength and +amount movement. */
+  | { type: 'bloodrage'; amount: number }
+  /** Hostile conditions last this many fewer turns; cut to nothing, they do not take hold. */
+  | { type: 'statusResist'; amount: number }
+  /** Weapon hits on a caster deal this much extra damage and drain as much mana. */
+  | { type: 'manaBurn'; amount: number };
 
 interface ItemBase {
   id: string;
@@ -236,9 +250,36 @@ export interface GearTotals {
   armour: Record<ArmourType, number>;
   maxHp: number;
   abilityIds: string[];
+  movement: number;
+  damage: number;
+  twoHandedDamage: number;
+  critRange: number;
+  retaliate: number;
+  bloodrage: number;
+  statusResist: number;
+  manaBurn: number;
 }
 
-function addEffects(totals: GearTotals, effects: ItemEffect[]) {
+export function emptyTotals(): GearTotals {
+  return {
+    stats: {},
+    defense: 0,
+    armour: { physical: 0, magic: 0 },
+    maxHp: 0,
+    abilityIds: [],
+    movement: 0,
+    damage: 0,
+    twoHandedDamage: 0,
+    critRange: 0,
+    retaliate: 0,
+    bloodrage: 0,
+    statusResist: 0,
+    manaBurn: 0,
+  };
+}
+
+/** Adds a list of effects (from gear or talents) into running totals. */
+export function addEffects(totals: GearTotals, effects: ItemEffect[]) {
   for (const effect of effects) {
     switch (effect.type) {
       case 'stat':
@@ -254,7 +295,29 @@ function addEffects(totals: GearTotals, effects: ItemEffect[]) {
         totals.maxHp += effect.amount;
         break;
       case 'ability':
-        totals.abilityIds.push(effect.abilityId);
+        if (!totals.abilityIds.includes(effect.abilityId)) totals.abilityIds.push(effect.abilityId);
+        break;
+      case 'movement':
+        totals.movement += effect.amount;
+        break;
+      case 'damage':
+        if (effect.twoHandedOnly) totals.twoHandedDamage += effect.amount;
+        else totals.damage += effect.amount;
+        break;
+      case 'critRange':
+        totals.critRange += effect.amount;
+        break;
+      case 'retaliate':
+        totals.retaliate += effect.amount;
+        break;
+      case 'bloodrage':
+        totals.bloodrage += effect.amount;
+        break;
+      case 'statusResist':
+        totals.statusResist += effect.amount;
+        break;
+      case 'manaBurn':
+        totals.manaBurn += effect.amount;
         break;
       case 'heal':
         break;
@@ -264,7 +327,7 @@ function addEffects(totals: GearTotals, effects: ItemEffect[]) {
 
 /** Everything equipped gear adds up to. Ammunition only matters when attacking. */
 export function gearTotals(equipment: Equipment, getItem: ItemLookup): GearTotals {
-  const totals: GearTotals = { stats: {}, defense: 0, armour: { physical: 0, magic: 0 }, maxHp: 0, abilityIds: [] };
+  const totals = emptyTotals();
   for (const slot of EQUIP_SLOTS) {
     const id = equipment[slot];
     if (!id) continue;

@@ -117,6 +117,8 @@ export interface AttackResult {
   /** Armour subtracted from the main damage. */
   armour: number;
   critThreshold: number;
+  /** Flat bonus damage added to the main damage before armour (talents, ability bonuses). */
+  bonusDamage: number;
 }
 
 export interface AttackInput {
@@ -128,6 +130,8 @@ export interface AttackInput {
   mode?: RollMode;
   /** Overrides the profile's crit threshold, e.g. from a race passive or talent. */
   critThreshold?: number;
+  /** Added to the main damage of a graze, hit or crit, before armour. Not doubled on a crit. */
+  bonusDamage?: number;
 }
 
 /** Rolls a full attack: the d20, then only the damage dice the outcome needs. */
@@ -153,7 +157,8 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
   }
 
   const armour = targetArmour[ARMOUR_AGAINST[profile.damageType]];
-  const damage = damageDealt(outcome, grazeRoll, hitRoll, modifier, armour);
+  const bonusDamage = outcome === 'miss' ? 0 : Math.max(0, input.bonusDamage ?? 0);
+  const damage = outcome === 'miss' ? 0 : Math.max(0, damageDealt(outcome, grazeRoll, hitRoll, modifier, 0) + bonusDamage - armour);
   const extraDamage = profile.extra
     ? extraDamageDealt(outcome, profile.extra.amount, targetArmour[ARMOUR_AGAINST[profile.extra.damageType]])
     : 0;
@@ -170,6 +175,7 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
       hitRoll,
       armour,
       critThreshold,
+      bonusDamage,
     },
     seed: next,
   };

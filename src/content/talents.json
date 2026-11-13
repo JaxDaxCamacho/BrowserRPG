@@ -1,0 +1,1180 @@
+[
+  {
+    "id": "knight",
+    "classId": "knight",
+    "branches": [
+      {
+        "id": "templar",
+        "name": "Templar",
+        "description": "Holy wrath through a two-handed weapon: crushing blows, stuns, and executions of the stunned.",
+        "talents": [
+          {
+            "id": "two-handed-mastery",
+            "name": "Two-Handed Mastery",
+            "description": "+1 damage per rank with two-handed weapons.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1,
+                "twoHandedOnly": true
+              }
+            ]
+          },
+          {
+            "id": "t-crushing-blow",
+            "name": "Crushing Blow",
+            "description": "Learn Crushing Blow: a two-handed strike that stuns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "crushing-blow"
+          },
+          {
+            "id": "heavy-swings",
+            "name": "Heavy Swings",
+            "description": "+1 Strength per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "strength",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-execution",
+            "name": "Execution",
+            "description": "Learn Execution: +2d8 damage against a stunned target.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "execution"
+          },
+          {
+            "id": "zeal",
+            "name": "Zeal",
+            "description": "Crit on one number lower per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "critRange",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "righteous-vigour",
+            "name": "Righteous Vigour",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-judgement",
+            "name": "Judgement",
+            "description": "Learn Judgement: a sweeping strike at a target and everyone next to it.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "judgement"
+          },
+          {
+            "id": "avatar-of-wrath",
+            "name": "Avatar of Wrath",
+            "description": "+1 damage per rank with every weapon.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "guardian",
+        "name": "Guardian",
+        "description": "A wall of steel: high Defense, taunting enemies onto the shield, and punishing those who strike.",
+        "talents": [
+          {
+            "id": "bulwark",
+            "name": "Bulwark",
+            "description": "+1 Defense per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "defense",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-taunt",
+            "name": "Taunt",
+            "description": "Learn Taunt: enemies within 3 tiles must come for you for 2 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "taunt"
+          },
+          {
+            "id": "stalwart",
+            "name": "Stalwart",
+            "description": "+4 max HP per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "iron-skin",
+            "name": "Iron Skin",
+            "description": "+1 armour per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "physical",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "retribution",
+            "name": "Retribution",
+            "description": "Melee attackers who land a blow take 2 damage per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "retaliate",
+                "amount": 2
+              }
+            ]
+          },
+          {
+            "id": "spellguard",
+            "name": "Spellguard",
+            "description": "+1 magic armour per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-shield-wall",
+            "name": "Shield Wall",
+            "description": "Learn Shield Wall: +3 armour, +2 Defense and 3 damage back to melee attackers, for 2 rounds.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "shield-wall"
+          },
+          {
+            "id": "unbreakable",
+            "name": "Unbreakable",
+            "description": "+1 Toughness per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "toughness",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "captain",
+        "name": "Captain",
+        "description": "Leads from the front: speed and Defense for allies, and openings for them to strike.",
+        "talents": [
+          {
+            "id": "t-forward",
+            "name": "Forward!",
+            "description": "Learn Forward!: an ally gains +2 movement and +1 Defense for 2 rounds.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "forward"
+          },
+          {
+            "id": "t-hold-fast",
+            "name": "Hold Fast",
+            "description": "Learn Hold Fast: allies within 4 tiles gain +2 Defense for 2 rounds.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "hold-fast"
+          },
+          {
+            "id": "field-discipline",
+            "name": "Field Discipline",
+            "description": "+1 Agility per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "agility",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-opening",
+            "name": "Opening!",
+            "description": "Learn Opening!: an ally makes a free attack on an enemy next to them.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "opening"
+          },
+          {
+            "id": "veteran",
+            "name": "Veteran",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "commanding-presence",
+            "name": "Commanding Presence",
+            "description": "+1 Defense per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "defense",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-coordinated-assault",
+            "name": "Coordinated Assault",
+            "description": "Learn Coordinated Assault: every ally within 5 tiles makes a free attack.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "coordinated-assault"
+          },
+          {
+            "id": "warlord",
+            "name": "Warlord",
+            "description": "+1 Strength per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "strength",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rogue",
+    "classId": "rogue",
+    "branches": [
+      {
+        "id": "assassin",
+        "name": "Assassin",
+        "description": "Vanish mid-fight, stab the distracted in the back, and let the poison do the rest.",
+        "talents": [
+          {
+            "id": "t-backstab",
+            "name": "Backstab",
+            "description": "Learn Backstab: +1d6 damage against an enemy next to one of your allies.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "backstab"
+          },
+          {
+            "id": "t-poisoned-blade",
+            "name": "Poisoned Blade",
+            "description": "Learn Poisoned Blade: 2 poison damage a turn for 3 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "poisoned-blade"
+          },
+          {
+            "id": "precision",
+            "name": "Precision",
+            "description": "+1 damage per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-vanish",
+            "name": "Vanish",
+            "description": "Learn Vanish: become invisible for 2 turns.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "vanish"
+          },
+          {
+            "id": "lethality",
+            "name": "Lethality",
+            "description": "Crit on one number lower per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "critRange",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "shadow-step",
+            "name": "Shadow Step",
+            "description": "+1 movement per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "movement",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-assassinate",
+            "name": "Assassinate",
+            "description": "Learn Assassinate: huge damage from invisibility or against a flanked target.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "assassinate"
+          },
+          {
+            "id": "cold-blood",
+            "name": "Cold Blood",
+            "description": "+1 Agility per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "agility",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "highwayman",
+        "name": "Highwayman",
+        "description": "Dirty fighting: sand in the eyes, low blows, punctured lungs, and lamp oil with a match.",
+        "talents": [
+          {
+            "id": "t-pocket-sand",
+            "name": "Pocket Sand",
+            "description": "Learn Pocket Sand: blind an enemy next to you for 2 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "pocket-sand"
+          },
+          {
+            "id": "t-cheap-shot",
+            "name": "Cheap Shot",
+            "description": "Learn Cheap Shot: a strike that stuns for a turn.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "cheap-shot"
+          },
+          {
+            "id": "dirty-fighting",
+            "name": "Dirty Fighting",
+            "description": "+1 damage per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-pierce-lung",
+            "name": "Pierce Lung",
+            "description": "Learn Pierce Lung: bleeding and slowed.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "pierce-lung"
+          },
+          {
+            "id": "t-lighter-fluid",
+            "name": "Lighter Fluid",
+            "description": "Learn Lighter Fluid: soak an enemy in oil for 3 turns.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "lighter-fluid"
+          },
+          {
+            "id": "tough-customer",
+            "name": "Tough Customer",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-light-em-up",
+            "name": "Light 'Em Up",
+            "description": "Learn Light 'Em Up: set an oiled enemy on fire.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "light-em-up"
+          },
+          {
+            "id": "opportunist",
+            "name": "Opportunist",
+            "description": "Crit on one number lower per rank.",
+            "tier": 3,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "critRange",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "entertainer",
+        "name": "Entertainer",
+        "description": "Dances around enemies, distracts them, lifts allies with songs and knows a few simple spells.",
+        "talents": [
+          {
+            "id": "t-sidestep",
+            "name": "Sidestep",
+            "description": "Learn Sidestep: +2 Defense and slip away without free attacks for 2 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "sidestep"
+          },
+          {
+            "id": "t-distract",
+            "name": "Distract",
+            "description": "Learn Distract: an enemy has -3 Defense for 2 rounds. Costs mana.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "distract"
+          },
+          {
+            "id": "light-feet",
+            "name": "Light Feet",
+            "description": "+1 movement per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "movement",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "nimble",
+            "name": "Nimble",
+            "description": "+1 Defense per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "defense",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-song-of-courage",
+            "name": "Song of Courage",
+            "description": "Learn Song of Courage: allies gain +1 Strength and +1 Agility. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "song-of-courage"
+          },
+          {
+            "id": "t-spark",
+            "name": "Spark",
+            "description": "Learn Spark: a simple bolt of magic. Costs mana.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "spark"
+          },
+          {
+            "id": "stage-presence",
+            "name": "Stage Presence",
+            "description": "+1 Intellect per rank: more mana and stronger spells.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "intellect",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-grand-finale",
+            "name": "Grand Finale",
+            "description": "Learn Grand Finale: Defense, movement and Strength for every ally nearby. Costs mana.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "grand-finale"
+          },
+          {
+            "id": "encore",
+            "name": "Encore",
+            "description": "+1 Agility per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "agility",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "barbarian",
+    "classId": "barbarian",
+    "branches": [
+      {
+        "id": "savagery",
+        "name": "Savagery",
+        "description": "Hit everything nearby, grow stronger and faster the more hurt you are, crit more often and bring big things down fast.",
+        "talents": [
+          {
+            "id": "bloodrage",
+            "name": "Bloodrage",
+            "description": "For every quarter of max HP missing: +1 Strength and +1 movement per rank.",
+            "tier": 1,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "bloodrage",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "brute-strength",
+            "name": "Brute Strength",
+            "description": "+1 Strength per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "strength",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-reckless-swing",
+            "name": "Reckless Swing",
+            "description": "Learn Reckless Swing: +4 damage.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "reckless-swing"
+          },
+          {
+            "id": "t-whirlwind",
+            "name": "Whirlwind",
+            "description": "Learn Whirlwind: a weapon attack on every enemy in reach.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "whirlwind"
+          },
+          {
+            "id": "savage-instinct",
+            "name": "Savage Instinct",
+            "description": "Crit on one number lower per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "critRange",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "thick-blooded",
+            "name": "Thick-Blooded",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-giant-slayer",
+            "name": "Giant Slayer",
+            "description": "Learn Giant Slayer: +3d6 against enemies with more max HP than you.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "giant-slayer"
+          },
+          {
+            "id": "unstoppable",
+            "name": "Unstoppable",
+            "description": "+1 damage per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mage-hunter",
+        "name": "Mage Hunter",
+        "description": "Hunt casters and deny magic: shrug off spells and conditions, burn mana with every hit, silence wizards, and cancel or reflect spells.",
+        "talents": [
+          {
+            "id": "iron-will",
+            "name": "Iron Will",
+            "description": "+1 magic armour per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-headbutt",
+            "name": "Headbutt",
+            "description": "Learn Headbutt: silence a target for 2 turns.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "headbutt"
+          },
+          {
+            "id": "stubborn",
+            "name": "Stubborn",
+            "description": "Hostile conditions last 1 turn less.",
+            "tier": 1,
+            "maxRanks": 1,
+            "effects": [
+              {
+                "type": "statusResist",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "mana-burn",
+            "name": "Mana Burn",
+            "description": "Weapon hits on casters deal 2 extra damage and drain 2 mana per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "manaBurn",
+                "amount": 2
+              }
+            ]
+          },
+          {
+            "id": "t-spellbreaker",
+            "name": "Spellbreaker",
+            "description": "Learn Spellbreaker: the next hostile spell aimed at you fizzles.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "spellbreaker"
+          },
+          {
+            "id": "witch-hunters-grit",
+            "name": "Witch-Hunter's Grit",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-spell-reflection",
+            "name": "Spell Reflection",
+            "description": "Learn Spell Reflection: throw the next hostile spell back at its caster.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "spell-reflection"
+          },
+          {
+            "id": "unbending",
+            "name": "Unbending",
+            "description": "Hostile conditions last 1 turn less per rank.",
+            "tier": 3,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "statusResist",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "null-hide",
+            "name": "Null Hide",
+            "description": "+1 magic armour per rank.",
+            "tier": 3,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bully",
+        "name": "Bully",
+        "description": "Throw enemies around the field, hurl weapons, and frighten and weaken anyone in the way.",
+        "talents": [
+          {
+            "id": "t-shove",
+            "name": "Shove",
+            "description": "Learn Shove: knock an enemy 2 tiles back.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "shove"
+          },
+          {
+            "id": "t-throwing-axe",
+            "name": "Throwing Axe",
+            "description": "Learn Throwing Axe: a Strength-thrown axe up to 4 tiles.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "throwing-axe"
+          },
+          {
+            "id": "heavy-hands",
+            "name": "Heavy Hands",
+            "description": "+1 damage per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "damage",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-intimidating-shout",
+            "name": "Intimidating Shout",
+            "description": "Learn Intimidating Shout: -2 Strength and -1 Defense to enemies nearby.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "intimidating-shout"
+          },
+          {
+            "id": "t-hurl",
+            "name": "Hurl",
+            "description": "Learn Hurl: throw an enemy 4 tiles.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "hurl"
+          },
+          {
+            "id": "menace",
+            "name": "Menace",
+            "description": "+1 Toughness per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "toughness",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-terrify",
+            "name": "Terrify",
+            "description": "Learn Terrify: enemies within 2 tiles run from you for 2 turns.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "terrify"
+          },
+          {
+            "id": "brute",
+            "name": "Brute",
+            "description": "+4 max HP per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "wizard",
+    "classId": "wizard",
+    "branches": [
+      {
+        "id": "elemental",
+        "name": "Elemental",
+        "description": "The cold school: slows, defensive wards of ice, freezing bursts and rays of frost.",
+        "talents": [
+          {
+            "id": "t-ray-of-frost",
+            "name": "Ray of Frost",
+            "description": "Learn Ray of Frost: damage and a slow.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "ray-of-frost"
+          },
+          {
+            "id": "t-frost-armor",
+            "name": "Frost Armor",
+            "description": "Learn Frost Armor: +2 armour and magic armour for 3 rounds.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "frost-armor"
+          },
+          {
+            "id": "cold-mastery",
+            "name": "Cold Mastery",
+            "description": "+1 Intellect per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "intellect",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-frost-nova",
+            "name": "Frost Nova",
+            "description": "Learn Frost Nova: freeze every enemy next to you.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "frost-nova"
+          },
+          {
+            "id": "t-ice-barrier",
+            "name": "Ice Barrier",
+            "description": "Learn Ice Barrier: a ward of ice that soaks 8 damage.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "ice-barrier"
+          },
+          {
+            "id": "glacial",
+            "name": "Glacial",
+            "description": "+1 magic armour per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-blizzard",
+            "name": "Blizzard",
+            "description": "Learn Blizzard: freeze and slow a whole group.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "blizzard"
+          },
+          {
+            "id": "permafrost",
+            "name": "Permafrost",
+            "description": "+4 max HP per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "white-magic",
+        "name": "White Magic",
+        "description": "Healing, blessings, raising the fallen and holy light against the undead.",
+        "talents": [
+          {
+            "id": "t-mend",
+            "name": "Mend",
+            "description": "Learn Mend: heal an ally for 8.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "mend"
+          },
+          {
+            "id": "t-blessing",
+            "name": "Blessing",
+            "description": "Learn Blessing: +1 Defense and +1 Strength for an ally.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "blessing"
+          },
+          {
+            "id": "devotion",
+            "name": "Devotion",
+            "description": "+4 max HP per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-holy-smite",
+            "name": "Holy Smite",
+            "description": "Learn Holy Smite: holy light, deadly to the undead.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "holy-smite"
+          },
+          {
+            "id": "t-revive",
+            "name": "Revive",
+            "description": "Learn Revive: raise a fallen ally.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "revive"
+          },
+          {
+            "id": "t-sanctuary",
+            "name": "Sanctuary",
+            "description": "Learn Sanctuary: wards for every ally nearby.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "sanctuary"
+          },
+          {
+            "id": "grace",
+            "name": "Grace",
+            "description": "+1 Defense per rank.",
+            "tier": 2,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "defense",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-turn-undead",
+            "name": "Turn Undead",
+            "description": "Learn Turn Undead: holy light that sends the undead running.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "turn-undead"
+          },
+          {
+            "id": "t-mass-heal",
+            "name": "Mass Heal",
+            "description": "Learn Mass Heal: heal every ally nearby.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "mass-heal"
+          },
+          {
+            "id": "radiance",
+            "name": "Radiance",
+            "description": "+1 magic armour per rank.",
+            "tier": 3,
+            "maxRanks": 2,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "destruction",
+        "name": "Destruction",
+        "description": "Fire and the pit: firebolts, fireballs, immolation and summoned demons.",
+        "talents": [
+          {
+            "id": "t-firebolt",
+            "name": "Firebolt",
+            "description": "Learn Firebolt: a bolt of flame.",
+            "tier": 1,
+            "maxRanks": 1,
+            "abilityId": "firebolt"
+          },
+          {
+            "id": "kindling",
+            "name": "Kindling",
+            "description": "+1 Intellect per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "intellect",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "hellfire-ward",
+            "name": "Hellfire Ward",
+            "description": "+1 magic armour.",
+            "tier": 1,
+            "maxRanks": 1,
+            "effects": [
+              {
+                "type": "armour",
+                "armour": "magic",
+                "amount": 1
+              }
+            ]
+          },
+          {
+            "id": "t-fireball",
+            "name": "Fireball",
+            "description": "Learn Fireball: burn a whole group.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "fireball"
+          },
+          {
+            "id": "t-immolate",
+            "name": "Immolate",
+            "description": "Learn Immolate: 4 burning damage a turn for 3 turns.",
+            "tier": 2,
+            "maxRanks": 1,
+            "abilityId": "immolate"
+          },
+          {
+            "id": "infernal-vigour",
+            "name": "Infernal Vigour",
+            "description": "+4 max HP per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "maxHp",
+                "amount": 4
+              }
+            ]
+          },
+          {
+            "id": "t-summon-demon",
+            "name": "Summon Demon",
+            "description": "Learn Summon Demon: an imp fights for you for 4 turns.",
+            "tier": 3,
+            "maxRanks": 1,
+            "abilityId": "summon-demon"
+          },
+          {
+            "id": "inferno",
+            "name": "Inferno",
+            "description": "+1 Intellect per rank.",
+            "tier": 3,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "stat",
+                "stat": "intellect",
+                "amount": 1
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

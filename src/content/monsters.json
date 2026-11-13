@@ -6,14 +6,29 @@
     "portrait": "portraits/male/m-25",
     "archetype": "brawler",
     "level": 1,
-    "stats": { "strength": 13, "agility": 10, "toughness": 12, "intellect": 8, "spirit": 8, "charisma": 8 },
+    "stats": {
+      "strength": 13,
+      "agility": 10,
+      "toughness": 12,
+      "intellect": 8,
+      "spirit": 8,
+      "charisma": 8
+    },
     "hp": 14,
     "defense": 11,
-    "armour": { "physical": 2, "magic": 0 },
+    "armour": {
+      "physical": 2,
+      "magic": 0
+    },
     "attack": {
       "name": "Cudgel",
       "range": 0,
-      "profile": { "kind": "melee", "damageType": "physical", "graze": "4", "hit": "5" },
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "4",
+        "hit": "5"
+      },
       "animation": "animations/cursed-kingdoms/acck004-bludgeon"
     },
     "abilityIds": [],
@@ -26,17 +41,34 @@
     "portrait": "portraits/male/m-08",
     "archetype": "archer",
     "level": 1,
-    "stats": { "strength": 9, "agility": 14, "toughness": 10, "intellect": 9, "spirit": 9, "charisma": 8 },
+    "stats": {
+      "strength": 9,
+      "agility": 14,
+      "toughness": 10,
+      "intellect": 9,
+      "spirit": 9,
+      "charisma": 8
+    },
     "hp": 10,
     "defense": 12,
-    "armour": { "physical": 1, "magic": 0 },
+    "armour": {
+      "physical": 1,
+      "magic": 0
+    },
     "attack": {
       "name": "Shortbow",
       "range": 8,
-      "profile": { "kind": "ranged", "damageType": "physical", "graze": "1", "hit": "6" },
+      "profile": {
+        "kind": "ranged",
+        "damageType": "physical",
+        "graze": "1",
+        "hit": "6"
+      },
       "animation": "animations/quantum/ac2q003-shot"
     },
-    "abilityIds": ["aimed-shot"],
+    "abilityIds": [
+      "aimed-shot"
+    ],
     "xp": 25
   },
   {
@@ -46,17 +78,34 @@
     "portrait": "monsters/mobs/hound",
     "archetype": "savage",
     "level": 1,
-    "stats": { "strength": 12, "agility": 14, "toughness": 11, "intellect": 3, "spirit": 10, "charisma": 6 },
+    "stats": {
+      "strength": 12,
+      "agility": 14,
+      "toughness": 11,
+      "intellect": 3,
+      "spirit": 10,
+      "charisma": 6
+    },
     "hp": 12,
     "defense": 12,
-    "armour": { "physical": 0, "magic": 0 },
+    "armour": {
+      "physical": 0,
+      "magic": 0
+    },
     "attack": {
       "name": "Bite",
       "range": 0,
-      "profile": { "kind": "melee", "damageType": "physical", "graze": "2", "hit": "6" },
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "2",
+        "hit": "6"
+      },
       "animation": "animations/cursed-kingdoms/acck010-rip"
     },
-    "abilityIds": ["savage-bite"],
+    "abilityIds": [
+      "savage-bite"
+    ],
     "xp": 20
   },
   {
@@ -66,16 +115,33 @@
     "portrait": "portraits/male/cultist-02",
     "archetype": "caster",
     "level": 2,
-    "stats": { "strength": 8, "agility": 10, "toughness": 9, "intellect": 14, "spirit": 11, "charisma": 9 },
+    "stats": {
+      "strength": 8,
+      "agility": 10,
+      "toughness": 9,
+      "intellect": 14,
+      "spirit": 11,
+      "charisma": 9
+    },
     "hp": 10,
     "defense": 10,
-    "armour": { "physical": 0, "magic": 2 },
+    "armour": {
+      "physical": 0,
+      "magic": 2
+    },
     "attack": {
       "name": "Staff",
       "range": 0,
-      "profile": { "kind": "melee", "damageType": "physical", "graze": "2", "hit": "4" }
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "2",
+        "hit": "4"
+      }
     },
-    "abilityIds": ["thunderbolt"],
+    "abilityIds": [
+      "thunderbolt"
+    ],
     "xp": 40
   },
   {
@@ -85,17 +151,73 @@
     "portrait": "monsters/mobs/dark-knight-01",
     "archetype": "tank",
     "level": 3,
-    "stats": { "strength": 15, "agility": 11, "toughness": 14, "intellect": 10, "spirit": 10, "charisma": 13 },
+    "stats": {
+      "strength": 15,
+      "agility": 11,
+      "toughness": 14,
+      "intellect": 10,
+      "spirit": 10,
+      "charisma": 13
+    },
     "hp": 30,
     "defense": 13,
-    "armour": { "physical": 5, "magic": 1 },
+    "armour": {
+      "physical": 5,
+      "magic": 1
+    },
     "attack": {
       "name": "Longsword",
       "range": 0,
-      "profile": { "kind": "melee", "damageType": "physical", "graze": "3", "hit": "7" },
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "3",
+        "hit": "7"
+      },
       "animation": "animations/cursed-kingdoms/acck001-gash"
     },
-    "abilityIds": ["rally"],
+    "abilityIds": [
+      "rally"
+    ],
     "xp": 120
+  },
+  {
+    "id": "imp",
+    "name": "Imp",
+    "portrait": "monsters/mobs/imp",
+    "archetype": "savage",
+    "movement": 4,
+    "level": 2,
+    "stats": {
+      "strength": 10,
+      "agility": 14,
+      "toughness": 10,
+      "intellect": 8,
+      "spirit": 8,
+      "charisma": 6
+    },
+    "hp": 12,
+    "defense": 12,
+    "armour": {
+      "physical": 0,
+      "magic": 2
+    },
+    "attack": {
+      "name": "Burning Claws",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "2",
+        "hit": "1d6",
+        "extra": {
+          "damageType": "magic",
+          "amount": 1
+        }
+      },
+      "animation": "animations/cursed-kingdoms/acck010-rip"
+    },
+    "abilityIds": [],
+    "xp": 0
   }
 ]

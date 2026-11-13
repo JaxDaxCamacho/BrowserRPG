@@ -13,6 +13,7 @@ import {
 import { dialogueContext } from '../state/context';
 import { useGameStore } from '../state/store';
 import { Token } from './MercCard';
+import { TalentTreeView } from './TalentTreeView';
 
 const STAT_SHORT: Record<StatName, string> = {
   strength: 'STR',
@@ -61,6 +62,7 @@ export function TrainingPanel() {
   const game = useGameStore((s) => s.game);
   const apply = useGameStore((s) => s.apply);
   const [picks, setPicks] = useState<Record<string, StatName[]>>({});
+  const [openTree, setOpenTree] = useState<string | null>(null);
   const blocker = trainingBlocker(game);
   const living = game.party.filter((m) => !m.dead);
   const pending = Object.values(picks).some((p) => p.length > 0);
@@ -136,10 +138,13 @@ export function TrainingPanel() {
                   </div>
                 </>
               )}
-              {talentLeft > 0 && (
-                <p className="dim note">
-                  {talentLeft} talent point{talentLeft === 1 ? '' : 's'} saved for the talent trees, which arrive soon.
-                </p>
+              {(talentLeft > 0 || Object.keys(m.talents).length > 0) && (
+                <div className="training-talents">
+                  <button type="button" className={talentLeft > 0 ? 'primary' : ''} onClick={() => setOpenTree((o) => (o === m.id ? null : m.id))}>
+                    {openTree === m.id ? 'Hide talents' : `Talents${talentLeft > 0 ? ` (${talentLeft} to spend)` : ''}`}
+                  </button>
+                  {openTree === m.id && <TalentTreeView merc={m} />}
+                </div>
               )}
               {unspentStatPoints(m) === 0 && talentLeft === 0 && <p className="dim note">No points to spend.</p>}
             </li>
@@ -164,7 +169,7 @@ export function TrainingDialog({ onClose }: { onClose: () => void }) {
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Train" onClick={onClose}>
       <div className="modal training-dialog" onClick={(e) => e.stopPropagation()}>
         <h2>Train</h2>
-        <p className="dim">Back in town, your mercenaries can put what they learned to use. Stat points are permanent once confirmed.</p>
+        <p className="dim">Back in town, your mercenaries can put what they learned to use. Stat points and talents are permanent once confirmed.</p>
         <TrainingPanel />
         <div className="row">
           <button type="button" onClick={onClose}>

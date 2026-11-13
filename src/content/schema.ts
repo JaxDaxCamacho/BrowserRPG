@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
   ABILITY_TARGETS,
+  BONUS_CONDITIONS,
+  RESOURCES,
+  STATUS_KINDS,
   AMMO_TYPES,
   ARMOUR_WEIGHTS,
   DAMAGE_STYLES,
@@ -104,6 +107,13 @@ export const itemEffectSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('maxHp'), amount: z.number().int() }),
   z.strictObject({ type: z.literal('ability'), abilityId: id }),
   z.strictObject({ type: z.literal('heal'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('movement'), amount: z.number().int() }),
+  z.strictObject({ type: z.literal('damage'), amount: z.number().int(), twoHandedOnly: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('critRange'), amount: z.number().int().min(1).max(5) }),
+  z.strictObject({ type: z.literal('retaliate'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('bloodrage'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('statusResist'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('manaBurn'), amount: z.number().int().positive() }),
 ]);
 
 const effects = z.array(itemEffectSchema);
@@ -235,7 +245,64 @@ export const abilitySchema = z.strictObject({
   attack: attackProfileSchema.optional(),
   effects,
   duration: z.number().int().min(1).optional(),
-});
+  cost: z.strictObject({ resource: z.enum(RESOURCES), amount: z.number().int().positive() }).optional(),
+  weaponAttack: z.strictObject({ bonus: z.number().int().optional() }).optional(),
+  requiresTwoHanded: z.boolean().optional(),
+  bonuses: z.array(z.strictObject({ when: z.enum(BONUS_CONDITIONS), damage: dice })).optional(),
+  statuses: z
+    .array(
+      z.strictObject({
+        status: z.enum(STATUS_KINDS),
+        rounds: z.number().int().min(1).max(10),
+        amount: z.number().int().positive().optional(),
+        if: z.enum(BONUS_CONDITIONS).optional(),
+      }),
+    )
+    .optional(),
+  consumes: z.enum(STATUS_KINDS).optional(),
+  grantAttack: z.boolean().optional(),
+  knockback: z.number().int().min(1).max(6).optional(),
+  attackStat: statName.optional(),
+  revive: z.boolean().optional(),
+  summon: z.strictObject({ monsterId: id, rounds: z.number().int().min(1).max(10) }).optional(),
+}).refine((a) => !(a.attack && a.weaponAttack), { message: 'an ability uses its own "attack" or the "weaponAttack", not both' });
+
+// ---------- talent trees ----------
+
+const talentSchema = z
+  .strictObject({
+    id,
+    name: z.string().min(1),
+    icon: assetId.optional(),
+    description: z.string().min(1),
+    tier: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    maxRanks: z.number().int().min(1).max(5),
+    abilityId: id.optional(),
+    effects: effects.optional(),
+  })
+  .refine((t) => !t.abilityId || t.maxRanks === 1, { message: 'a talent that teaches an ability has one rank' })
+  .refine((t) => t.abilityId || (t.effects?.length ?? 0) > 0, { message: 'a talent needs an ability or effects' });
+
+export const talentTreeSchema = z
+  .strictObject({
+    id,
+    classId: id,
+    branches: z
+      .array(
+        z.strictObject({
+          id,
+          name: z.string().min(1),
+          description: z.string().min(1),
+          icon: assetId.optional(),
+          talents: z.array(talentSchema).min(1),
+        }),
+      )
+      .length(3),
+  })
+  .superRefine((tree, ctx) => {
+    const ids = tree.branches.flatMap((b) => b.talents.map((t) => t.id));
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'talent ids must be unique within a tree' });
+  });
 
 export const monsterSchema = z.strictObject({
   id,
@@ -256,6 +323,8 @@ export const monsterSchema = z.strictObject({
   }),
   abilityIds: z.array(id),
   xp: z.number().int().min(0),
+  mana: z.number().int().min(1).max(50).optional(),
+  undead: z.boolean().optional(),
 });
 
 // ---------- dialogue and adventures ----------

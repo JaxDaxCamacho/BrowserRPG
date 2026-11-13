@@ -8,12 +8,14 @@
   combatantById,
   defend,
   distance,
+  isAiControlled,
   effectiveDefense,
   endTurn,
   moveTo,
-  opposite,
   reachableTiles,
   standing,
+  statusOf,
+  visibleFoes,
   type CombatContext,
   type Combatant,
   type CombatState,
@@ -41,8 +43,15 @@ type Plan =
 
 const RANGED: ReadonlySet<EnemyArchetype> = new Set(['archer', 'caster', 'summoner', 'healer']);
 
+/** Foes the actor can see; the invisible are left out. */
 function foesOf(c: CombatState, actor: Combatant): Combatant[] {
-  return standing(c, opposite(actor.side));
+  return visibleFoes(c, actor);
+}
+
+/** The one who taunted this actor, while the taunt holds and they are still up and visible. */
+function taunter(c: CombatState, actor: Combatant): Combatant | undefined {
+  const taunt = statusOf(actor, 'taunted');
+  return taunt?.sourceId ? foesOf(c, actor).find((f) => f.id === taunt.sourceId) : undefined;
 }
 
 function nearest(from: Pos, among: Combatant[]): Combatant | undefined {
@@ -80,6 +89,14 @@ function standingAt(c: CombatState, actor: Combatant, pos: Pos): CombatState {
 function chooseAction(c: CombatState, actor: Combatant, ctx: Pick<CombatContext, 'getAbility'>): Plan {
   const abilities = usableAbilities(c, actor, ctx);
   const arch = actor.archetype ?? 'brawler';
+
+  // A taunted enemy hits whoever taunted it if it can reach them, with its best blow.
+  const goad = taunter(c, actor);
+  if (goad) {
+    const strike = abilities.find((a) => a.attack && abilityTargets(c, actor, a).some((t) => t.id === goad.id));
+    if (strike) return { kind: 'ability', abilityId: strike.id, targetId: goad.id };
+    if (attackTargets(c, actor).some((t) => t.id === goad.id)) return { kind: 'attack', targetId: goad.id };
+  }
 
   // Healers first look after their side.
   if (arch === 'healer') {
@@ -146,16 +163,28 @@ function chooseMove(c: CombatState, actor: Combatant, ctx: Pick<CombatContext, '
   }
 
   // Melee types: already next to a fitting target means stay; otherwise get next to it, or as close as possible.
-  const quarry = arch === 'assassin' ? softest(foes) : nearest(actor.pos, foes);
+  // A taunted enemy goes for the taunter, whatever its habits.
+  const goad = taunter(c, actor);
+  const quarry = goad ?? (arch === 'assassin' ? softest(foes) : nearest(actor.pos, foes));
   if (!quarry) return null;
   if (distance(actor.pos, quarry.pos) <= 1) return null;
-  if (arch !== 'assassin' && attackTargets(c, actor).length > 0) return null;
+  if (!goad && arch !== 'assassin' && attackTargets(c, actor).length > 0) return null;
   const adjacent = tiles.filter((t) => distance(t, quarry.pos) <= 1);
   if (adjacent.length > 0) return adjacent.sort((a, b) => distance(actor.pos, a) - distance(actor.pos, b))[0]!;
   return tiles.sort((a, b) => distance(a, quarry.pos) - distance(b, quarry.pos))[0]!;
 }
 
-function act(state: GameState, plan: Plan, ctx: Pick<CombatContext, 'getAbility'>): GameState {
+/** The reachable tile furthest from a threat, or null when standing still is as far as it gets. */
+function fleeFrom(c: CombatState, actor: Combatant, threat: Pos): Pos | null {
+  const tiles = [...reachableTiles(c, actor).keys()].map((k) => {
+    const [x, y] = k.split(',').map(Number);
+    return { x: x!, y: y! };
+  });
+  const best = tiles.sort((a, b) => distance(b, threat) - distance(a, threat))[0];
+  return best && distance(best, threat) > distance(actor.pos, threat) ? best : null;
+}
+
+function act(state: GameState, plan: Plan, ctx: Pick<CombatContext, 'getAbility'> & Partial<Pick<CombatContext, 'getMonster'>>): GameState {
   switch (plan.kind) {
     case 'attack':
       return attack(state, plan.targetId);
@@ -172,11 +201,22 @@ function act(state: GameState, plan: Plan, ctx: Pick<CombatContext, 'getAbility'
  * Plays the active enemy's whole turn: a move if it wants one, then its action,
  * then the turn ends.
  */
-export function runEnemyTurn(state: GameState, ctx: Pick<CombatContext, 'getAbility'>): GameState {
+export function runEnemyTurn(state: GameState, ctx: Pick<CombatContext, 'getAbility'> & Partial<Pick<CombatContext, 'getMonster'>>): GameState {
   const c = state.encounter?.combat;
   if (!c || c.outcome) return state;
   const actor = activeCombatant(c);
-  if (actor.side !== 'enemy') return state;
+  if (!isAiControlled(actor)) return state;
+
+  // A frightened enemy runs as far as it can from whoever scared it, and does nothing else.
+  const fear = statusOf(actor, 'feared');
+  const scarer = fear?.sourceId ? c.combatants.find((x) => x.id === fear.sourceId && x.hp > 0) : undefined;
+  if (scarer) {
+    const away = fleeFrom(c, actor, scarer.pos);
+    let fled = away ? moveTo(state, away) : state;
+    const after = fled.encounter?.combat;
+    if (after && !after.outcome && after.order[after.turn] === actor.id) fled = endTurn(fled);
+    return fled;
+  }
 
   let next = state;
   const target = chooseMove(c, actor, ctx);
@@ -198,6 +238,9 @@ export function runEnemyTurn(state: GameState, ctx: Pick<CombatContext, 'getAbil
 export function planEnemyTurn(state: GameState, ctx: Pick<CombatContext, 'getAbility'>): { move: Pos | null; action: Plan } {
   const c = state.encounter!.combat!;
   const actor = activeCombatant(c);
+  const fear = statusOf(actor, 'feared');
+  const scarer = fear?.sourceId ? c.combatants.find((x) => x.id === fear.sourceId && x.hp > 0) : undefined;
+  if (scarer) return { move: fleeFrom(c, actor, scarer.pos), action: { kind: 'none' } };
   const move = chooseMove(c, actor, ctx);
   const there = move ? standingAt(c, actor, move) : c;
   return { move, action: chooseAction(there, combatantById(there, actor.id), ctx) };

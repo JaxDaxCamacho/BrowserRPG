@@ -10,7 +10,13 @@
     "target": "enemy",
     "range": 0,
     "cooldown": 2,
-    "attack": { "kind": "melee", "damageType": "physical", "graze": "2", "hit": "7", "critThreshold": 19 },
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "2",
+      "hit": "7",
+      "critThreshold": 19
+    },
     "effects": []
   },
   {
@@ -24,7 +30,13 @@
     "target": "enemy",
     "range": 8,
     "cooldown": 2,
-    "attack": { "kind": "ranged", "damageType": "physical", "graze": "1", "hit": "7", "critThreshold": 19 },
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "1",
+      "hit": "7",
+      "critThreshold": 19
+    },
     "effects": []
   },
   {
@@ -37,7 +49,12 @@
     "usableBy": "both",
     "target": "enemy",
     "range": 6,
-    "attack": { "kind": "magic", "damageType": "magic", "graze": "2", "hit": "6" },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "6"
+    },
     "effects": []
   },
   {
@@ -51,7 +68,1298 @@
     "target": "allAllies",
     "range": 6,
     "cooldown": 4,
-    "effects": [{ "type": "stat", "stat": "strength", "amount": 1 }],
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": 1
+      }
+    ],
     "duration": 3
+  },
+  {
+    "id": "crushing-blow",
+    "name": "Crushing Blow",
+    "icon": "skills/red/red-01",
+    "animation": "animations/cursed-kingdoms/acck004-bludgeon",
+    "description": "A two-handed blow that stuns the target for a turn. +2 damage.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {
+      "bonus": 2
+    },
+    "requiresTwoHanded": true,
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "execution",
+    "name": "Execution",
+    "icon": "skills/red/red-02",
+    "animation": "animations/quantum/ac2q001-slash",
+    "description": "A killing stroke with a two-handed weapon. +2d8 damage against a stunned target.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 5
+    },
+    "weaponAttack": {},
+    "requiresTwoHanded": true,
+    "bonuses": [
+      {
+        "when": "targetStunned",
+        "damage": "2d8"
+      }
+    ]
+  },
+  {
+    "id": "judgement",
+    "name": "Judgement",
+    "icon": "skills/red/red-04",
+    "animation": "animations/quantum/ac2q001-slash",
+    "description": "A sweeping two-handed strike at an enemy and everyone next to them. +2 damage.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "area",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 6
+    },
+    "weaponAttack": {
+      "bonus": 2
+    },
+    "requiresTwoHanded": true
+  },
+  {
+    "id": "taunt",
+    "name": "Taunt",
+    "icon": "skills/red/red-05",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Every enemy within 3 tiles must come for the knight for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 3,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "statuses": [
+      {
+        "status": "taunted",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "shield-wall",
+    "name": "Shield Wall",
+    "icon": "skills/red/red-06",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Brace behind the shield: +3 armour, +2 Defense, and melee attackers take 3 damage, for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "physical",
+        "amount": 3
+      },
+      {
+        "type": "defense",
+        "amount": 2
+      },
+      {
+        "type": "retaliate",
+        "amount": 3
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 4
+    }
+  },
+  {
+    "id": "forward",
+    "name": "Forward!",
+    "icon": "skills/yellow/yellow-01",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "An ally gains +2 movement and +1 Defense for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 2,
+    "effects": [
+      {
+        "type": "movement",
+        "amount": 2
+      },
+      {
+        "type": "defense",
+        "amount": 1
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    }
+  },
+  {
+    "id": "hold-fast",
+    "name": "Hold Fast",
+    "icon": "skills/yellow/yellow-03",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Every ally within 4 tiles gains +2 Defense for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 4,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": 2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    }
+  },
+  {
+    "id": "opening",
+    "name": "Opening!",
+    "icon": "skills/yellow/yellow-04",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Point out a gap: an ally makes a free attack on an enemy next to them.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "grantAttack": true
+  },
+  {
+    "id": "coordinated-assault",
+    "name": "Coordinated Assault",
+    "icon": "skills/yellow/yellow-06",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "On the knight's word, every ally within 5 tiles makes a free attack on an enemy next to them.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 5,
+    "cooldown": 5,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 6
+    },
+    "grantAttack": true
+  },
+  {
+    "id": "backstab",
+    "name": "Backstab",
+    "icon": "skills/red/red-07",
+    "animation": "animations/cursed-kingdoms/acck002-lacerate",
+    "description": "Strike an enemy busy with someone else: +1d6 damage when an ally is next to the target.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "weaponAttack": {},
+    "bonuses": [
+      {
+        "when": "targetFlanked",
+        "damage": "1d6"
+      }
+    ]
+  },
+  {
+    "id": "poisoned-blade",
+    "name": "Poisoned Blade",
+    "icon": "skills/red/red-09",
+    "animation": "animations/dark/asdark-04-sting",
+    "description": "A coated strike: the target takes 2 poison damage each turn for 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "poisoned",
+        "rounds": 3,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": "vanish",
+    "name": "Vanish",
+    "icon": "skills/yellow/yellow-07",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Disappear for 2 turns: enemies cannot target you, and your next attack has advantage. Attacking ends it.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 4
+    },
+    "statuses": [
+      {
+        "status": "invisible",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "assassinate",
+    "name": "Assassinate",
+    "icon": "skills/red/red-10",
+    "animation": "animations/cursed-kingdoms/acck002-lacerate",
+    "description": "+2 damage, +2d6 when striking from invisibility and +2d6 more when the target is flanked.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 6
+    },
+    "weaponAttack": {
+      "bonus": 2
+    },
+    "bonuses": [
+      {
+        "when": "fromInvisible",
+        "damage": "2d6"
+      },
+      {
+        "when": "targetFlanked",
+        "damage": "2d6"
+      }
+    ]
+  },
+  {
+    "id": "pocket-sand",
+    "name": "Pocket Sand",
+    "icon": "skills/yellow/yellow-08",
+    "animation": "animations/quantum/ac2q002-blow",
+    "description": "A fistful of grit in the eyes: the target attacks with disadvantage for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 1,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "statuses": [
+      {
+        "status": "blinded",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "cheap-shot",
+    "name": "Cheap Shot",
+    "icon": "skills/red/red-11",
+    "animation": "animations/quantum/ac2q002-blow",
+    "description": "A low blow that stuns the target for a turn.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "pierce-lung",
+    "name": "Pierce Lung",
+    "icon": "skills/red/red-12",
+    "animation": "animations/cursed-kingdoms/acck002-lacerate",
+    "description": "A stab between the ribs: 2 bleeding damage each turn for 3 turns, and -2 movement for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [
+      {
+        "type": "movement",
+        "amount": -2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "bleeding",
+        "rounds": 3,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": "lighter-fluid",
+    "name": "Lighter Fluid",
+    "icon": "skills/yellow/yellow-09",
+    "animation": "animations/quantum/ac2q002-blow",
+    "description": "Splash a target with lamp oil for 3 turns. It is waiting for a spark.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 2,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "statuses": [
+      {
+        "status": "oiled",
+        "rounds": 3
+      }
+    ]
+  },
+  {
+    "id": "light-em-up",
+    "name": "Light 'Em Up",
+    "icon": "skills/yellow/yellow-10",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "Toss a lit match. Against an oiled target: +2d6 damage and it burns for 3 damage a turn for 3 turns, using up the oil.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 4
+    },
+    "attack": {
+      "kind": "ranged",
+      "damageType": "magic",
+      "graze": "1",
+      "hit": "1d4"
+    },
+    "bonuses": [
+      {
+        "when": "targetOiled",
+        "damage": "2d6"
+      }
+    ],
+    "statuses": [
+      {
+        "status": "burning",
+        "rounds": 3,
+        "amount": 3,
+        "if": "targetOiled"
+      }
+    ],
+    "consumes": "oiled"
+  },
+  {
+    "id": "sidestep",
+    "name": "Sidestep",
+    "icon": "skills/yellow/yellow-11",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Dance out of reach: +2 Defense and no free attacks when stepping away, for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": 2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 1
+    },
+    "statuses": [
+      {
+        "status": "evasive",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "distract",
+    "name": "Distract",
+    "icon": "skills/yellow/yellow-12",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "A flourish and a wink: the target has -3 Defense for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 2,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": -3
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    }
+  },
+  {
+    "id": "song-of-courage",
+    "name": "Song of Courage",
+    "icon": "skills/yellow/yellow-13",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Allies within 4 tiles gain +1 Strength and +1 Agility for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 3,
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": 1
+      },
+      {
+        "type": "stat",
+        "stat": "agility",
+        "amount": 1
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "spark",
+    "name": "Spark",
+    "icon": "skills/yellow/yellow-14",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "A simple conjurer's trick: a crackling bolt of magic.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 5,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "1",
+      "hit": "1d6"
+    }
+  },
+  {
+    "id": "grand-finale",
+    "name": "Grand Finale",
+    "icon": "skills/yellow/yellow-15",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "The big number: allies within 5 tiles gain +2 Defense, +1 movement and +1 Strength for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 5,
+    "cooldown": 5,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": 2
+      },
+      {
+        "type": "movement",
+        "amount": 1
+      },
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": 1
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 5
+    }
+  },
+  {
+    "id": "reckless-swing",
+    "name": "Reckless Swing",
+    "icon": "skills/red/red-13",
+    "animation": "animations/quantum/ac2q001-slash",
+    "description": "A wild, all-in blow: +4 damage.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "weaponAttack": {
+      "bonus": 4
+    }
+  },
+  {
+    "id": "whirlwind",
+    "name": "Whirlwind",
+    "icon": "skills/red/red-14",
+    "animation": "animations/quantum/ac2q001-slash",
+    "description": "Spin with the weapon out: a weapon attack on every enemy in reach.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 4
+    },
+    "weaponAttack": {}
+  },
+  {
+    "id": "giant-slayer",
+    "name": "Giant Slayer",
+    "icon": "skills/red/red-15",
+    "animation": "animations/cursed-kingdoms/acck004-bludgeon",
+    "description": "Go for the knees: +2 damage, and +3d6 against an enemy with more max HP than you.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 5
+    },
+    "weaponAttack": {
+      "bonus": 2
+    },
+    "bonuses": [
+      {
+        "when": "targetBigger",
+        "damage": "3d6"
+      }
+    ]
+  },
+  {
+    "id": "headbutt",
+    "name": "Headbutt",
+    "icon": "skills/red/red-16",
+    "animation": "animations/quantum/ac2q002-blow",
+    "description": "Crack skulls: silences the target for 2 turns (no abilities or spells). +1d6 against casters.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "1",
+      "hit": "1d4"
+    },
+    "bonuses": [
+      {
+        "when": "targetCaster",
+        "damage": "1d6"
+      }
+    ],
+    "statuses": [
+      {
+        "status": "silenced",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "spellbreaker",
+    "name": "Spellbreaker",
+    "icon": "skills/yellow/yellow-16",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "For 3 turns, the next hostile spell aimed at you fizzles.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "statuses": [
+      {
+        "status": "spellguard",
+        "rounds": 3
+      }
+    ]
+  },
+  {
+    "id": "spell-reflection",
+    "name": "Spell Reflection",
+    "icon": "skills/yellow/yellow-17",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "For 3 turns, the next hostile spell aimed at you is thrown back at its caster.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 5,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 4
+    },
+    "statuses": [
+      {
+        "status": "reflecting",
+        "rounds": 3
+      }
+    ]
+  },
+  {
+    "id": "shove",
+    "name": "Shove",
+    "icon": "skills/red/red-17",
+    "animation": "animations/quantum/ac2q002-blow",
+    "description": "A weapon blow that knocks the target 2 tiles back. Slamming into something hurts.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 2
+    },
+    "weaponAttack": {},
+    "knockback": 2
+  },
+  {
+    "id": "throwing-axe",
+    "name": "Throwing Axe",
+    "icon": "skills/red/red-18",
+    "animation": "animations/quantum/ac2q003-shot",
+    "description": "Hurl an axe up to 4 tiles, thrown with Strength.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 1
+    },
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "2",
+      "hit": "1d8"
+    },
+    "attackStat": "strength"
+  },
+  {
+    "id": "intimidating-shout",
+    "name": "Intimidating Shout",
+    "icon": "skills/red/red-19",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "A roar that rattles every enemy within 2 tiles: -2 Strength and -1 Defense for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 2,
+    "cooldown": 4,
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": -2
+      },
+      {
+        "type": "defense",
+        "amount": -1
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    }
+  },
+  {
+    "id": "hurl",
+    "name": "Hurl",
+    "icon": "skills/red/red-20",
+    "animation": "animations/cursed-kingdoms/acck004-bludgeon",
+    "description": "Pick the target up and throw it: a weapon hit that knocks it 4 tiles. Slamming into something hurts both.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 4
+    },
+    "weaponAttack": {},
+    "knockback": 4
+  },
+  {
+    "id": "terrify",
+    "name": "Terrify",
+    "icon": "skills/red/red-21",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Every enemy within 2 tiles is feared for 2 turns and runs from you.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 2,
+    "cooldown": 5,
+    "effects": [],
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 5
+    },
+    "statuses": [
+      {
+        "status": "feared",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "id": "ray-of-frost",
+    "name": "Ray of Frost",
+    "icon": "skills/blue/blue-01",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "A beam of cold: magic damage and -2 movement for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 6,
+    "cooldown": 1,
+    "effects": [
+      {
+        "type": "movement",
+        "amount": -2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "1",
+      "hit": "1d6"
+    }
+  },
+  {
+    "id": "frost-armor",
+    "name": "Frost Armor",
+    "icon": "skills/blue/blue-02",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Sheathe yourself in ice: +2 armour and +2 magic armour for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "physical",
+        "amount": 2
+      },
+      {
+        "type": "armour",
+        "armour": "magic",
+        "amount": 2
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "frost-nova",
+    "name": "Frost Nova",
+    "icon": "skills/blue/blue-03",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "A burst of cold around you: magic damage to every enemy next to you, freezing them for a turn. A blow shatters the ice.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 1,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 4
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "1",
+      "hit": "1d4"
+    },
+    "statuses": [
+      {
+        "status": "frozen",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "ice-barrier",
+    "name": "Ice Barrier",
+    "icon": "skills/blue/blue-04",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "A shell of ice on an ally that soaks up 8 damage, for up to 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 4
+    },
+    "statuses": [
+      {
+        "status": "warded",
+        "rounds": 3,
+        "amount": 8
+      }
+    ]
+  },
+  {
+    "id": "blizzard",
+    "name": "Blizzard",
+    "icon": "skills/blue/blue-05",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "A storm on an enemy and everyone next to it: magic damage, frozen for a turn, and -2 movement for 2 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "area",
+    "range": 6,
+    "cooldown": 5,
+    "effects": [
+      {
+        "type": "movement",
+        "amount": -2
+      }
+    ],
+    "duration": 2,
+    "cost": {
+      "resource": "mana",
+      "amount": 7
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "2d6"
+    },
+    "statuses": [
+      {
+        "status": "frozen",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "id": "mend",
+    "name": "Mend",
+    "icon": "skills/green/green-01",
+    "animation": "animations/quantum/ac2q022-star-heal",
+    "description": "Heal an ally (or yourself) for 8.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 1,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 8
+      }
+    ],
+    "cost": {
+      "resource": "mana",
+      "amount": 3
+    }
+  },
+  {
+    "id": "blessing",
+    "name": "Blessing",
+    "icon": "skills/green/green-02",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "An ally gains +1 Defense and +1 Strength for 3 rounds.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 4,
+    "cooldown": 2,
+    "effects": [
+      {
+        "type": "defense",
+        "amount": 1
+      },
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": 1
+      }
+    ],
+    "duration": 3,
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    }
+  },
+  {
+    "id": "holy-smite",
+    "name": "Holy Smite",
+    "icon": "skills/green/green-03",
+    "animation": "animations/dark/asdark-04-sting",
+    "description": "Holy light, cast with Intellect: +2d6 against the undead.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 5,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "1",
+      "hit": "1d6"
+    },
+    "attackStat": "intellect",
+    "bonuses": [
+      {
+        "when": "targetUndead",
+        "damage": "2d6"
+      }
+    ]
+  },
+  {
+    "id": "revive",
+    "name": "Revive",
+    "icon": "skills/green/green-04",
+    "animation": "animations/quantum/ac2q022-star-heal",
+    "description": "Raise a fallen ally within 2 tiles with 10 HP.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "ally",
+    "range": 2,
+    "cooldown": 5,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 10
+      }
+    ],
+    "cost": {
+      "resource": "mana",
+      "amount": 6
+    },
+    "revive": true
+  },
+  {
+    "id": "sanctuary",
+    "name": "Sanctuary",
+    "icon": "skills/green/green-05",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Every ally within 4 tiles gets a ward that soaks up 5 damage, for up to 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 5,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 5
+    },
+    "statuses": [
+      {
+        "status": "warded",
+        "rounds": 3,
+        "amount": 5
+      }
+    ]
+  },
+  {
+    "id": "turn-undead",
+    "name": "Turn Undead",
+    "icon": "skills/green/green-06",
+    "animation": "animations/dark/asdark-04-sting",
+    "description": "Holy light on every enemy within 3 tiles: +2d6 against the undead, which also flee for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allEnemies",
+    "range": 3,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 5
+    },
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "1",
+      "hit": "1d6"
+    },
+    "attackStat": "intellect",
+    "bonuses": [
+      {
+        "when": "targetUndead",
+        "damage": "2d6"
+      }
+    ],
+    "statuses": [
+      {
+        "status": "feared",
+        "rounds": 2,
+        "if": "targetUndead"
+      }
+    ]
+  },
+  {
+    "id": "mass-heal",
+    "name": "Mass Heal",
+    "icon": "skills/green/green-07",
+    "animation": "animations/quantum/ac2q022-star-heal",
+    "description": "Heal every ally within 4 tiles for 6.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 5,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 6
+      }
+    ],
+    "cost": {
+      "resource": "mana",
+      "amount": 7
+    }
+  },
+  {
+    "id": "firebolt",
+    "name": "Firebolt",
+    "icon": "skills/red/red-22",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "A bolt of flame.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 6,
+    "cooldown": 1,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 2
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "1d8"
+    }
+  },
+  {
+    "id": "fireball",
+    "name": "Fireball",
+    "icon": "skills/red/red-23",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "An explosion on an enemy and everyone next to it: magic damage, and they burn for 2 a turn for 2 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "area",
+    "range": 6,
+    "cooldown": 4,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 6
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "2d6"
+    },
+    "statuses": [
+      {
+        "status": "burning",
+        "rounds": 2,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": "immolate",
+    "name": "Immolate",
+    "icon": "skills/red/red-24",
+    "animation": "animations/thunder/asthunder-03-spark",
+    "description": "Set an enemy alight: it burns for 4 damage a turn for 3 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "enemy",
+    "range": 5,
+    "cooldown": 3,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 4
+    },
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "1",
+      "hit": "1d4"
+    },
+    "statuses": [
+      {
+        "status": "burning",
+        "rounds": 3,
+        "amount": 4
+      }
+    ]
+  },
+  {
+    "id": "summon-demon",
+    "name": "Summon Demon",
+    "icon": "skills/red/red-25",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "Call up an imp to fight at your side for 4 turns.",
+    "activation": "action",
+    "usableBy": "mercs",
+    "target": "self",
+    "range": 0,
+    "cooldown": 6,
+    "effects": [],
+    "cost": {
+      "resource": "mana",
+      "amount": 8
+    },
+    "summon": {
+      "monsterId": "imp",
+      "rounds": 4
+    }
   }
 ]

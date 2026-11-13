@@ -1,12 +1,11 @@
 import { useEffect, useState, type DragEvent } from 'react';
-import { getClass, getItem, getRace } from '../content';
+import { getClass, getItem, getRace, getTalentTree } from '../content';
 import {
   arrangeParty,
   equipFromPack,
   formatCoins,
   giveStack,
   itemSize,
-  mercSheet,
   moveInPack,
   naturalSlot,
   PACK_HEIGHT,
@@ -21,7 +20,7 @@ import {
   unspentStatPoints,
   unspentTalentPoints,
 } from '../engine';
-import { currentHp } from '../state/context';
+import { currentHp, sheetOf } from '../state/context';
 import { useGameStore } from '../state/store';
 import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
@@ -76,9 +75,13 @@ export function PartyWindow({ onClose }: { onClose: () => void }) {
   const merc = game.party.find((m) => m.id === mercId)!;
   const race = getRace(merc.raceId);
   const cls = getClass(merc.classId);
-  const sheet = mercSheet(merc, race, cls, getItem);
+  const sheet = sheetOf(merc);
   const hp = currentHp(merc);
-  const baseStats = mercSheet({ ...merc, injuries: [] }, race, cls, getItem).stats;
+  const baseStats = sheetOf({ ...merc, injuries: [] }).stats;
+  const tree = getTalentTree(merc.classId);
+  const learned = (tree?.branches ?? []).flatMap((b) =>
+    b.talents.filter((t) => (merc.talents[t.id] ?? 0) > 0).map((t) => ({ talent: t, rank: merc.talents[t.id]!, branch: b.name })),
+  );
 
   /** Runs a change, showing why if it is refused. */
   const tryApply = (change: (g: GameState) => GameState) => {
@@ -221,11 +224,22 @@ export function PartyWindow({ onClose }: { onClose: () => void }) {
               {merc.injuries.length} of 3 injuries. A fourth is fatal. Heal them with a healing kit during a long rest.
             </p>
             <h3>Talents</h3>
+            {learned.length === 0 ? (
+              <p className="dim">None yet.</p>
+            ) : (
+              <ul className="injury-list">
+                {learned.map(({ talent, rank, branch }) => (
+                  <li key={talent.id}>
+                    <strong>{talent.name}</strong>
+                    {talent.maxRanks > 1 && ` ${rank}/${talent.maxRanks}`} <span className="dim">· {branch}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <p className="dim note">
               {unspentTalentPoints(merc) > 0 || unspentStatPoints(merc) > 0
                 ? `${unspentStatPoints(merc)} stat and ${unspentTalentPoints(merc)} talent points unspent. Spend them at camp or in town.`
-                : 'No unspent points.'}{' '}
-              The talent trees arrive soon.
+                : 'No unspent points.'}
             </p>
           </section>
 

@@ -1,7 +1,8 @@
-import { getAbility, getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getRace } from '../content';
+import { getAbility, getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getRace, getTalentTree } from '../content';
 import {
   finalStats,
   mercSheet,
+  talentEffects,
   type CombatContext,
   type DialogueContext,
   type DungeonContext,
@@ -9,8 +10,13 @@ import {
   type Merc,
 } from '../engine';
 
+/** The full character sheet: race, class, gear and talents. */
+export function sheetOf(merc: Merc) {
+  return mercSheet(merc, getRace(merc.raceId), getClass(merc.classId), getItem, talentEffects(merc, getTalentTree(merc.classId)));
+}
+
 function maxHpOf(merc: Merc): number {
-  return mercSheet(merc, getRace(merc.raceId), getClass(merc.classId), getItem).maxHp;
+  return sheetOf(merc).maxHp;
 }
 
 /** Gives the engine what it needs from content: stats and hit points depend on race, class and gear. */
@@ -45,7 +51,7 @@ export const combatContext: CombatContext = {
   getAbility,
   getItem,
   getDungeon,
-  sheetOf: (merc) => mercSheet(merc, getRace(merc.raceId), getClass(merc.classId), getItem),
+  sheetOf,
   raceOf: (merc) => getRace(merc.raceId),
 };
 

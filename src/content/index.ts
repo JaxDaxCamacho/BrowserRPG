@@ -8,6 +8,7 @@ import {
   type MercDraft,
   type MonsterDefinition,
   type RaceDefinition,
+  type TalentTree,
 } from '../engine';
 import abilitiesJson from './abilities.json';
 import classesJson from './classes.json';
@@ -16,6 +17,7 @@ import monstersJson from './monsters.json';
 import portraitsJson from './portraits.json';
 import premadesJson from './premades.json';
 import racesJson from './races.json';
+import talentsJson from './talents.json';
 import {
   abilitySchema,
   adventureSchema,
@@ -27,6 +29,7 @@ import {
   portraitSchema,
   premadeSchema,
   raceSchema,
+  talentTreeSchema,
   type AdventureDefinition,
   type PortraitDefinition,
   type ClassDefinition,
@@ -43,9 +46,11 @@ export interface ContentSet {
   portraits: PortraitDefinition[];
   adventures: AdventureDefinition[];
   dungeons: DungeonDefinition[];
+  /** One tree per class that has one. Not edited in the content editor yet. */
+  talents: (TalentTree & { id: string })[];
 }
 
-export type CollectionKey = Exclude<keyof ContentSet, 'adventures' | 'dungeons'>;
+export type CollectionKey = Exclude<keyof ContentSet, 'adventures' | 'dungeons' | 'talents'>;
 
 /** Every dungeon and adventure file, one per entry, loaded at build time in file-name order. */
 const dungeonFiles = import.meta.glob('./dungeons/*.json', { eager: true, import: 'default' });
@@ -120,6 +125,28 @@ export function crossCheck(set: ContentSet): string[] {
       }
     }
   };
+
+  for (const ability of set.abilities) {
+    if (ability.summon && !has(set.monsters, ability.summon.monsterId)) {
+      problems.push(`Ability "${ability.id}" summons unknown monster "${ability.summon.monsterId}".`);
+    }
+  }
+
+  const treeClasses = new Set<string>();
+  for (const tree of set.talents ?? []) {
+    if (!has(set.classes, tree.classId)) problems.push(`Talent tree "${tree.id}" is for unknown class "${tree.classId}".`);
+    if (treeClasses.has(tree.classId)) problems.push(`Class "${tree.classId}" has more than one talent tree.`);
+    treeClasses.add(tree.classId);
+    for (const talent of tree.branches.flatMap((b) => b.talents)) {
+      const owner = `Talent "${tree.id}/${talent.id}"`;
+      if (talent.abilityId) {
+        const ability = set.abilities.find((a) => a.id === talent.abilityId);
+        if (!ability) problems.push(`${owner} teaches unknown ability "${talent.abilityId}".`);
+        else if (ability.usableBy === 'monsters') problems.push(`${owner} teaches "${ability.id}", which only monsters can use.`);
+      }
+      checkAbilityEffects(owner, talent.effects ?? []);
+    }
+  }
 
   for (const item of set.items) {
     if ('effects' in item) checkAbilityEffects(`Item "${item.id}"`, item.effects);
@@ -262,6 +289,7 @@ export const CONTENT: ContentSet = {
   portraits: parseList(portraitSchema, portraitsJson, 'portrait'),
   adventures: parseList(adventureSchema, byFileName(adventureFiles), 'adventure'),
   dungeons: parseList(dungeonSchema, byFileName(dungeonFiles), 'dungeon'),
+  talents: parseList(talentTreeSchema, talentsJson, 'talent tree'),
 };
 
 const contentProblems = crossCheck(CONTENT);
@@ -281,6 +309,11 @@ export const getClass = lookup(CLASSES, 'class');
 export const getRace = lookup(RACES, 'race');
 export const getItem = lookup(ITEMS, 'item');
 export const getAbility = lookup(ABILITIES, 'ability');
+
+/** The talent tree for a class, if it has one yet. */
+export function getTalentTree(classId: string): TalentTree | undefined {
+  return CONTENT.talents.find((t) => t.classId === classId);
+}
 export const getMonster = lookup(MONSTERS, 'monster');
 export const getAdventure = lookup(ADVENTURES, 'adventure');
 export const getDungeon = lookup(DUNGEONS, 'dungeon');

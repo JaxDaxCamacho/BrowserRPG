@@ -2,6 +2,7 @@ import type { Armour } from './attack';
 import { STARTING_PURSE } from './currency';
 import { defenseOf, maxHitPoints, type ClassNumbers } from './derived';
 import {
+  addEffects,
   gearTotals,
   missingAmmo,
   STARTING_AMMO,
@@ -9,6 +10,7 @@ import {
   type ArmourProficiency,
   type Equipment,
   type InventoryStack,
+  type ItemEffect,
   type ItemLookup,
   type Loadout,
 } from './items';
@@ -133,8 +135,24 @@ export interface MercSheet {
   maxHp: number;
   defense: number;
   armour: Armour;
-  /** Abilities granted by gear. */
-  gearAbilityIds: string[];
+  /** Abilities granted by gear and talents. */
+  abilityIds: string[];
+  /** Combat extras from gear and talents. */
+  movementBonus: number;
+  /** Flat damage on every weapon attack that lands. */
+  damageBonus: number;
+  /** Extra flat damage while the main weapon needs both hands. */
+  twoHandedDamageBonus: number;
+  /** How many numbers lower the weapon crits. */
+  critRange: number;
+  /** Damage dealt back to melee attackers who land a blow. */
+  retaliate: number;
+  /** Strength and movement per quarter of max HP missing. */
+  bloodrage: number;
+  /** Turns taken off hostile conditions. */
+  statusResist: number;
+  /** Extra damage and mana drained on weapon hits against casters. */
+  manaBurn: number;
 }
 
 type SheetSource = Pick<MercDraft, 'baseStats' | 'raceChoices'> & {
@@ -145,8 +163,16 @@ type SheetSource = Pick<MercDraft, 'baseStats' | 'raceChoices'> & {
 };
 
 /** Everything the character sheet shows that is worked out rather than stored. */
-export function mercSheet(merc: SheetSource, race: RaceDefinition, cls: ClassNumbers, getItem: ItemLookup): MercSheet {
+export function mercSheet(
+  merc: SheetSource,
+  race: RaceDefinition,
+  cls: ClassNumbers,
+  getItem: ItemLookup,
+  /** Passive effects and abilities from talents. */
+  talentEffects: ItemEffect[] = [],
+): MercSheet {
   const gear = gearTotals(merc.equipment ?? merc.loadout ?? {}, getItem);
+  addEffects(gear, talentEffects);
   const stats = applyStatChanges(finalStats(merc, race), gear.stats);
   return {
     stats,
@@ -156,6 +182,14 @@ export function mercSheet(merc: SheetSource, race: RaceDefinition, cls: ClassNum
       physical: raceBaseArmour(race, 'physical') + gear.armour.physical,
       magic: raceBaseArmour(race, 'magic') + gear.armour.magic,
     },
-    gearAbilityIds: gear.abilityIds,
+    abilityIds: gear.abilityIds,
+    movementBonus: gear.movement,
+    damageBonus: gear.damage,
+    twoHandedDamageBonus: gear.twoHandedDamage,
+    critRange: gear.critRange,
+    retaliate: gear.retaliate,
+    bloodrage: gear.bloodrage,
+    statusResist: gear.statusResist,
+    manaBurn: gear.manaBurn,
   };
 }

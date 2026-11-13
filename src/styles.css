@@ -2578,3 +2578,344 @@ button.portrait-choice:hover {
   padding: 0 6px;
   line-height: 1.6;
 }
+
+/* ---------- combat: action bar, resources and conditions ---------- */
+
+.action-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.action-slot {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 3px;
+  border: 2px solid var(--border);
+  border-image: none;
+  border-radius: 6px;
+  background: #241d19;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.action-slot:hover:not(:disabled),
+.action-slot:focus-visible {
+  border-color: var(--accent);
+}
+
+.action-slot.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgb(201 150 60 / 60%);
+}
+
+.action-slot.blocked .slot-icon {
+  filter: grayscale(1) brightness(0.55);
+}
+
+.action-slot:disabled {
+  cursor: not-allowed;
+}
+
+.slot-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+}
+
+.slot-key {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 0.7rem;
+  line-height: 16px;
+  text-align: center;
+}
+
+.slot-cost {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  min-width: 18px;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  line-height: 16px;
+  background: #3a2a24;
+  color: var(--ink);
+}
+
+.slot-cooldown {
+  position: absolute;
+  inset: 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.slot-tip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.8rem;
+  text-align: left;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.action-slot:hover .slot-tip,
+.action-slot:focus-visible .slot-tip {
+  display: flex;
+}
+
+.slot-why {
+  color: #e07a5f;
+}
+
+.res-mana {
+  --res: #5b8bd6;
+}
+
+.res-adrenaline {
+  --res: #d65b4a;
+}
+
+.res-souls {
+  --res: #9d6bd6;
+}
+
+.slot-cost.res-mana,
+.slot-cost.res-adrenaline,
+.slot-cost.res-souls {
+  background: var(--res);
+  color: #fff;
+}
+
+.resource-meters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.75rem;
+}
+
+.resource-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resource-name {
+  color: var(--res);
+  font-weight: bold;
+}
+
+.resource-bar {
+  display: block;
+  width: 90px;
+  height: 7px;
+  border-radius: 4px;
+  background: #3a2a24;
+  overflow: hidden;
+}
+
+.resource-bar span {
+  display: block;
+  height: 100%;
+  background: var(--res);
+  transition: width 0.3s;
+}
+
+.action-extra button {
+  font-size: 0.9rem;
+}
+
+.targeting-hint {
+  margin: 0;
+}
+
+.token-statuses {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 80%));
+}
+
+.combat-token.invisible .token-face {
+  opacity: 0.4;
+}
+
+@media (max-width: 600px) {
+  .action-slot {
+    width: 44px;
+    height: 44px;
+  }
+
+  .slot-icon {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* ---------- talent trees ---------- */
+
+.training-talents {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.training-dialog {
+  max-width: 900px;
+}
+
+.talent-tree {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.talent-points {
+  margin: 0;
+}
+
+.talent-branches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 700px) {
+  .talent-branches {
+    grid-template-columns: 1fr;
+  }
+}
+
+.talent-branch {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.talent-branch h4 {
+  margin: 0 0 2px;
+}
+
+.talent-branch-text {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+}
+
+.talent-tier {
+  padding: 4px 0;
+  border-top: 1px dashed var(--border);
+}
+
+.talent-tier.locked {
+  opacity: 0.5;
+}
+
+.talent-tier-label {
+  font-size: 0.7rem;
+}
+
+.talent-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.talent {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 2px;
+  border: 2px solid var(--border);
+  border-image: none;
+  border-radius: 6px;
+  background: #241d19;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.talent.learned {
+  border-color: #7fb069;
+}
+
+.talent.pending {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgb(201 150 60 / 60%);
+}
+
+.talent.unavailable:not(.learned):not(.pending) .talent-icon {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.talent:hover .slot-tip,
+.talent:focus-visible .slot-tip {
+  display: flex;
+}
+
+.talent-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+}
+
+.talent-rank {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.65rem;
+  line-height: 14px;
+}
+
+.talent-active {
+  position: absolute;
+  left: -4px;
+  top: -6px;
+  color: var(--accent);
+  font-size: 0.8rem;
+}

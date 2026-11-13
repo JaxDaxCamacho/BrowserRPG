@@ -1,19 +1,18 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { getAbility, getDungeon, getItem } from '../content';
+import { getDungeon } from '../content';
 import {
   abilityTargets,
   activeCombatant,
-  ammoLeft,
   attack,
   attackTargets,
   ATTACK_STAT,
-  canUseAbility,
   defend,
   effectiveDefense,
   endTurn,
   featureById,
   finishCombat,
   flee,
+  isAiControlled,
   isEngaged,
   moveTo,
   obstacleTargets,
@@ -34,10 +33,12 @@ import {
   type CombatState,
   type Obstacle,
   type Pos,
+  type StatusKind,
 } from '../engine';
 import { combatContext } from '../state/context';
 import { useGameStore } from '../state/store';
 import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
+import { ActionBar, needsPick, slotsFor } from './ActionBar';
 import { DieFace } from './Dice';
 import { initials } from './MercCard';
 
@@ -67,9 +68,32 @@ function flashesFrom(events: CombatEvent[], seq: number): Flash[] {
     if (e.kind === 'heal' && e.targetId) return [{ key, targetId: e.targetId, text: `+${e.amount ?? 0}`, tone: 'heal', ...(e.animation ? { animation: e.animation } : {}) }];
     if (e.kind === 'buff' && e.targetId) return [{ key, targetId: e.targetId, text: 'Boost', tone: 'buff', ...(e.animation ? { animation: e.animation } : {}) }];
     if (e.kind === 'defend') return [{ key, targetId: e.actorId, text: 'Defend', tone: 'buff' }];
+    if (e.kind === 'status' && e.targetId) {
+      const text = e.amount ? `-${e.amount} ${e.label ?? ''}`.trim() : (STATUS_FLAIR[e.label as StatusKind]?.name ?? e.label ?? '');
+      return [{ key, targetId: e.targetId, text, tone: e.amount ? 'damage' : 'buff' }];
+    }
     return [];
   });
 }
+
+/** How each condition shows on a token. */
+const STATUS_FLAIR: Record<StatusKind, { icon: string; name: string }> = {
+  stunned: { icon: '💫', name: 'Stunned' },
+  taunted: { icon: '😠', name: 'Taunted' },
+  invisible: { icon: '👻', name: 'Invisible' },
+  poisoned: { icon: '☠️', name: 'Poisoned' },
+  bleeding: { icon: '🩸', name: 'Bleeding' },
+  burning: { icon: '🔥', name: 'Burning' },
+  blinded: { icon: '🙈', name: 'Blinded' },
+  oiled: { icon: '🛢️', name: 'Oiled' },
+  evasive: { icon: '💨', name: 'Evasive' },
+  silenced: { icon: '🤐', name: 'Silenced' },
+  feared: { icon: '😱', name: 'Feared' },
+  spellguard: { icon: '🚫', name: 'Spellguard' },
+  reflecting: { icon: '🪞', name: 'Reflecting' },
+  frozen: { icon: '🧊', name: 'Frozen' },
+  warded: { icon: '✨', name: 'Warded' },
+};
 
 interface ProjectileSpec {
   key: string;
@@ -157,7 +181,7 @@ function signed(n: number): string {
 function damageWorking(r: AttackRoll, outcome: string): string {
   const stat = STAT_SHORT[r.stat] ?? r.stat;
   const main = r.damage - r.extraDamage;
-  const armour = r.armour > 0 ? ` − ${r.armour} armour` : '';
+  const armour = `${r.bonusDamage > 0 ? ` + ${r.bonusDamage} bonus` : ''}${r.armour > 0 ? ` − ${r.armour} armour` : ''}`;
   const extra = r.extraDamage > 0 ? `, + ${r.extraDamage} extra` : '';
   switch (outcome) {
     case 'miss':
@@ -239,7 +263,7 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, onPick }: T
   return (
     <button
       type="button"
-      className={`combat-token side-${x.side}${active ? ' active' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}`}
+      className={`combat-token side-${x.side}${active ? ' active' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}`}
       disabled={!targetable}
       onClick={onPick}
       aria-label={`${x.name}, ${x.hp} of ${x.maxHp} HP${targetable ? `, target${hint ? `: ${hint}` : ''}` : ''}`}
@@ -247,6 +271,15 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, onPick }: T
       <span className="token-face">
         <AssetImage id={x.portrait} fallback={initials(x.name)} className="token" size={64} />
         {x.defending && <span className="token-status" title="Defending">🛡</span>}
+        {x.statuses.length > 0 && (
+          <span className="token-statuses">
+            {x.statuses.map((st) => (
+              <span key={st.kind} title={`${STATUS_FLAIR[st.kind].name}${st.amount ? (st.kind === 'warded' ? ` (${st.amount} left)` : ` (${st.amount} a turn)`) : ''}: ${st.rounds} turn${st.rounds === 1 ? '' : 's'} left`}>
+                {STATUS_FLAIR[st.kind].icon}
+              </span>
+            ))}
+          </span>
+        )}
         {flashes.map((f) => (
           <span key={f.key} className="token-flash">
             {f.animation && <AnimationPreview id={f.animation} frames={frames(f.animation) ?? 15} size={110} once />}
@@ -271,6 +304,7 @@ export function CombatScreen() {
   const backToMenu = useGameStore((s) => s.backToMenu);
   const assets = useAssetIndex();
   const [targeting, setTargeting] = useState<Targeting | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const [flashes, setFlashes] = useState<Flash[]>([]);
   const [projectiles, setProjectiles] = useState<ProjectileSpec[]>([]);
   const [rolls, setRolls] = useState<ShownRoll[]>([]);
@@ -324,7 +358,7 @@ export function CombatScreen() {
 
   // Enemies take their turns by themselves.
   const actor = combat && !combat.outcome ? activeCombatant(combat) : null;
-  const enemyTurnKey = actor?.side === 'enemy' ? `${combat!.round}-${combat!.turn}-${combat!.seq}` : null;
+  const enemyTurnKey = actor && isAiControlled(actor) ? `${combat!.round}-${combat!.turn}-${combat!.seq}` : null;
   useEffect(() => {
     if (!enemyTurnKey) return;
     const timer = window.setTimeout(() => apply((g) => runEnemyTurn(g, combatContext)), ENEMY_DELAY_MS);
@@ -332,7 +366,10 @@ export function CombatScreen() {
   }, [enemyTurnKey, apply]);
 
   // A new turn clears any half-chosen action.
-  useEffect(() => setTargeting(null), [combat?.turn, combat?.round]);
+  useEffect(() => {
+    setTargeting(null);
+    setSelected(null);
+  }, [combat?.turn, combat?.round]);
 
   const frames = useMemo(() => {
     const map = new Map((assets ?? []).map((a) => [a.id, a.frames]));
@@ -343,7 +380,7 @@ export function CombatScreen() {
 
   const def = getDungeon(game.dungeon.dungeonId);
   const feature = featureById(def, combat.featureId);
-  const yourTurn = actor?.side === 'party';
+  const yourTurn = !!actor && !isAiControlled(actor);
   const merc = yourTurn ? combat.mercs.find((m) => m.id === actor.mercId) : undefined;
 
   // Who can be picked right now, and the roll needed against each.
@@ -357,25 +394,57 @@ export function CombatScreen() {
       for (const o of obstacleTargets(combat, actor)) targets.set(o.id, 'destroy');
     } else {
       const ability = targeting.ability;
+      const kind = ability.weaponAttack ? actor.attack.profile.kind : ability.attack?.kind;
       for (const t of abilityTargets(combat, actor, ability)) {
-        targets.set(t.id, ability.attack ? `hit on ${hitOn(actor, t, ability.attack.kind)}+` : '');
+        targets.set(t.id, kind && t.side !== actor.side ? `hit on ${hitOn(actor, t, kind)}+` : t.side === actor.side ? 'ally' : '');
       }
     }
   }
+
+  const cancel = () => {
+    setTargeting(null);
+    setSelected(null);
+  };
 
   const pick = (id: string) => {
     if (!targeting) return;
     if (targeting.kind === 'attack') apply((g) => attack(g, id));
     else apply((g) => castAbility(g, targeting.ability.id, id, combatContext));
-    setTargeting(null);
+    cancel();
+  };
+
+  const slots = yourTurn && actor ? slotsFor(actor, merc) : [];
+  const useSlot = (i: number) => {
+    const slot = slots[i];
+    if (!slot || !actor) return;
+    switch (slot.kind) {
+      case 'attack':
+        setTargeting({ kind: 'attack' });
+        setSelected(i);
+        return;
+      case 'ability':
+        if (needsPick(slot.ability)) {
+          setTargeting({ kind: 'ability', ability: slot.ability });
+          setSelected(i);
+        } else {
+          cancel();
+          apply((g) => castAbility(g, slot.ability.id, null, combatContext));
+        }
+        return;
+      case 'potion':
+        cancel();
+        apply((g) => drinkPotion(g, slot.itemId, combatContext));
+        return;
+      case 'defend':
+        cancel();
+        apply(defend);
+        return;
+    }
   };
 
   // Tiles the active merc can walk to, when not choosing a target.
   const reachable = yourTurn && actor && !targeting ? reachableTiles(combat, actor) : new Map<string, unknown>();
   const cells = Array.from({ length: combat.height }, (_, y) => Array.from({ length: combat.width }, (_, x) => ({ x, y })));
-  const abilities = actor ? actor.abilityIds.map((id) => getAbility(id)).filter((a) => a.activation === 'action') : [];
-  const potions = (merc?.inventory ?? []).filter((s) => getItem(s.itemId).kind === 'potion');
-  const shots = actor ? ammoLeft(combat, actor) : null;
 
   return (
     <main className="combat">
@@ -388,6 +457,7 @@ export function CombatScreen() {
         <ol className="initiative" aria-label="Turn order">
           {combat.order.map((id, i) => {
             const x = combat.combatants.find((k) => k.id === id)!;
+            if (x.summoned && x.hp === 0) return null;
             return (
               <li key={id} className={`side-${x.side}${i === combat.turn ? ' current' : ''}${x.hp === 0 ? ' down' : ''}`} title={`${x.name} (initiative ${x.initiative})`}>
                 <AssetImage id={x.portrait} fallback={initials(x.name)} size={32} className="token" />
@@ -433,7 +503,7 @@ export function CombatScreen() {
             })}
           </div>
           <div className="token-layer">
-            {combat.combatants.map((x) => (
+            {combat.combatants.filter((x) => !(x.summoned && x.hp === 0)).map((x) => (
               <div key={x.id} className="token-slot" style={pctStyle(x.pos, combat.width, combat.height)}>
                 <CombatToken
                   x={x}
@@ -468,71 +538,30 @@ export function CombatScreen() {
                   {combat.moveLeft > 0 && !targeting && ' · click a lit tile to move'}
                 </span>
               </p>
-              {targeting ? (
-                <div className="row">
-                  <span>
-                    {targets.size > 0
-                      ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.ability.name}.`
-                      : 'No target in reach.'}
-                  </span>
-                  {targeting.kind === 'ability' && !['enemy', 'ally', 'area'].includes(targeting.ability.target) && (
-                    <button type="button" className="primary" onClick={() => {
-                      apply((g) => castAbility(g, targeting.ability.id, null, combatContext));
-                      setTargeting(null);
-                    }}>
-                      Use {targeting.ability.name}
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setTargeting(null)}>
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="row action-buttons">
-                  <button
-                    type="button"
-                    className="primary"
-                    disabled={combat.acted || (attackTargets(combat, actor).length === 0 && obstacleTargets(combat, actor).length === 0)}
-                    title={
-                      shots === 0
-                        ? 'Out of ammunition'
-                        : attackTargets(combat, actor).length === 0 && obstacleTargets(combat, actor).length === 0
-                          ? 'No target in reach'
-                          : undefined
-                    }
-                    onClick={() => setTargeting({ kind: 'attack' })}
-                  >
-                    {actor.attack.name}
-                    {shots !== null ? ` (${shots})` : ''}
-                  </button>
-                  {abilities.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      disabled={combat.acted || !canUseAbility(combat, actor, a)}
-                      title={a.description}
-                      onClick={() => setTargeting({ kind: 'ability', ability: a })}
-                    >
-                      {a.name}
-                      {(actor.cooldowns[a.id] ?? 0) > 0 ? ` (${actor.cooldowns[a.id]})` : ''}
-                    </button>
-                  ))}
-                  {potions.map((s) => (
-                    <button key={s.itemId} type="button" disabled={combat.acted} onClick={() => apply((g) => drinkPotion(g, s.itemId, combatContext))}>
-                      Drink {getItem(s.itemId).name} ×{s.quantity}
-                    </button>
-                  ))}
-                  <button type="button" disabled={combat.acted} onClick={() => apply(defend)}>
-                    Defend
-                  </button>
-                  <button type="button" disabled={combat.acted} onClick={() => apply((g) => flee(g, combatContext))}>
-                    Flee
-                  </button>
-                  <button type="button" onClick={() => apply(endTurn)}>
-                    End turn
-                  </button>
-                </div>
+              {targeting && (
+                <p className="targeting-hint">
+                  {targets.size > 0
+                    ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.ability.name}.`
+                    : 'No target in reach.'}{' '}
+                  <span className="dim">Esc to cancel.</span>
+                </p>
               )}
+              <ActionBar
+                combat={combat}
+                actor={actor}
+                slots={slots}
+                selected={selected}
+                onUse={useSlot}
+                onCancel={cancel}
+                onEndTurn={() => {
+                  cancel();
+                  apply(endTurn);
+                }}
+                onFlee={() => {
+                  cancel();
+                  apply((g) => flee(g, combatContext));
+                }}
+              />
             </>
           ) : (
             <p className="turn-title dim">{actor ? `${actor.name} is acting…` : ''}</p>
