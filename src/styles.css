@@ -1,0 +1,90 @@
+:root {
+  --bg: #14110f;
+  --panel: #1f1a17;
+  --ink: #e9dfcf;
+  --ink-dim: #a39887;
+  --accent: #c9963c;
+  --accent-ink: #1a1408;
+  --border: #4a3f33;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  /* Stop the page itself from scrolling or bouncing on touch devices. */
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  padding-inline: max(24px, env(safe-area-inset-left), env(safe-area-inset-right));
+  text-align: center;
+}
+
+.menu-title {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.menu-tagline,
+.placeholder p {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, 280px);
+  margin-top: 16px;
+}
+
+button {
+  /* 44px minimum so every control is comfortable to tap. */
+  min-height: 44px;
+  padding: 10px 20px;
+  font: inherit;
+  font-size: 1.1rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+button:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  outline: none;
+}
+
+button:disabled {
+  color: var(--ink-dim);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
