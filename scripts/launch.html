@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Allerya Heroes</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: radial-gradient(ellipse at center, #241c16 0%, #14110f 70%);
+        color: #e9dfcf;
+        font-family: Georgia, 'Times New Roman', serif;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 5vw, 3rem);
+        letter-spacing: 0.06em;
+        color: #c9963c;
+      }
+      .bar {
+        width: min(320px, 70vw);
+        height: 6px;
+        border-radius: 3px;
+        background: #3a2a24;
+        overflow: hidden;
+      }
+      .bar span {
+        display: block;
+        width: 35%;
+        height: 100%;
+        background: #c9963c;
+        animation: slide 1.2s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(290%);
+        }
+      }
+      p {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        font-size: 0.9rem;
+        color: #a39887;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Allerya Heroes</h1>
+      <div class="bar"><span></span></div>
+      <p id="status">Getting the game ready…</p>
+    </main>
+    <script>
+      // Shown by Play.bat while the game server starts (or the game is rebuilt after a change);
+      // moves on to the game as soon as the server answers.
+      var params = new URLSearchParams(location.search);
+      var url = params.get('url') || 'http://127.0.0.1:4173/';
+      if (params.get('building')) document.getElementById('status').textContent = 'Updating the game after a change… (this takes a little longer)';
+      function check() {
+        // An opaque response is enough: it means the server is up.
+        fetch(url, { mode: 'no-cors', cache: 'no-store' }).then(
+          function () {
+            location.replace(url);
+          },
+          function () {
+            setTimeout(check, 400);
+          },
+        );
+      }
+      check();
+    </script>
+  </body>
+</html>

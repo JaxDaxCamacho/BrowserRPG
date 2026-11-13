@@ -1,6 +1,6 @@
 /**
- * Copies game-usable images from the asset packs into public/asset-library,
- * resized for the game, and writes public/asset-library/index.json.
+ * Copies game-usable images and sounds from the asset packs into asset-library/,
+ * resized for the game, and writes asset-library/index.json.
  *
  *   npm run assets:sync                       (packs in ../assets and ./Assets)
  *   ASSETS_DIR=D:/packs npm run assets:sync   (the first set of packs somewhere else)
@@ -8,7 +8,7 @@
  * Two places are read: the original packs (ASSETS_DIR, ../assets by default)
  * and the project's own Assets folder. Either may be missing.
  *
- * The packs are commercial and are not committed: public/asset-library is
+ * The packs are commercial and are not committed: asset-library/ is
  * git-ignored, and the game shows placeholders for any asset it cannot find.
  * Re-running only converts files that are new or changed.
  */
@@ -22,7 +22,8 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const assetsDir = resolve(process.env.ASSETS_DIR ?? join(projectRoot, '..', 'assets'));
 const localDir = join(projectRoot, 'Assets');
 const ROOTS = { packs: assetsDir, local: localDir };
-const outDir = join(projectRoot, 'public', 'asset-library');
+// Kept out of public/ so builds do not copy it; vite.config.ts serves it at /asset-library/.
+const outDir = join(projectRoot, 'asset-library');
 
 /**
  * Each rule maps a folder of a pack to a library category.

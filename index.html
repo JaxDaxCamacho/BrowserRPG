@@ -4,9 +4,94 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Allerya Heroes</title>
+    <style>
+      /* The loading screen: plain HTML and CSS so it shows before any game code arrives. */
+      html,
+      body {
+        margin: 0;
+        background: #14110f;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: radial-gradient(ellipse at center, #241c16 0%, #14110f 70%);
+        color: #e9dfcf;
+        font-family: Georgia, 'Times New Roman', serif;
+        transition: opacity 0.4s ease;
+      }
+      #boot.done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 5vw, 3rem);
+        letter-spacing: 0.06em;
+        color: #c9963c;
+        text-shadow: 0 2px 12px rgb(201 150 60 / 35%);
+      }
+      #boot .bar {
+        width: min(320px, 70vw);
+        height: 6px;
+        border-radius: 3px;
+        background: #3a2a24;
+        overflow: hidden;
+      }
+      #boot .bar span {
+        display: block;
+        width: 35%;
+        height: 100%;
+        border-radius: 3px;
+        background: #c9963c;
+        animation: boot-slide 1.2s ease-in-out infinite;
+      }
+      @keyframes boot-slide {
+        0% {
+          transform: translateX(-100%);
+        }
+        100% {
+          transform: translateX(290%);
+        }
+      }
+      #boot .status {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        font-size: 0.9rem;
+        color: #a39887;
+      }
+      #boot.failed .bar {
+        display: none;
+      }
+      #boot.failed .status {
+        color: #e07a5f;
+        max-width: 80vw;
+        text-align: center;
+        white-space: pre-wrap;
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" role="status" aria-live="polite">
+      <h1>Allerya Heroes</h1>
+      <div class="bar" aria-hidden="true"><span></span></div>
+      <p class="status">Loading the game…</p>
+    </div>
     <div id="root"></div>
+    <script>
+      // If start-up fails, say so on the loading screen instead of leaving it spinning.
+      window.addEventListener('error', function (e) {
+        var boot = document.getElementById('boot');
+        if (!boot || boot.classList.contains('done')) return;
+        boot.classList.add('failed');
+        boot.querySelector('.status').textContent = 'The game could not start:\n' + (e.message || 'unknown error');
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

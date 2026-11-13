@@ -1,4 +1,6 @@
+import { createReadStream, existsSync, statSync } from 'node:fs';
 import { unlink, writeFile } from 'node:fs/promises';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
@@ -91,10 +93,50 @@ function contentEditorEndpoint(): Plugin {
   };
 }
 
+const MEDIA_TYPES: Record<string, string> = {
+  '.webp': 'image/webp',
+  '.png': 'image/png',
+  '.json': 'application/json',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+};
+
+/**
+ * Serves the synced asset library (asset-library/, git-ignored) at /asset-library/ in both
+ * the dev server and `vite preview`. It lives outside public/ so builds do not copy hundreds
+ * of megabytes of art and sound into dist/ every time.
+ */
+function assetLibrary(): Plugin {
+  const serve = (root: string) => (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const path = decodeURIComponent((req.url ?? '').split('?')[0] ?? '');
+    const file = join(root, 'asset-library', path);
+    // Stay inside the library: no climbing out with '..'.
+    if (path.includes('..') || !existsSync(file) || !statSync(file).isFile()) return next();
+    const ext = file.slice(file.lastIndexOf('.')).toLowerCase();
+    res.setHeader('Content-Type', MEDIA_TYPES[ext] ?? 'application/octet-stream');
+    res.setHeader('Cache-Control', ext === '.json' ? 'no-cache' : 'public, max-age=86400');
+    createReadStream(file).pipe(res);
+  };
+  return {
+    name: 'allerya-asset-library',
+    configureServer(server) {
+      server.middlewares.use('/asset-library', serve(server.config.root));
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/asset-library', serve(server.config.root));
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), contentEditorEndpoint()],
+  plugins: [react(), contentEditorEndpoint(), assetLibrary()],
   // Relative asset paths so the same build works in a browser, Tauri and Android.
   base: './',
+  optimizeDeps: {
+    // Bundled up front, so a first run does not stop to discover them and reload the page.
+    include: ['react', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'zustand', 'zod', 'pixi.js'],
+  },
   test: {
     include: ['tests/**/*.test.ts'],
     environment: 'node',

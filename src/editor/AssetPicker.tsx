@@ -65,7 +65,7 @@ export function AssetBrowser({ initialCategory = '', selected, onPick }: Browser
   if (entries.length === 0) {
     return (
       <p className="dim">
-        No asset library found. Run <code>npm run assets:sync</code> to copy the packs into <code>public/asset-library</code>.
+        No asset library found. Run <code>npm run assets:sync</code> to copy the packs into <code>asset-library/</code>.
       </p>
     );
   }

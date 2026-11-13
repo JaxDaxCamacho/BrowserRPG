@@ -6,10 +6,18 @@ A party-based dungeon crawler for browser, PC and Android, built once in TypeScr
 
 Requires Node.js 20.19 or newer.
 
-**One click (Windows with WSL):** double-click `Play.bat`. The game opens in its own window (Edge, or
-Chrome, in app mode) while the server runs hidden in WSL; closing the game window stops the server. The
-first run installs packages, which takes a minute. If the server fails to start, a message box says how
-to see why. `scripts/play.ps1 -ServerOnly` starts just the server.
+**One click (Windows with WSL):**
+
+- `Play.bat` plays the game from a production build, which loads in about a second. After a code
+  change, the first start rebuilds it (about 20 seconds, with a "getting ready" screen).
+- `Develop.bat` runs the development server instead, with the content editor and dungeon maker on the
+  main menu and changes showing up live. It is slower to load from the Windows drive: reading files
+  across the WSL boundary is slow. Keeping the project inside WSL (for example `~/projects`) loads it
+  in under a second.
+
+Both open the game in its own window (Edge, or Chrome, in app mode) with the server hidden in WSL, and
+stop the server when the window closes. If the server fails to start, a message box says how to see
+why. `scripts/play.ps1 -ServerOnly` (add `-Dev` for the development server) starts just the server.
 
 ```bash
 npm install
@@ -36,8 +44,8 @@ Then run:
 npm run assets:sync
 ```
 
-This resizes about 3,200 images into `public/asset-library/` (git-ignored) and writes
-`public/asset-library/index.json`. Content refers to assets by id, such as
+This resizes the images (and compresses the sounds) into `asset-library/` (git-ignored), served at
+`/asset-library/` by the dev server and the preview, and writes `asset-library/index.json`. Content refers to assets by id, such as
 `weapons/swords/sv-t-01`; anything missing shows a placeholder, so the game still runs
 without the packs. Use `ASSETS_DIR=...` if the packs live somewhere else.
 
