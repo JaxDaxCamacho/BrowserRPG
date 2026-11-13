@@ -6,7 +6,7 @@ import type { Merc } from './merc';
  * loading is reading it back (after migrations keyed on `version`).
  */
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export const SCREENS = [
   'menu',
@@ -32,7 +32,6 @@ export interface GameState {
   leaderId: string | null;
   /** Counter for handing out merc ids that are unique within this game. */
   nextMercId: number;
-  gold: number;
   /** Story facts set by choices, read by later conditions. */
   flags: Record<string, FlagValue>;
   /** The adventure being played, or null before one is picked. */
@@ -49,7 +48,6 @@ export function createInitialState(rngSeed: number = 1): GameState {
     party: [],
     leaderId: null,
     nextMercId: 1,
-    gold: 0,
     flags: {},
     adventureId: null,
     dialogue: null,

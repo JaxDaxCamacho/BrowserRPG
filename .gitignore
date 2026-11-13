@@ -1,4 +1,6 @@
 node_modules
+# Commercial asset packs: synced locally with `npm run assets:sync`, never committed.
+public/asset-library
 dist
 *.local
 .vite

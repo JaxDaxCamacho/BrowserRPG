@@ -1,0 +1,514 @@
+[
+  {
+    "id": "arming-sword",
+    "kind": "weapon",
+    "name": "Arming Sword",
+    "icon": "weapons/swords/sv-t-01",
+    "description": "A plain one-handed blade.",
+    "value": 1500,
+    "starter": true,
+    "weaponType": "sword",
+    "style": "slash",
+    "hands": 1,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "3",
+      "hit": "6"
+    },
+    "effects": []
+  },
+  {
+    "id": "hand-axe",
+    "kind": "weapon",
+    "name": "Hand Axe",
+    "icon": "weapons/axes/a-n-t-03",
+    "value": 1200,
+    "starter": true,
+    "weaponType": "axe",
+    "style": "slash",
+    "hands": 1,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "3",
+      "hit": "6"
+    },
+    "effects": []
+  },
+  {
+    "id": "mace",
+    "kind": "weapon",
+    "name": "Mace",
+    "icon": "weapons/clubs/bl-t-01",
+    "value": 1200,
+    "starter": true,
+    "weaponType": "mace",
+    "style": "blunt",
+    "hands": 1,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "4",
+      "hit": "5"
+    },
+    "effects": []
+  },
+  {
+    "id": "spear",
+    "kind": "weapon",
+    "name": "Spear",
+    "icon": "weapons/polearms/sp-t-01",
+    "value": 1000,
+    "starter": true,
+    "weaponType": "spear",
+    "style": "pierce",
+    "hands": 1,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "2",
+      "hit": "7"
+    },
+    "effects": []
+  },
+  {
+    "id": "dagger",
+    "kind": "weapon",
+    "name": "Dagger",
+    "icon": "weapons/daggers/kn-t-01",
+    "value": 400,
+    "starter": true,
+    "weaponType": "dagger",
+    "style": "pierce",
+    "hands": 1,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "2",
+      "hit": "7"
+    },
+    "effects": []
+  },
+  {
+    "id": "greatsword",
+    "kind": "weapon",
+    "name": "Greatsword",
+    "icon": "weapons/swords/sv-t-07",
+    "value": 3000,
+    "starter": true,
+    "weaponType": "sword",
+    "style": "slash",
+    "hands": 2,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "4",
+      "hit": "8"
+    },
+    "effects": []
+  },
+  {
+    "id": "greataxe",
+    "kind": "weapon",
+    "name": "Greataxe",
+    "icon": "weapons/axes/axe-t-01",
+    "value": 2500,
+    "starter": true,
+    "weaponType": "axe",
+    "style": "slash",
+    "hands": 2,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "4",
+      "hit": "8"
+    },
+    "effects": []
+  },
+  {
+    "id": "warhammer",
+    "kind": "weapon",
+    "name": "Warhammer",
+    "icon": "weapons/hammers/hm-t-02",
+    "value": 2500,
+    "starter": true,
+    "weaponType": "hammer",
+    "style": "blunt",
+    "hands": 2,
+    "range": 0,
+    "attack": {
+      "kind": "melee",
+      "damageType": "physical",
+      "graze": "5",
+      "hit": "7"
+    },
+    "effects": []
+  },
+  {
+    "id": "shortbow",
+    "kind": "weapon",
+    "name": "Shortbow",
+    "icon": "weapons/bows/b-t-01",
+    "value": 2000,
+    "starter": true,
+    "weaponType": "bow",
+    "style": "pierce",
+    "hands": 2,
+    "range": 3,
+    "ammo": "arrow",
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "1",
+      "hit": "6"
+    },
+    "effects": []
+  },
+  {
+    "id": "light-crossbow",
+    "kind": "weapon",
+    "name": "Light Crossbow",
+    "icon": "weapons/crossbows/a-t-03",
+    "value": 3000,
+    "starter": true,
+    "weaponType": "crossbow",
+    "style": "pierce",
+    "hands": 2,
+    "range": 2,
+    "ammo": "bolt",
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "2",
+      "hit": "6"
+    },
+    "effects": []
+  },
+  {
+    "id": "apprentice-wand",
+    "kind": "weapon",
+    "name": "Apprentice Wand",
+    "icon": "weapons/staves/st-t-07",
+    "value": 2000,
+    "starter": true,
+    "weaponType": "wand",
+    "style": "arcane",
+    "hands": 1,
+    "range": 3,
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "5"
+    },
+    "effects": []
+  },
+  {
+    "id": "oak-staff",
+    "kind": "weapon",
+    "name": "Oak Staff",
+    "icon": "weapons/staves/st-t-01",
+    "value": 2500,
+    "starter": true,
+    "weaponType": "staff",
+    "style": "arcane",
+    "hands": 2,
+    "range": 3,
+    "attack": {
+      "kind": "magic",
+      "damageType": "magic",
+      "graze": "2",
+      "hit": "6"
+    },
+    "effects": []
+  },
+  {
+    "id": "ritual-focus",
+    "kind": "weapon",
+    "name": "Ritual Focus",
+    "icon": "weapons/staves/st-t-08",
+    "description": "A bone-and-iron charm that channels spirit.",
+    "value": 2000,
+    "starter": true,
+    "weaponType": "focus",
+    "style": "arcane",
+    "hands": 1,
+    "range": 3,
+    "attack": {
+      "kind": "spiritual",
+      "damageType": "spiritual",
+      "graze": "2",
+      "hit": "5"
+    },
+    "effects": []
+  },
+  {
+    "id": "travellers-robes",
+    "kind": "armour",
+    "name": "Traveller's Robes",
+    "icon": "armour/armor/armor-9",
+    "value": 500,
+    "starter": true,
+    "slot": "body",
+    "weight": "clothing",
+    "defense": 0,
+    "physicalArmour": 0,
+    "magicArmour": 1,
+    "effects": []
+  },
+  {
+    "id": "leather-armour",
+    "kind": "armour",
+    "name": "Leather Armour",
+    "icon": "armour/armor/armor-2",
+    "value": 1000,
+    "starter": true,
+    "slot": "body",
+    "weight": "light",
+    "defense": 0,
+    "physicalArmour": 2,
+    "magicArmour": 0,
+    "effects": []
+  },
+  {
+    "id": "hide-armour",
+    "kind": "armour",
+    "name": "Hide Armour",
+    "icon": "armour/armor/armor-14",
+    "value": 1500,
+    "starter": true,
+    "slot": "body",
+    "weight": "medium",
+    "defense": -1,
+    "physicalArmour": 3,
+    "magicArmour": 0,
+    "effects": []
+  },
+  {
+    "id": "chainmail",
+    "kind": "armour",
+    "name": "Chainmail",
+    "icon": "armour/armor/armor-4",
+    "value": 5000,
+    "starter": true,
+    "slot": "body",
+    "weight": "heavy",
+    "defense": -4,
+    "physicalArmour": 6,
+    "magicArmour": 0,
+    "effects": []
+  },
+  {
+    "id": "scale-mail",
+    "kind": "armour",
+    "name": "Scale Mail",
+    "icon": "armour/armor/armor-17",
+    "value": 4000,
+    "starter": false,
+    "slot": "body",
+    "weight": "medium",
+    "defense": -2,
+    "physicalArmour": 5,
+    "magicArmour": 0,
+    "effects": []
+  },
+  {
+    "id": "warded-plate",
+    "kind": "armour",
+    "name": "Warded Plate",
+    "icon": "armour/armor/armor-5",
+    "description": "Full plate etched with protective runes.",
+    "value": 25000,
+    "starter": false,
+    "slot": "body",
+    "weight": "heavy",
+    "defense": -6,
+    "physicalArmour": 11,
+    "magicArmour": 3,
+    "effects": []
+  },
+  {
+    "id": "buckler",
+    "kind": "shield",
+    "name": "Buckler",
+    "icon": "badges/shields/shieldsbadges-01-c",
+    "value": 500,
+    "starter": true,
+    "defense": 1,
+    "effects": []
+  },
+  {
+    "id": "round-shield",
+    "kind": "shield",
+    "name": "Round Shield",
+    "icon": "badges/shields/shieldsbadges-01-a",
+    "value": 800,
+    "starter": true,
+    "defense": 2,
+    "effects": []
+  },
+  {
+    "id": "tower-shield",
+    "kind": "shield",
+    "name": "Tower Shield",
+    "icon": "badges/shields/shieldsbadges-02-a",
+    "value": 2500,
+    "starter": false,
+    "defense": 3,
+    "effects": []
+  },
+  {
+    "id": "amulet-of-warding",
+    "kind": "trinket",
+    "name": "Amulet of Warding",
+    "icon": "armour/necklace/necklace-3",
+    "value": 6000,
+    "starter": false,
+    "slot": "neck",
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "magic",
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "id": "ring-of-might",
+    "kind": "trinket",
+    "name": "Ring of Might",
+    "icon": "armour/rings/rings-4",
+    "value": 5000,
+    "starter": false,
+    "slot": "ring",
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": 1
+      }
+    ]
+  },
+  {
+    "id": "signet-of-command",
+    "kind": "trinket",
+    "name": "Signet of Command",
+    "icon": "armour/rings/rings-2",
+    "value": 7000,
+    "starter": false,
+    "slot": "ring",
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "charisma",
+        "amount": 1
+      },
+      {
+        "type": "ability",
+        "abilityId": "rally"
+      }
+    ]
+  },
+  {
+    "id": "healing-draught",
+    "kind": "potion",
+    "name": "Healing Draught",
+    "icon": "potions/potion01-base-liquids-vs-potion01-red",
+    "value": 500,
+    "starter": false,
+    "effects": [
+      {
+        "type": "heal",
+        "amount": 8
+      }
+    ]
+  },
+  {
+    "id": "stoneskin-tonic",
+    "kind": "potion",
+    "name": "Stoneskin Tonic",
+    "icon": "potions/potion01-base-elements-vs-potion01-earth",
+    "value": 1200,
+    "starter": false,
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "physical",
+        "amount": 2
+      }
+    ],
+    "encounters": 3
+  },
+  {
+    "id": "draught-of-might",
+    "kind": "potion",
+    "name": "Draught of Might",
+    "icon": "potions/potion02-base-elements-vs-potion02-fire",
+    "value": 1500,
+    "starter": false,
+    "effects": [
+      {
+        "type": "stat",
+        "stat": "strength",
+        "amount": 2
+      }
+    ],
+    "encounters": 2
+  },
+  {
+    "id": "arrows",
+    "kind": "ammo",
+    "name": "Arrows",
+    "icon": "weapons/ammunition/t-f-04",
+    "value": 5,
+    "starter": true,
+    "ammoType": "arrow",
+    "bonusGraze": 0,
+    "bonusHit": 0
+  },
+  {
+    "id": "bolts",
+    "kind": "ammo",
+    "name": "Crossbow Bolts",
+    "icon": "weapons/ammunition/ar-t-02",
+    "value": 8,
+    "starter": true,
+    "ammoType": "bolt",
+    "bonusGraze": 0,
+    "bonusHit": 0
+  },
+  {
+    "id": "broadhead-arrows",
+    "kind": "ammo",
+    "name": "Broadhead Arrows",
+    "icon": "weapons/ammunition/ar-t-02",
+    "value": 20,
+    "starter": false,
+    "ammoType": "arrow",
+    "bonusGraze": 0,
+    "bonusHit": 1
+  },
+  {
+    "id": "fire-arrows",
+    "kind": "ammo",
+    "name": "Fire Arrows",
+    "icon": "weapons/ammunition/ar-t-01",
+    "value": 40,
+    "starter": false,
+    "ammoType": "arrow",
+    "bonusGraze": 0,
+    "bonusHit": 0,
+    "extraDamage": {
+      "damageType": "magic",
+      "amount": 2
+    }
+  }
+]

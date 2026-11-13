@@ -10,6 +10,7 @@ import {
   migrateSave,
   SAVE_VERSION,
   setLeader,
+  STARTING_PURSE,
   startAdventure,
   startDialogue,
   startNewGame,
@@ -32,7 +33,7 @@ const talk: DialogueDefinition = {
         {
           id: 'pay',
           text: 'Pay the toll.',
-          outcome: { text: 'He takes your coin.', effects: [{ type: 'gold', amount: -5 }], goto: 'b' },
+          outcome: { text: 'He takes your coin.', effects: [{ type: 'money', amount: -500 }], goto: 'b' },
         },
         {
           id: 'push',
@@ -59,7 +60,7 @@ function flatContext(value: number): DialogueContext {
 }
 
 function party(...premadeIds: string[]): GameState {
-  let state = { ...startNewGame(7), gold: 20 };
+  let state = startNewGame(7);
   for (const id of premadeIds) state = addMerc(state, premadeToDraft(PREMADES.find((p) => p.id === id)!));
   return state;
 }
@@ -80,7 +81,9 @@ describe('dialogue', () => {
 
   it('applies effects, then waits on the result text until continued', () => {
     const shown = chooseOption(knights(), talk, 'pay', flatContext(10));
-    expect(shown.gold).toBe(15);
+    // No leader is set, so the first merc pays.
+    expect(shown.party[0]!.purse).toBe(STARTING_PURSE - 500);
+    expect(shown.party[1]!.purse).toBe(STARTING_PURSE);
     expect(shown.dialogue?.nodeId).toBe('a');
     expect(shown.dialogue?.result).toMatchObject({ text: 'He takes your coin.', check: null });
     expect(continueDialogue(shown).dialogue).toMatchObject({ nodeId: 'b', result: null });
@@ -141,9 +144,12 @@ describe('dialogue', () => {
     expect(chooseOption(state, talk, 'spell', flatContext(10)).dialogue?.nodeId).toBe('b');
   });
 
-  it('never lets gold go below zero', () => {
-    const broke = { ...knights(), gold: 2 };
-    expect(chooseOption(broke, talk, 'pay', flatContext(10)).gold).toBe(0);
+  it('takes money from the leader and never below zero', () => {
+    const state = setLeader(knights(), 'merc-2');
+    const broke = { ...state, party: state.party.map((m) => (m.id === 'merc-2' ? { ...m, purse: 200 } : m)) };
+    const after = chooseOption(broke, talk, 'pay', flatContext(10));
+    expect(after.party[1]!.purse).toBe(0);
+    expect(after.party[0]!.purse).toBe(STARTING_PURSE);
   });
 });
 
@@ -219,12 +225,32 @@ describe('dialogue data checks', () => {
 });
 
 describe('save migration', () => {
+  it('gives mercs from older saves equipment slots and a purse, and pays party gold to the leader', () => {
+    const merc = { id: 'merc-1', name: 'Old', raceId: 'human', classId: 'knight', baseStats: createStartingStats(), raceChoices: [], level: 1, xp: 0 };
+    const v2 = {
+      version: 2,
+      screen: 'dungeon',
+      rngSeed: 5,
+      party: [merc, { ...merc, id: 'merc-2' }],
+      leaderId: 'merc-2',
+      nextMercId: 3,
+      gold: 2,
+      flags: {},
+      adventureId: null,
+      dialogue: null,
+    };
+    const migrated = migrateSave(v2)!;
+    expect(migrated.version).toBe(SAVE_VERSION);
+    expect('gold' in migrated).toBe(false);
+    expect(migrated.party[0]).toMatchObject({ equipment: {}, inventory: [], purse: STARTING_PURSE });
+    expect(migrated.party[1]!.purse).toBe(STARTING_PURSE + 20000);
+  });
+
   it('upgrades a version 1 save to the current shape', () => {
     const v1 = { version: 1, screen: 'leaderSelect', rngSeed: 5, party: [], leaderId: null, nextMercId: 1 };
     expect(migrateSave(v1)).toEqual({
       ...v1,
       version: SAVE_VERSION,
-      gold: 0,
       flags: {},
       adventureId: null,
       dialogue: null,

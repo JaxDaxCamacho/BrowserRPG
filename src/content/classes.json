@@ -2,6 +2,7 @@
   {
     "id": "knight",
     "name": "Knight",
+    "icon": "badges/classes/badge-warrior",
     "role": "Front-line protector",
     "keyStats": ["strength", "toughness"],
     "baseHp": 12,
@@ -12,6 +13,7 @@
   {
     "id": "barbarian",
     "name": "Barbarian",
+    "icon": "badges/classes/badge-barbarian",
     "role": "Melee damage",
     "keyStats": ["strength", "toughness"],
     "baseHp": 14,
@@ -22,6 +24,7 @@
   {
     "id": "ranger",
     "name": "Ranger",
+    "icon": "badges/classes/badge-hunter",
     "role": "Ranged damage and scouting",
     "keyStats": ["agility", "spirit"],
     "baseHp": 10,
@@ -32,6 +35,7 @@
   {
     "id": "wizard",
     "name": "Wizard",
+    "icon": "badges/classes/badge-mage",
     "role": "Area magic",
     "keyStats": ["intellect"],
     "baseHp": 6,
@@ -42,6 +46,7 @@
   {
     "id": "warlock",
     "name": "Warlock",
+    "icon": "badges/classes/badge-necro",
     "role": "Curses and drain",
     "keyStats": ["spirit"],
     "baseHp": 8,
@@ -52,6 +57,7 @@
   {
     "id": "rogue",
     "name": "Rogue",
+    "icon": "badges/classes/badge-rogue",
     "role": "Skills and burst damage",
     "keyStats": ["agility", "charisma"],
     "baseHp": 8,

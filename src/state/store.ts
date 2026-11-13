@@ -11,6 +11,9 @@ interface GameStore {
   savesLoaded: boolean;
   /** Set when reading or writing storage fails, so the menu can say so. */
   saveError: string | null;
+  /** A developer tool open instead of the game, such as the content editor. */
+  tool: 'contentEditor' | null;
+  openTool: (tool: 'contentEditor' | null) => void;
 
   /** Runs an engine command against the current game. */
   apply: (command: (game: GameState) => GameState) => void;
@@ -35,6 +38,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   saves: [],
   savesLoaded: false,
   saveError: null,
+  tool: readOpenTool(),
+  openTool: (tool) => {
+    try {
+      if (tool) sessionStorage.setItem('allerya.tool', tool);
+      else sessionStorage.removeItem('allerya.tool');
+    } catch {
+      // Storage can be unavailable; the tool just will not reopen after a reload.
+    }
+    set({ tool });
+  },
 
   apply: (command) => set((s) => ({ game: command(s.game) })),
 
@@ -72,6 +85,15 @@ useGameStore.subscribe((now, before) => {
       useGameStore.setState({ saveError: `Could not save the game: ${describe(error)}` });
     });
 });
+
+/** Saving content reloads the page in development, so the editor reopens itself. */
+function readOpenTool(): 'contentEditor' | null {
+  try {
+    return import.meta.env.DEV && sessionStorage.getItem('allerya.tool') === 'contentEditor' ? 'contentEditor' : null;
+  } catch {
+    return null;
+  }
+}
 
 function randomSeed(): number {
   return Math.floor(Math.random() * 0x7fffffff);

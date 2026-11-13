@@ -36,6 +36,11 @@ export interface AttackProfile {
   hit: string;
   /** Natural d20 value at or above which the attack crits. Defaults to 20. */
   critThreshold?: number;
+  /**
+   * Flat damage of a second type added on any graze or hit (doubled on a crit),
+   * for example fire arrows. It is reduced by its own armour, separately.
+   */
+  extra?: { damageType: DamageType; amount: number };
 }
 
 export type Armour = Record<ArmourType, number>;
@@ -89,13 +94,23 @@ export function damageDealt(
   return Math.max(0, raw - armour);
 }
 
+/** Extra damage of a second type: none on a miss, doubled on a crit, then its own armour. */
+export function extraDamageDealt(outcome: AttackOutcome, amount: number, armour: number): number {
+  if (outcome === 'miss') return 0;
+  const raw = outcome === 'crit' ? amount * 2 : amount;
+  return Math.max(0, raw - armour);
+}
+
 export interface AttackResult {
   roll: D20Roll;
   modifier: number;
   total: number;
   defense: number;
   outcome: AttackOutcome;
+  /** Total damage dealt, including any extra damage. */
   damage: number;
+  /** The part of `damage` that came from the attack's extra damage. */
+  extraDamage: number;
 }
 
 export interface AttackInput {
@@ -132,6 +147,10 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
   }
 
   const armour = targetArmour[ARMOUR_AGAINST[profile.damageType]];
+  const damage = damageDealt(outcome, grazeRoll, hitRoll, modifier, armour);
+  const extraDamage = profile.extra
+    ? extraDamageDealt(outcome, profile.extra.amount, targetArmour[ARMOUR_AGAINST[profile.extra.damageType]])
+    : 0;
   return {
     value: {
       roll: d20.value,
@@ -139,7 +158,8 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
       total: d20.value.natural + modifier,
       defense: targetDefense,
       outcome,
-      damage: damageDealt(outcome, grazeRoll, hitRoll, modifier, armour),
+      damage: damage + extraDamage,
+      extraDamage,
     },
     seed: next,
   };

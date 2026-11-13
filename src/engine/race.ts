@@ -1,7 +1,20 @@
 import { DEFAULT_CRIT_THRESHOLD, type ArmourType } from './attack';
 import type { StatChanges } from './stats';
 
-export const WEAPON_TYPES = ['sword', 'dagger', 'axe', 'mace', 'spear', 'bow', 'crossbow', 'staff', 'wand'] as const;
+export const WEAPON_TYPES = [
+  'sword',
+  'dagger',
+  'axe',
+  'mace',
+  'hammer',
+  'club',
+  'spear',
+  'bow',
+  'crossbow',
+  'staff',
+  'wand',
+  'focus',
+] as const;
 export type WeaponType = (typeof WEAPON_TYPES)[number];
 
 /** A race's always-on ability. Each kind is read by the system it affects. */
@@ -22,6 +35,7 @@ export type RacePassive =
 export interface RaceDefinition {
   id: string;
   name: string;
+  icon?: string;
   statChanges: StatChanges;
   /** For races that let the player pick: `count` different stats each get `amount`. */
   statChoices?: { count: number; amount: number };

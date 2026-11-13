@@ -1,21 +1,31 @@
-import { useState } from 'react';
-import { CLASSES, getClass, getRace, RACES } from '../content';
+import { useMemo, useState } from 'react';
+import { CLASSES, getClass, getItem, getRace, ITEMS, PREMADES, RACES } from '../content';
 import {
+  canWearArmour,
   CREATION_POINTS,
   createStartingStats,
   creationPointsSpent,
+  formatCoins,
   MAX_NAME_LENGTH,
   mercSheet,
+  raceCanWield,
+  STARTING_AMMO,
+  STARTING_PURSE,
   STARTING_STAT,
   STAT_NAMES,
   statModifier,
   validateDraft,
+  type ItemDefinition,
+  type Loadout,
   type MercDraft,
+  type RaceDefinition,
   type RacePassive,
   type StatName,
   type Stats,
+  type WeaponItem,
 } from '../engine';
-import { formatModifier, STAT_LABELS } from './MercCard';
+import { AssetImage, useAssetIndex } from './assets';
+import { formatModifier, STAT_LABELS, Token } from './MercCard';
 
 const STAT_FULL_NAMES: Record<StatName, string> = {
   strength: 'Strength',
@@ -26,7 +36,7 @@ const STAT_FULL_NAMES: Record<StatName, string> = {
   charisma: 'Charisma',
 };
 
-function describePassive(passive: RacePassive): string {
+export function describePassive(passive: RacePassive): string {
   switch (passive.type) {
     case 'xpRate':
       return `+${Math.round(passive.bonus * 100)}% XP rate`;
@@ -43,26 +53,132 @@ function describePassive(passive: RacePassive): string {
   }
 }
 
+/** One line describing what an item does, for the gear pickers. */
+export function describeItem(item: ItemDefinition): string {
+  switch (item.kind) {
+    case 'weapon': {
+      const reach = item.range === 0 ? 'melee' : `range ${item.range}`;
+      return `${item.style}, graze ${item.attack.graze} / hit ${item.attack.hit}, ${item.hands}-handed, ${reach}`;
+    }
+    case 'armour':
+      return `${item.weight}, Defense ${formatModifier(item.defense)}, armour ${item.physicalArmour}${item.magicArmour ? `, magic ${item.magicArmour}` : ''}`;
+    case 'shield':
+      return `Defense +${item.defense}`;
+    case 'ammo':
+      return `${item.ammoType}s${item.bonusHit ? `, hit +${item.bonusHit}` : ''}${item.extraDamage ? `, +${item.extraDamage.amount} ${item.extraDamage.damageType}` : ''}`;
+    case 'trinket':
+    case 'potion':
+      return item.description ?? '';
+  }
+}
+
+const STARTERS = ITEMS.filter((i) => i.starter);
+
+function hasGiantGrip(race: RaceDefinition) {
+  return race.passives.some((p) => p.type === 'giantGrip');
+}
+
+/** The starter items a merc of this race and class could put in each slot. */
+function slotOptions(race: RaceDefinition, classId: string, loadout: Loadout) {
+  const cls = getClass(classId);
+  const main = loadout.mainHand ? getItem(loadout.mainHand) : null;
+  const mainTwoHanded = main?.kind === 'weapon' && main.hands === 2 && !hasGiantGrip(race);
+  const launcher = main?.kind === 'weapon' && main.ammo ? main : null;
+  return {
+    mainHand: STARTERS.filter((i) => i.kind === 'weapon' && raceCanWield(race, i.hands)),
+    offHand: mainTwoHanded
+      ? []
+      : STARTERS.filter(
+          (i) => i.kind === 'shield' || (i.kind === 'weapon' && i.hands === 1 && raceCanWield(race, 1)),
+        ),
+    body: STARTERS.filter((i) => i.kind === 'armour' && i.slot === 'body' && canWearArmour(cls.armour, i.weight)),
+    ammo: launcher ? STARTERS.filter((i) => i.kind === 'ammo' && i.ammoType === launcher.ammo) : [],
+  };
+}
+
+/** Drops anything no longer allowed and fills ammunition for a ranged weapon. */
+function tidyLoadout(race: RaceDefinition, classId: string, loadout: Loadout): Loadout {
+  const next: Loadout = { ...loadout };
+  for (let pass = 0; pass < 2; pass++) {
+    const options = slotOptions(race, classId, next);
+    for (const slot of ['mainHand', 'offHand', 'body', 'ammo'] as const) {
+      if (next[slot] && !options[slot].some((i) => i.id === next[slot])) delete next[slot];
+    }
+    if (!next.ammo && options.ammo[0]) next.ammo = options.ammo[0].id;
+  }
+  return next;
+}
+
+/** A sensible starting kit for a class: the first pre-built merc's, adjusted for the race. */
+function defaultLoadout(race: RaceDefinition, classId: string): Loadout {
+  const template = PREMADES.find((p) => p.classId === classId)?.loadout ?? {};
+  const tidy = tidyLoadout(race, classId, template);
+  if (!tidy.mainHand) {
+    const firstWeapon = slotOptions(race, classId, {}).mainHand[0];
+    if (firstWeapon) return tidyLoadout(race, classId, { ...tidy, mainHand: firstWeapon.id });
+  }
+  return tidy;
+}
+
+interface GearPickerProps {
+  label: string;
+  value?: string;
+  options: ItemDefinition[];
+  allowNone: boolean;
+  onChange: (id: string | undefined) => void;
+}
+
+function GearPicker({ label, value, options, allowNone, onChange }: GearPickerProps) {
+  const current = value ? getItem(value) : undefined;
+  return (
+    <label className="gear-picker">
+      <AssetImage id={current?.icon} fallback={current ? current.name[0] : '–'} size={40} alt={current?.name} />
+      <span className="field">
+        <span>{label}</span>
+        <select value={value ?? ''} disabled={options.length === 0} onChange={(e) => onChange(e.target.value || undefined)}>
+          {(allowNone || !value) && <option value="">{options.length === 0 ? 'Not available' : 'None'}</option>}
+          {options.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+        {current && <span className="dim note">{describeItem(current)}</span>}
+      </span>
+    </label>
+  );
+}
+
 interface Props {
   disabled: boolean;
   onAdd: (draft: MercDraft) => void;
 }
 
-/** The custom merc form: name, race, class and 12 stat points to spend. */
+/** The custom merc form: name, portrait, race, class, 12 stat points and starting gear. */
 export function MercBuilder({ disabled, onAdd }: Props) {
+  const assets = useAssetIndex();
+  const portraits = useMemo(
+    () => (assets ?? []).filter((a) => a.category.startsWith('portraits/')).map((a) => a.id),
+    [assets],
+  );
+
   const [name, setName] = useState('');
+  const [portraitIndex, setPortraitIndex] = useState(0);
   const [raceId, setRaceId] = useState(RACES[0]!.id);
   const [classId, setClassId] = useState(CLASSES[0]!.id);
   const [baseStats, setBaseStats] = useState<Stats>(createStartingStats);
   const [raceChoices, setRaceChoices] = useState<StatName[]>([]);
+  const [loadout, setLoadout] = useState<Loadout>(() => defaultLoadout(RACES[0]!, CLASSES[0]!.id));
 
   const race = getRace(raceId);
   const cls = getClass(classId);
-  const draft: MercDraft = { name, raceId, classId, baseStats, raceChoices };
-  const sheet = mercSheet(draft, race, cls);
+  const portrait = portraits.length > 0 ? portraits[portraitIndex % portraits.length] : undefined;
+  const draft: MercDraft = { name, raceId, classId, baseStats, raceChoices, loadout, ...(portrait ? { portrait } : {}) };
+  const sheet = mercSheet(draft, race, cls, getItem);
   const pointsLeft = CREATION_POINTS - creationPointsSpent(baseStats);
-  const problems = validateDraft(draft, race);
+  const problems = validateDraft(draft, race, { armourProficiency: cls.armour, getItem });
   const choicesNeeded = race.statChoices?.count ?? 0;
+  const options = slotOptions(race, classId, loadout);
 
   const changeStat = (stat: StatName, by: number) => setBaseStats((s) => ({ ...s, [stat]: s[stat] + by }));
 
@@ -72,6 +188,12 @@ export function MercBuilder({ disabled, onAdd }: Props) {
       return current.length < choicesNeeded ? [...current, stat] : current;
     });
 
+  const setSlot = (slot: keyof Loadout, id: string | undefined) =>
+    setLoadout((current) => tidyLoadout(race, classId, { ...current, [slot]: id }));
+
+  const stepPortrait = (by: number) =>
+    setPortraitIndex((i) => (portraits.length === 0 ? 0 : (i + by + portraits.length) % portraits.length));
+
   const add = () => {
     onAdd(draft);
     setName('');
@@ -79,12 +201,28 @@ export function MercBuilder({ disabled, onAdd }: Props) {
     setRaceChoices([]);
   };
 
+  const main = loadout.mainHand ? getItem(loadout.mainHand) : null;
+  const launcher = main?.kind === 'weapon' && main.ammo ? (main as WeaponItem) : null;
+
   return (
     <div className="builder">
-      <label className="field">
-        <span>Name</span>
-        <input type="text" value={name} maxLength={MAX_NAME_LENGTH} onChange={(e) => setName(e.target.value)} />
-      </label>
+      <div className="row builder-identity">
+        <div className="portrait-picker">
+          <Token name={name || '?'} portrait={portrait} size={72} />
+          <span className="row">
+            <button type="button" aria-label="Previous portrait" disabled={portraits.length === 0} onClick={() => stepPortrait(-1)}>
+              ‹
+            </button>
+            <button type="button" aria-label="Next portrait" disabled={portraits.length === 0} onClick={() => stepPortrait(1)}>
+              ›
+            </button>
+          </span>
+        </div>
+        <label className="field">
+          <span>Name</span>
+          <input type="text" value={name} maxLength={MAX_NAME_LENGTH} onChange={(e) => setName(e.target.value)} />
+        </label>
+      </div>
 
       <div className="row">
         <label className="field">
@@ -92,8 +230,13 @@ export function MercBuilder({ disabled, onAdd }: Props) {
           <select
             value={raceId}
             onChange={(e) => {
-              setRaceId(e.target.value);
+              const nextRace = getRace(e.target.value);
+              setRaceId(nextRace.id);
               setRaceChoices([]);
+              setLoadout((current) => {
+                const tidy = tidyLoadout(nextRace, classId, current);
+                return tidy.mainHand ? tidy : defaultLoadout(nextRace, classId);
+              });
             }}
           >
             {RACES.map((r) => (
@@ -105,7 +248,13 @@ export function MercBuilder({ disabled, onAdd }: Props) {
         </label>
         <label className="field">
           <span>Class</span>
-          <select value={classId} onChange={(e) => setClassId(e.target.value)}>
+          <select
+            value={classId}
+            onChange={(e) => {
+              setClassId(e.target.value);
+              setLoadout(defaultLoadout(race, e.target.value));
+            }}
+          >
             {CLASSES.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -115,12 +264,23 @@ export function MercBuilder({ disabled, onAdd }: Props) {
         </label>
       </div>
 
-      <p className="dim note">
-        <strong>{race.name}:</strong> {race.passives.map(describePassive).join('. ')}.
-        <br />
-        <strong>{cls.name}:</strong> {cls.role}. Key stats: {cls.keyStats.map((s) => STAT_FULL_NAMES[s]).join(', ')}.
-      </p>
+      <div className="note dim builder-notes">
+        <span className="row">
+          <AssetImage id={race.icon} fallback="" size={32} alt={race.name} />
+          <span>
+            <strong>{race.name}:</strong> {race.passives.map(describePassive).join('. ')}.
+          </span>
+        </span>
+        <span className="row">
+          <AssetImage id={cls.icon} fallback="" size={32} alt={cls.name} />
+          <span>
+            <strong>{cls.name}:</strong> {cls.role}. Key stats: {cls.keyStats.map((s) => STAT_FULL_NAMES[s]).join(', ')}.
+            Armour: {cls.armour === 'none' ? 'clothing only' : `up to ${cls.armour}`}.
+          </span>
+        </span>
+      </div>
 
+      <h3 className="builder-heading">Stats</h3>
       <p className="points">
         Stat points left: <strong>{pointsLeft}</strong> of {CREATION_POINTS}
       </p>
@@ -128,7 +288,7 @@ export function MercBuilder({ disabled, onAdd }: Props) {
       <table className="stat-table">
         <tbody>
           {STAT_NAMES.map((stat) => {
-            const raceBonus = sheet.stats[stat] - baseStats[stat];
+            const raceBonus = finalBonus(sheet.stats[stat], baseStats[stat]);
             return (
               <tr key={stat}>
                 <th scope="row">{STAT_FULL_NAMES[stat]}</th>
@@ -176,12 +336,47 @@ export function MercBuilder({ disabled, onAdd }: Props) {
         </tbody>
       </table>
 
+      <h3 className="builder-heading">Starting gear</h3>
+      <div className="gear-pickers">
+        <GearPicker
+          label="Main hand"
+          value={loadout.mainHand}
+          options={options.mainHand}
+          allowNone={false}
+          onChange={(id) => setSlot('mainHand', id)}
+        />
+        <GearPicker
+          label="Off hand"
+          value={loadout.offHand}
+          options={options.offHand}
+          allowNone
+          onChange={(id) => setSlot('offHand', id)}
+        />
+        <GearPicker label="Armour" value={loadout.body} options={options.body} allowNone onChange={(id) => setSlot('body', id)} />
+        {launcher && (
+          <GearPicker
+            label={`Ammunition (${STARTING_AMMO})`}
+            value={loadout.ammo}
+            options={options.ammo}
+            allowNone={false}
+            onChange={(id) => setSlot('ammo', id)}
+          />
+        )}
+      </div>
+
       <p className="stat-line">
         <span className="stat-chip">
           <span className="dim">HP</span> {sheet.maxHp}
         </span>
         <span className="stat-chip">
           <span className="dim">Defense</span> {sheet.defense}
+        </span>
+        <span className="stat-chip">
+          <span className="dim">Armour</span> {sheet.armour.physical}
+          {sheet.armour.magic > 0 && ` / magic ${sheet.armour.magic}`}
+        </span>
+        <span className="stat-chip">
+          <span className="dim">Purse</span> {formatCoins(STARTING_PURSE)}
         </span>
       </p>
 
@@ -198,4 +393,9 @@ export function MercBuilder({ disabled, onAdd }: Props) {
       </button>
     </div>
   );
+}
+
+/** The part of a stat that comes from race and gear rather than spent points. */
+function finalBonus(final: number, base: number): number {
+  return final - base;
 }

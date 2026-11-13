@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getClass, getRace, PREMADES, premadeToDraft } from '../../src/content';
+import { getClass, getItem, getRace, PREMADES, premadeToDraft } from '../../src/content';
 import {
   addMerc,
   confirmLeader,
@@ -14,9 +14,11 @@ import {
   removeMerc,
   setLeader,
   startNewGame,
+  STARTING_PURSE,
   validateDraft,
   type GameState,
   type MercDraft,
+  type RaceDefinition,
 } from '../../src/engine';
 import { createMemorySaveStore } from '../../src/platform/saveStore';
 
@@ -27,8 +29,15 @@ function draft(overrides: Partial<MercDraft> = {}): MercDraft {
     classId: 'knight',
     baseStats: { ...createStartingStats(), strength: 14, toughness: 14 },
     raceChoices: [],
+    loadout: { mainHand: 'arming-sword' },
     ...overrides,
   };
+}
+
+const knightGear = { armourProficiency: 'heavy' as const, getItem };
+
+function check(d: MercDraft, race: RaceDefinition = getRace('dwarf')): string[] {
+  return validateDraft(d, race, knightGear);
 }
 
 function fullParty(): GameState {
@@ -39,33 +48,65 @@ function fullParty(): GameState {
 
 describe('validateDraft', () => {
   it('accepts a complete draft', () => {
-    expect(validateDraft(draft(), getRace('dwarf'))).toEqual([]);
+    expect(check(draft())).toEqual([]);
   });
 
   it('needs a name', () => {
-    expect(validateDraft(draft({ name: '   ' }), getRace('dwarf'))).toHaveLength(1);
+    expect(check(draft({ name: '   ' }))).toHaveLength(1);
   });
 
   it('needs every stat point spent', () => {
     const unspent = draft({ baseStats: { ...createStartingStats(), strength: 10 } });
-    expect(validateDraft(unspent, getRace('dwarf'))[0]).toMatch(/remaining 10 stat points/);
+    expect(check(unspent)[0]).toMatch(/remaining 10 stat points/);
   });
 
   it('rejects overspending', () => {
     const over = draft({ baseStats: { ...createStartingStats(), strength: 30 } });
-    expect(validateDraft(over, getRace('dwarf'))).toHaveLength(1);
+    expect(check(over)).toHaveLength(1);
   });
 
   it('needs exactly two different stats for the Human bonus', () => {
     const human = getRace('human');
-    expect(validateDraft(draft({ raceChoices: [] }), human)).toHaveLength(1);
-    expect(validateDraft(draft({ raceChoices: ['strength'] }), human)).toHaveLength(1);
-    expect(validateDraft(draft({ raceChoices: ['strength', 'strength'] }), human)).toHaveLength(1);
-    expect(validateDraft(draft({ raceChoices: ['strength', 'agility'] }), human)).toEqual([]);
+    expect(check(draft({ raceChoices: [] }), human)).toHaveLength(1);
+    expect(check(draft({ raceChoices: ['strength'] }), human)).toHaveLength(1);
+    expect(check(draft({ raceChoices: ['strength', 'strength'] }), human)).toHaveLength(1);
+    expect(check(draft({ raceChoices: ['strength', 'agility'] }), human)).toEqual([]);
   });
 
   it('rejects stat choices for a race that has none', () => {
-    expect(validateDraft(draft({ raceChoices: ['strength'] }), getRace('dwarf'))).toHaveLength(1);
+    expect(check(draft({ raceChoices: ['strength'] }))).toHaveLength(1);
+  });
+
+  it('needs a weapon', () => {
+    expect(check(draft({ loadout: {} }))).toEqual(['Choose a weapon.']);
+  });
+
+  it('needs ammunition for a bow', () => {
+    expect(check(draft({ loadout: { mainHand: 'shortbow' } }))).toEqual(['The Shortbow needs ammunition.']);
+    expect(check(draft({ loadout: { mainHand: 'shortbow', ammo: 'arrows' } }))).toEqual([]);
+  });
+
+  it('refuses gear that is not starting gear', () => {
+    expect(check(draft({ loadout: { mainHand: 'arming-sword', body: 'warded-plate' } }))).toHaveLength(1);
+  });
+});
+
+describe('starting kit', () => {
+  it('equips the loadout, packs 20 arrows and fills the purse', () => {
+    const state = addMerc(startNewGame(1), draft({ loadout: { mainHand: 'shortbow', body: 'leather-armour', ammo: 'arrows' } }));
+    const merc = state.party[0]!;
+    expect(merc.equipment).toEqual({ mainHand: 'shortbow', body: 'leather-armour', ammo: 'arrows' });
+    expect(merc.inventory).toEqual([{ itemId: 'arrows', quantity: 20 }]);
+    expect(merc.purse).toBe(STARTING_PURSE);
+    expect('loadout' in merc).toBe(false);
+  });
+
+  it('gives every pre-built merc a valid kit and a portrait', () => {
+    for (const premade of PREMADES) {
+      const cls = getClass(premade.classId);
+      expect(validateDraft(premadeToDraft(premade), getRace(premade.raceId), { armourProficiency: cls.armour, getItem })).toEqual([]);
+      expect(premade.portrait).toBeTruthy();
+    }
   });
 });
 
@@ -84,14 +125,14 @@ describe('merc sheet', () => {
   });
 
   it('works out HP, Defense and race armour', () => {
-    const sheet = mercSheet(draft(), getRace('dwarf'), getClass('knight'));
+    const sheet = mercSheet(draft(), getRace('dwarf'), getClass('knight'), getItem);
     expect(sheet.maxHp).toBe(15); // 12 base + 3 from Toughness 16
     expect(sheet.defense).toBe(11); // 12 base - 1 from Agility 8
     expect(sheet.armour).toEqual({ physical: 0, magic: 3 });
   });
 
   it('adds the Goliath HP bonus', () => {
-    const sheet = mercSheet(draft({ raceId: 'goliath' }), getRace('goliath'), getClass('barbarian'));
+    const sheet = mercSheet(draft({ raceId: 'goliath' }), getRace('goliath'), getClass('barbarian'), getItem);
     expect(sheet.maxHp).toBe(14 + 2 + 5); // 14 base, +2 from Toughness 15, +5 racial
   });
 });

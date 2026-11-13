@@ -1,0 +1,57 @@
+[
+  {
+    "id": "savage-bite",
+    "name": "Savage Bite",
+    "icon": "skills/red/red-03",
+    "animation": "animations/cursed-kingdoms/acck009-chomp",
+    "description": "Lunges for the throat. Crits on 19 or 20.",
+    "activation": "action",
+    "usableBy": "monsters",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 2,
+    "attack": { "kind": "melee", "damageType": "physical", "graze": "2", "hit": "7", "critThreshold": 19 },
+    "effects": []
+  },
+  {
+    "id": "aimed-shot",
+    "name": "Aimed Shot",
+    "icon": "skills/yellow/yellow-02",
+    "animation": "animations/quantum/ac2q003-shot",
+    "description": "A careful shot at a distant target. Crits on 19 or 20.",
+    "activation": "action",
+    "usableBy": "both",
+    "target": "enemy",
+    "range": 3,
+    "cooldown": 2,
+    "attack": { "kind": "ranged", "damageType": "physical", "graze": "1", "hit": "7", "critThreshold": 19 },
+    "effects": []
+  },
+  {
+    "id": "thunderbolt",
+    "name": "Thunderbolt",
+    "icon": "skills/yellow/yellow-05",
+    "animation": "animations/thunder/asthunder-04-thunderbolt",
+    "description": "Calls lightning down on one target.",
+    "activation": "action",
+    "usableBy": "both",
+    "target": "enemy",
+    "range": 3,
+    "attack": { "kind": "magic", "damageType": "magic", "graze": "2", "hit": "6" },
+    "effects": []
+  },
+  {
+    "id": "rally",
+    "name": "Rally",
+    "icon": "skills/red/red-08",
+    "animation": "animations/quantum/ac2q023-star-aura",
+    "description": "A shouted order that steels every ally: +1 Strength for 3 turns.",
+    "activation": "action",
+    "usableBy": "both",
+    "target": "allAllies",
+    "range": 4,
+    "cooldown": 4,
+    "effects": [{ "type": "stat", "stat": "strength", "amount": 1 }],
+    "duration": 3
+  }
+]

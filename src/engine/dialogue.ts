@@ -19,7 +19,10 @@ export type Condition =
   | { type: 'partyHasRace'; raceId: string };
 
 /** A change to the game made when an outcome is reached. */
-export type Effect = { type: 'setFlag'; flag: string; value: FlagValue } | { type: 'gold'; amount: number };
+export type Effect =
+  | { type: 'setFlag'; flag: string; value: FlagValue }
+  /** Pays (or, if negative, takes) money in copper from the leader's purse. */
+  | { type: 'money'; amount: number };
 
 export interface Outcome {
   /** Shown to the player before moving on. Without it the dialogue advances straight away. */
@@ -146,9 +149,15 @@ function applyEffects(state: GameState, effects: Effect[] = []): GameState {
       case 'setFlag':
         next = { ...next, flags: { ...next.flags, [effect.flag]: effect.value } };
         break;
-      case 'gold':
-        next = { ...next, gold: Math.max(0, next.gold + effect.amount) };
+      case 'money': {
+        const payee = getLeader(next) ?? next.party[0];
+        if (!payee) break;
+        next = {
+          ...next,
+          party: next.party.map((m) => (m.id === payee.id ? { ...m, purse: Math.max(0, m.purse + effect.amount) } : m)),
+        };
         break;
+      }
     }
   }
   return next;

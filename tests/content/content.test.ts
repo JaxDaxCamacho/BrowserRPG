@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, classSchema, getClass, getRace, getWeapon, parseList, RACES, weaponSchema, WEAPONS } from '../../src/content';
+import {
+  CLASSES,
+  checkCollection,
+  classSchema,
+  CONTENT,
+  getClass,
+  getItem,
+  getRace,
+  itemSchema,
+  ITEMS,
+  parseList,
+  RACES,
+} from '../../src/content';
 import {
   raceBaseArmour,
   raceBonusHp,
@@ -14,7 +26,12 @@ describe('content files', () => {
   it('load and validate', () => {
     expect(CLASSES.map((c) => c.id)).toEqual(['knight', 'barbarian', 'ranger', 'wizard', 'warlock', 'rogue']);
     expect(RACES.map((r) => r.id)).toEqual(['human', 'dwarf', 'elf', 'goliath', 'cursed']);
-    expect(WEAPONS.length).toBeGreaterThan(0);
+    expect(ITEMS.length).toBeGreaterThan(0);
+  });
+
+  it('give every class and race an icon', () => {
+    expect(CLASSES.every((c) => c.icon)).toBe(true);
+    expect(RACES.every((r) => r.icon)).toBe(true);
   });
 
   it('look up by id and fail clearly on an unknown one', () => {
@@ -31,11 +48,89 @@ describe('content files', () => {
     const twice = [getClass('knight'), getClass('knight')];
     expect(() => parseList(classSchema, twice, 'class')).toThrow(/used twice/);
   });
+});
 
-  it('reject bad dice notation and a melee weapon with range', () => {
-    const sword = getWeapon('longsword');
-    expect(() => parseList(weaponSchema, [{ ...sword, attack: { ...sword.attack, hit: 'big' } }], 'weapon')).toThrow();
-    expect(() => parseList(weaponSchema, [{ ...sword, range: 2 }], 'weapon')).toThrow();
+describe('gear rules in the item schema', () => {
+  const sword = getItem('arming-sword');
+  const check = (item: unknown) => itemSchema.safeParse(item).success;
+
+  it('accepts every shipped item', () => {
+    expect(ITEMS.every(check)).toBe(true);
+  });
+
+  it('gives basic weapons the agreed damage by style', () => {
+    const profile = (id: string) => {
+      const item = getItem(id);
+      return item.kind === 'weapon' ? [item.attack.graze, item.attack.hit] : null;
+    };
+    expect(profile('arming-sword')).toEqual(['3', '6']);
+    expect(profile('hand-axe')).toEqual(['3', '6']);
+    expect(profile('mace')).toEqual(['4', '5']);
+    expect(profile('spear')).toEqual(['2', '7']);
+  });
+
+  it('keeps ranged weapons below melee damage', () => {
+    const total = (id: string) => {
+      const item = getItem(id);
+      return item.kind === 'weapon' ? Number(item.attack.graze) + Number(item.attack.hit) : 0;
+    };
+    expect(total('shortbow')).toBeLessThan(total('spear'));
+    expect(total('light-crossbow')).toBeLessThan(total('spear'));
+  });
+
+  it('rejects bad dice notation and a melee weapon with range', () => {
+    if (sword.kind !== 'weapon') throw new Error('expected a weapon');
+    expect(check({ ...sword, attack: { ...sword.attack, hit: 'big' } })).toBe(false);
+    expect(check({ ...sword, range: 2 })).toBe(false);
+  });
+
+  it('refuses bonuses on starting gear', () => {
+    expect(check({ ...sword, effects: [{ type: 'stat', stat: 'strength', amount: 1 }] })).toBe(false);
+    expect(check({ ...sword, starter: false, effects: [{ type: 'stat', stat: 'strength', amount: 1 }] })).toBe(true);
+  });
+
+  it('holds body armour to its weight band', () => {
+    const leather = getItem('leather-armour');
+    expect(check({ ...leather, defense: -1 })).toBe(false);
+    expect(check({ ...leather, physicalArmour: 3 })).toBe(false);
+    const chain = getItem('chainmail');
+    expect(check({ ...chain, defense: -3 })).toBe(false);
+    expect(check({ ...chain, physicalArmour: 13 })).toBe(false);
+    expect(check({ ...chain, defense: -6, physicalArmour: 12, magicArmour: 4 })).toBe(true);
+  });
+
+  it('gives shields Defense but no armour field', () => {
+    expect(check({ ...getItem('round-shield'), physicalArmour: 2 })).toBe(false);
+  });
+
+  it('needs a duration for potions with lasting effects', () => {
+    const tonic = getItem('stoneskin-tonic');
+    expect(check({ ...tonic, encounters: undefined })).toBe(false);
+    expect(check({ ...getItem('healing-draught') })).toBe(true);
+  });
+});
+
+describe('editor save checks', () => {
+  it('accept the content as it is', () => {
+    expect(checkCollection('items', CONTENT.items, CONTENT)).toEqual([]);
+  });
+
+  it('catch an item a pre-built merc still uses being deleted', () => {
+    const without = CONTENT.items.filter((i) => i.id !== 'chainmail');
+    expect(checkCollection('items', without, CONTENT).join('\n')).toMatch(/aldric-vane.*chainmail/);
+  });
+
+  it('catch an ability a monster still uses being deleted', () => {
+    const without = CONTENT.abilities.filter((a) => a.id !== 'rally');
+    const problems = checkCollection('abilities', without, CONTENT).join('\n');
+    expect(problems).toMatch(/bandit-captain/);
+    expect(problems).toMatch(/signet-of-command/);
+  });
+
+  it('report schema errors instead of throwing', () => {
+    const problems = checkCollection('items', [{ id: 'Bad Id' }], CONTENT);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/Invalid gear data/);
   });
 });
 

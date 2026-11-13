@@ -29,6 +29,7 @@ export function MainMenu() {
   const refreshSaves = useGameStore((s) => s.refreshSaves);
   const newGame = useGameStore((s) => s.newGame);
   const continueGame = useGameStore((s) => s.continueGame);
+  const openTool = useGameStore((s) => s.openTool);
 
   const [view, setView] = useState<View>('main');
   /** The used slot the player has asked to overwrite, awaiting a yes or no. */
@@ -57,6 +58,11 @@ export function MainMenu() {
           >
             Continue
           </button>
+          {import.meta.env.DEV && (
+            <button type="button" className="tool-button" onClick={() => openTool('contentEditor')}>
+              Content Editor
+            </button>
+          )}
         </nav>
         {saveError && <p className="error">{saveError}</p>}
       </main>

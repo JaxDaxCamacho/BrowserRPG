@@ -1,5 +1,5 @@
 import type { GameState } from './gameState';
-import type { Merc, MercDraft } from './merc';
+import { startingKit, type Merc, type MercDraft } from './merc';
 
 export const PARTY_SIZE = 4;
 
@@ -13,8 +13,10 @@ export function addMerc(state: GameState, draft: MercDraft): GameState {
   if (draft.premadeId && state.party.some((m) => m.premadeId === draft.premadeId)) {
     throw new Error(`${draft.name} is already in the party.`);
   }
+  const { loadout: _loadout, ...identity } = draft;
   const merc: Merc = {
-    ...draft,
+    ...identity,
+    ...startingKit(draft),
     name: draft.name.trim(),
     id: `merc-${state.nextMercId}`,
     level: 1,

@@ -1,14 +1,29 @@
 import { z } from 'zod';
-import { isValidDice, SCREENS, STAT_NAMES, WEAPON_TYPES } from '../engine';
+import {
+  ABILITY_TARGETS,
+  AMMO_TYPES,
+  ARMOUR_WEIGHTS,
+  DAMAGE_STYLES,
+  ENEMY_ARCHETYPES,
+  isValidDice,
+  SCREENS,
+  STAT_NAMES,
+  WEAPON_TYPES,
+} from '../engine';
 
 /**
  * Schemas for the JSON content files. Every file is checked when the game
- * loads and in tests, so a typo in data fails fast with a readable message.
+ * loads, in tests, and by the content editor before it saves, so a typo in
+ * data fails fast with a readable message.
  */
 
 const id = z.string().regex(/^[a-z][a-z0-9-]*$/, 'ids are lowercase words joined by hyphens');
 const statName = z.enum(STAT_NAMES);
 const dice = z.string().refine(isValidDice, 'must be dice notation such as "1d8", "2d6+1" or "2"');
+/** An asset from the synced library, e.g. "weapons/swords/sv-t-01". */
+const assetId = z.string().regex(/^[a-z0-9][a-z0-9/-]*$/, 'asset ids look like "weapons/swords/sv-t-01"');
+const armourType = z.enum(['physical', 'magic']);
+const damageType = z.enum(['physical', 'magic', 'spiritual']);
 
 const statChanges = z.strictObject({
   strength: z.number().int().optional(),
@@ -19,9 +34,22 @@ const statChanges = z.strictObject({
   charisma: z.number().int().optional(),
 });
 
+const statValue = z.number().int().min(1);
+const fullStats = z.strictObject({
+  strength: statValue,
+  agility: statValue,
+  toughness: statValue,
+  intellect: statValue,
+  spirit: statValue,
+  charisma: statValue,
+});
+
+// ---------- classes and races ----------
+
 export const classSchema = z.strictObject({
   id,
   name: z.string().min(1),
+  icon: assetId.optional(),
   role: z.string().min(1),
   keyStats: z.array(statName).min(1),
   baseHp: z.number().int().positive(),
@@ -29,8 +57,6 @@ export const classSchema = z.strictObject({
   baseDefense: z.number().int(),
   armour: z.enum(['none', 'light', 'medium', 'heavy']),
 });
-
-const armourType = z.enum(['physical', 'magic']);
 
 export const racePassiveSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('xpRate'), bonus: z.number().positive() }),
@@ -48,6 +74,7 @@ export const racePassiveSchema = z.discriminatedUnion('type', [
 export const raceSchema = z.strictObject({
   id,
   name: z.string().min(1),
+  icon: assetId.optional(),
   statChanges,
   statChoices: z
     .strictObject({ count: z.number().int().min(1).max(STAT_NAMES.length), amount: z.number().int() })
@@ -55,27 +82,173 @@ export const raceSchema = z.strictObject({
   passives: z.array(racePassiveSchema),
 });
 
+// ---------- attacks ----------
+
 export const attackProfileSchema = z.strictObject({
   kind: z.enum(['melee', 'ranged', 'magic', 'spiritual']),
-  damageType: z.enum(['physical', 'magic', 'spiritual']),
+  damageType,
   graze: dice,
   hit: dice,
   critThreshold: z.number().int().min(2).max(20).optional(),
+  extra: z.strictObject({ damageType, amount: z.number().int().positive() }).optional(),
 });
 
-export const weaponSchema = z
-  .strictObject({
-    id,
-    name: z.string().min(1),
-    weaponType: z.enum(WEAPON_TYPES),
-    hands: z.union([z.literal(1), z.literal(2)]),
-    /** Reach in combat rows. 0 means the same row only (melee). */
-    range: z.number().int().min(0).max(4),
-    attack: attackProfileSchema,
-  })
-  .refine((w) => (w.attack.kind === 'melee') === (w.range === 0), {
-    message: 'melee weapons have range 0; every other weapon needs a range of 1 or more',
+// ---------- items ----------
+
+export const itemEffectSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('stat'), stat: statName, amount: z.number().int() }),
+  z.strictObject({ type: z.literal('armour'), armour: armourType, amount: z.number().int() }),
+  z.strictObject({ type: z.literal('defense'), amount: z.number().int() }),
+  z.strictObject({ type: z.literal('maxHp'), amount: z.number().int() }),
+  z.strictObject({ type: z.literal('ability'), abilityId: id }),
+  z.strictObject({ type: z.literal('heal'), amount: z.number().int().positive() }),
+]);
+
+const effects = z.array(itemEffectSchema);
+
+const itemBase = {
+  id,
+  name: z.string().min(1),
+  icon: assetId.optional(),
+  description: z.string().optional(),
+  /** Price in copper. */
+  value: z.number().int().min(0),
+  /** Can be picked as starting gear at character creation. */
+  starter: z.boolean(),
+};
+
+const weaponItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('weapon'),
+  weaponType: z.enum(WEAPON_TYPES),
+  style: z.enum(DAMAGE_STYLES),
+  hands: z.union([z.literal(1), z.literal(2)]),
+  range: z.number().int().min(0).max(4),
+  attack: attackProfileSchema,
+  ammo: z.enum(AMMO_TYPES).optional(),
+  effects,
+});
+
+const armourItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('armour'),
+  slot: z.enum(['body', 'head', 'hands', 'feet']),
+  weight: z.enum(ARMOUR_WEIGHTS),
+  defense: z.number().int().max(0),
+  physicalArmour: z.number().int().min(0),
+  magicArmour: z.number().int().min(0),
+  effects,
+});
+
+const shieldItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('shield'),
+  defense: z.number().int().positive(),
+  effects,
+});
+
+const trinketItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('trinket'),
+  slot: z.enum(['neck', 'ring']),
+  effects,
+});
+
+const potionItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('potion'),
+  effects: effects.min(1),
+  encounters: z.number().int().min(1).optional(),
+});
+
+const ammoItem = z.strictObject({
+  ...itemBase,
+  kind: z.literal('ammo'),
+  ammoType: z.enum(AMMO_TYPES),
+  bonusGraze: z.number().int(),
+  bonusHit: z.number().int(),
+  extraDamage: z.strictObject({ damageType, amount: z.number().int().positive() }).optional(),
+});
+
+/** Body armour must sit in the bands agreed for each weight. */
+const BODY_ARMOUR_BANDS = {
+  clothing: { defense: [0, 0], physical: [0, 0] },
+  light: { defense: [0, 0], physical: [1, 2] },
+  medium: { defense: [-3, -1], physical: [3, 6] },
+  heavy: { defense: [-6, -4], physical: [5, 12] },
+} as const;
+
+export const itemSchema = z
+  .discriminatedUnion('kind', [weaponItem, armourItem, shieldItem, trinketItem, potionItem, ammoItem])
+  .superRefine((item, ctx) => {
+    if (item.kind === 'weapon') {
+      if ((item.attack.kind === 'melee') !== (item.range === 0)) {
+        ctx.addIssue({ code: 'custom', message: 'melee weapons have range 0; every other weapon needs a range of 1 or more' });
+      }
+      if (item.ammo && item.attack.kind !== 'ranged') {
+        ctx.addIssue({ code: 'custom', message: 'only ranged weapons use ammunition' });
+      }
+    }
+    if (item.kind === 'armour' && item.slot === 'body') {
+      const band = BODY_ARMOUR_BANDS[item.weight];
+      const inBand = (v: number, [lo, hi]: readonly [number, number]) => v >= lo && v <= hi;
+      if (!inBand(item.defense, band.defense)) {
+        ctx.addIssue({ code: 'custom', message: `${item.weight} body armour has a Defense penalty of ${band.defense[0]} to ${band.defense[1]}` });
+      }
+      if (!inBand(item.physicalArmour, band.physical)) {
+        ctx.addIssue({ code: 'custom', message: `${item.weight} body armour gives ${band.physical[0]} to ${band.physical[1]} physical armour` });
+      }
+    }
+    if (item.kind === 'potion') {
+      const lasting = item.effects.some((e) => e.type !== 'heal');
+      if (lasting && !item.encounters) {
+        ctx.addIssue({ code: 'custom', message: 'a potion with lasting effects needs a number of encounters' });
+      }
+    }
+    if (item.starter && 'effects' in item && item.kind !== 'potion' && item.effects.length > 0) {
+      ctx.addIssue({ code: 'custom', message: 'starting gear has no bonuses' });
+    }
   });
+
+// ---------- abilities and monsters ----------
+
+export const abilitySchema = z.strictObject({
+  id,
+  name: z.string().min(1),
+  icon: assetId.optional(),
+  animation: assetId.optional(),
+  description: z.string().min(1),
+  activation: z.enum(['action', 'passive']),
+  usableBy: z.enum(['mercs', 'monsters', 'both']),
+  target: z.enum(ABILITY_TARGETS),
+  range: z.number().int().min(0).max(4),
+  cooldown: z.number().int().min(1).optional(),
+  attack: attackProfileSchema.optional(),
+  effects,
+  duration: z.number().int().min(1).optional(),
+});
+
+export const monsterSchema = z.strictObject({
+  id,
+  name: z.string().min(1),
+  portrait: assetId.optional(),
+  archetype: z.enum(ENEMY_ARCHETYPES),
+  level: z.number().int().min(1),
+  stats: fullStats,
+  hp: z.number().int().positive(),
+  defense: z.number().int(),
+  armour: z.strictObject({ physical: z.number().int().min(0), magic: z.number().int().min(0) }),
+  attack: z.strictObject({
+    name: z.string().min(1),
+    range: z.number().int().min(0).max(4),
+    profile: attackProfileSchema,
+    animation: assetId.optional(),
+  }),
+  abilityIds: z.array(id),
+  xp: z.number().int().min(0),
+});
+
+// ---------- dialogue and adventures ----------
 
 const flagValue = z.union([z.boolean(), z.number(), z.string()]);
 const screenName = z.enum(SCREENS);
@@ -88,7 +261,7 @@ const conditionSchema = z.discriminatedUnion('type', [
 
 const effectSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('setFlag'), flag: z.string().min(1), value: flagValue }),
-  z.strictObject({ type: z.literal('gold'), amount: z.number().int() }),
+  z.strictObject({ type: z.literal('money'), amount: z.number().int() }),
 ]);
 
 const outcomeSchema = z
@@ -159,32 +332,30 @@ export const adventureSchema = z
     dialogues: z.array(dialogueSchema).min(1),
   })
   .refine((a) => a.dialogues.some((d) => d.id === a.debrief), {
-    message: 'the debrief must be one of the adventure\'s dialogues',
+    message: "the debrief must be one of the adventure's dialogues",
   });
 
-export type AdventureDefinition = z.infer<typeof adventureSchema>;
-
-const statValue = z.number().int().min(1);
+// ---------- pre-built mercs ----------
 
 export const premadeSchema = z.strictObject({
   id,
   name: z.string().min(1),
   raceId: id,
   classId: id,
-  baseStats: z.strictObject({
-    strength: statValue,
-    agility: statValue,
-    toughness: statValue,
-    intellect: statValue,
-    spirit: statValue,
-    charisma: statValue,
-  }),
+  portrait: assetId.optional(),
+  baseStats: fullStats,
   raceChoices: z.array(statName),
+  loadout: z.strictObject({
+    mainHand: id.optional(),
+    offHand: id.optional(),
+    body: id.optional(),
+    ammo: id.optional(),
+  }),
 });
 
+export type AdventureDefinition = z.infer<typeof adventureSchema>;
 export type PremadeDefinition = z.infer<typeof premadeSchema>;
 export type ClassDefinition = z.infer<typeof classSchema>;
-export type WeaponDefinition = z.infer<typeof weaponSchema>;
 
 /** Checks a list of definitions and that no id is used twice. */
 export function parseList<T extends { id: string }>(schema: z.ZodType<T>, data: unknown, what: string): T[] {

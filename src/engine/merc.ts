@@ -1,5 +1,17 @@
 import type { Armour } from './attack';
+import { STARTING_PURSE } from './currency';
 import { defenseOf, maxHitPoints, type ClassNumbers } from './derived';
+import {
+  gearTotals,
+  missingAmmo,
+  STARTING_AMMO,
+  validateEquipment,
+  type ArmourProficiency,
+  type Equipment,
+  type InventoryStack,
+  type ItemLookup,
+  type Loadout,
+} from './items';
 import { raceBaseArmour, raceBonusHp, type RaceDefinition } from './race';
 import {
   applyStatChanges,
@@ -18,21 +30,29 @@ export interface MercDraft {
   name: string;
   raceId: string;
   classId: string;
+  /** Asset id of the portrait shown on the merc's token. */
+  portrait?: string;
   /** Stats after spending creation points, before race changes. */
   baseStats: Stats;
   /** Stats picked for a race that lets the player choose its bonus (Human). */
   raceChoices: StatName[];
+  /** Starting gear picked at creation. */
+  loadout: Loadout;
   /** Set when the merc came from the pre-built roster. */
   premadeId?: string;
 }
 
-export interface Merc extends MercDraft {
+export interface Merc extends Omit<MercDraft, 'loadout'> {
   id: string;
   level: number;
   xp: number;
+  equipment: Equipment;
+  inventory: InventoryStack[];
+  /** Money in copper. */
+  purse: number;
 }
 
-/** Base stats with the race's fixed changes and chosen bonuses applied. */
+/** Base stats with the race's fixed changes and chosen bonuses applied (no gear). */
 export function finalStats(merc: Pick<MercDraft, 'baseStats' | 'raceChoices'>, race: RaceDefinition): Stats {
   const chosen: StatChanges = {};
   for (const name of merc.raceChoices) {
@@ -41,8 +61,13 @@ export function finalStats(merc: Pick<MercDraft, 'baseStats' | 'raceChoices'>, r
   return applyStatChanges(applyStatChanges(merc.baseStats, race.statChanges), chosen);
 }
 
+export interface GearContext {
+  armourProficiency: ArmourProficiency;
+  getItem: ItemLookup;
+}
+
 /** Problems that stop a draft from joining the party. Empty means it is ready. */
-export function validateDraft(draft: MercDraft, race: RaceDefinition): string[] {
+export function validateDraft(draft: MercDraft, race: RaceDefinition, gear: GearContext): string[] {
   const problems: string[] = [];
   const name = draft.name.trim();
   if (name.length === 0) problems.push('Give your mercenary a name.');
@@ -64,28 +89,49 @@ export function validateDraft(draft: MercDraft, race: RaceDefinition): string[] 
         : `Choose ${needed} different stats for the ${race.name} bonus.`,
     );
   }
+
+  if (!draft.loadout.mainHand) problems.push('Choose a weapon.');
+  problems.push(...validateEquipment(draft.loadout, { ...gear, race, startersOnly: true }));
+  const unfed = missingAmmo(draft.loadout, gear.getItem);
+  if (unfed) problems.push(`The ${unfed.name} needs ammunition.`);
   return problems;
 }
 
+/** Turns a validated draft into the starting equipment, inventory and purse of a new merc. */
+export function startingKit(draft: MercDraft): Pick<Merc, 'equipment' | 'inventory' | 'purse'> {
+  const equipment: Equipment = { ...draft.loadout };
+  const inventory: InventoryStack[] = draft.loadout.ammo ? [{ itemId: draft.loadout.ammo, quantity: STARTING_AMMO }] : [];
+  return { equipment, inventory, purse: STARTING_PURSE };
+}
+
 export interface MercSheet {
+  /** Final stats including race and gear. */
   stats: Stats;
   maxHp: number;
   defense: number;
-  /** Armour before any gear: only what the race gives. */
   armour: Armour;
+  /** Abilities granted by gear. */
+  gearAbilityIds: string[];
 }
 
+type SheetSource = Pick<MercDraft, 'baseStats' | 'raceChoices'> & {
+  level?: number;
+  equipment?: Equipment;
+  loadout?: Loadout;
+};
+
 /** Everything the character sheet shows that is worked out rather than stored. */
-export function mercSheet(
-  merc: Pick<Merc, 'baseStats' | 'raceChoices'> & { level?: number },
-  race: RaceDefinition,
-  cls: ClassNumbers,
-): MercSheet {
-  const stats = finalStats(merc, race);
+export function mercSheet(merc: SheetSource, race: RaceDefinition, cls: ClassNumbers, getItem: ItemLookup): MercSheet {
+  const gear = gearTotals(merc.equipment ?? merc.loadout ?? {}, getItem);
+  const stats = applyStatChanges(finalStats(merc, race), gear.stats);
   return {
     stats,
-    maxHp: maxHitPoints(cls, stats, merc.level ?? 1, raceBonusHp(race)),
-    defense: defenseOf(cls, stats),
-    armour: { physical: raceBaseArmour(race, 'physical'), magic: raceBaseArmour(race, 'magic') },
+    maxHp: maxHitPoints(cls, stats, merc.level ?? 1, raceBonusHp(race) + gear.maxHp),
+    defense: defenseOf(cls, stats, gear.defense),
+    armour: {
+      physical: raceBaseArmour(race, 'physical') + gear.armour.physical,
+      magic: raceBaseArmour(race, 'magic') + gear.armour.magic,
+    },
+    gearAbilityIds: gear.abilityIds,
   };
 }

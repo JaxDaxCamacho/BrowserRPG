@@ -14,6 +14,26 @@ npm run lint
 npm run build    # type-check and build to dist/
 ```
 
+## Art assets
+
+The icon, portrait and animation packs are commercial and are **not** in this repository.
+Put the packs in `../assets` (next to this folder) and run:
+
+```bash
+npm run assets:sync
+```
+
+This resizes about 3,200 images into `public/asset-library/` (git-ignored) and writes
+`public/asset-library/index.json`. Content refers to assets by id, such as
+`weapons/swords/sv-t-01`; anything missing shows a placeholder, so the game still runs
+without the packs. Use `ASSETS_DIR=...` if the packs live somewhere else.
+
+## Content editor
+
+Run `npm run dev` and choose **Content Editor** on the main menu (development builds only).
+It edits gear, abilities, monsters, classes, races and pre-built mercs, validates them
+against the same rules the game uses, and writes the JSON files in `src/content/`.
+
 ## Layout
 
 | Folder | Holds |
