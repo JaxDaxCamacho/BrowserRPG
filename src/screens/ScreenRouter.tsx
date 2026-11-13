@@ -2,7 +2,7 @@ import { useGameStore } from '../state/store';
 import { AdventureSelect } from './AdventureSelect';
 import { DialogueScreen } from './DialogueScreen';
 import { DungeonScreen } from './DungeonScreen';
-import { EncounterPlaceholder } from './EncounterPlaceholder';
+import { CombatScreen } from './CombatScreen';
 import { LeaderSelect } from './LeaderSelect';
 import { MainMenu } from './MainMenu';
 import { PartyCreation } from './PartyCreation';
@@ -25,6 +25,6 @@ export function ScreenRouter() {
     case 'dungeon':
       return <DungeonScreen />;
     case 'combat':
-      return <EncounterPlaceholder />;
+      return <CombatScreen />;
   }
 }

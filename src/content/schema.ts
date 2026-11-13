@@ -390,6 +390,7 @@ export const dungeonSchema = z
           ...featureBase,
           type: z.literal('encounter'),
           monsters: z.array(z.strictObject({ monsterId: id, count: z.number().int().min(1) })).min(1),
+          ambush: z.boolean().optional(),
         }),
         z.strictObject({ ...featureBase, type: z.literal('event'), dialogueId: id, node: id.optional() }),
         z.strictObject({ ...featureBase, type: z.literal('goal'), dialogueId: id, node: id.optional() }),

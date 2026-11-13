@@ -1,5 +1,13 @@
-import { getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getRace } from '../content';
-import { finalStats, mercSheet, type DialogueContext, type DungeonContext, type GameState, type Merc } from '../engine';
+import { getAbility, getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getRace } from '../content';
+import {
+  finalStats,
+  mercSheet,
+  type CombatContext,
+  type DialogueContext,
+  type DungeonContext,
+  type GameState,
+  type Merc,
+} from '../engine';
 
 function maxHpOf(merc: Merc): number {
   return mercSheet(merc, getRace(merc.raceId), getClass(merc.classId), getItem).maxHp;
@@ -24,6 +32,16 @@ export function dungeonContext(state: GameState): DungeonContext {
     monsterName: (monsterId) => getMonster(monsterId).name,
   };
 }
+
+/** What the combat engine needs from content. */
+export const combatContext: CombatContext = {
+  getMonster,
+  getAbility,
+  getItem,
+  getDungeon,
+  sheetOf: (merc) => mercSheet(merc, getRace(merc.raceId), getClass(merc.classId), getItem),
+  raceOf: (merc) => getRace(merc.raceId),
+};
 
 export function currentHp(merc: Merc): { current: number; max: number } {
   const max = maxHpOf(merc);

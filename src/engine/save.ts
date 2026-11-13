@@ -41,6 +41,17 @@ const MIGRATIONS: Record<number, (save: Loose) => Loose> = {
       encounter: null,
     };
   },
+  // v5 added potions that last several encounters. A fight in progress restarts from its beginning.
+  4: (save) => {
+    const party = Array.isArray(save.party) ? (save.party as Loose[]) : [];
+    const encounter = save.encounter as Loose | null | undefined;
+    return {
+      ...save,
+      version: 5,
+      party: party.map((merc) => ({ ...merc, potionEffects: [] })),
+      encounter: encounter ? { featureId: encounter.featureId, returnTo: encounter.returnTo } : null,
+    };
+  },
 };
 
 /**

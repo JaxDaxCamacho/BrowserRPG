@@ -1,4 +1,5 @@
 import { makeCheck } from './checks';
+import type { CombatState } from './combat';
 import { checkMaker, startDialogue, type DialogueContext, type DialogueDefinition } from './dialogue';
 import type { GameState } from './gameState';
 
@@ -60,6 +61,8 @@ export interface TrapFeature extends FeatureBase {
 export interface EncounterFeature extends FeatureBase {
   type: 'encounter';
   monsters: { monsterId: string; count: number }[];
+  /** In a 5-row room, the enemies attack from above and below with the party in the middle. */
+  ambush?: boolean;
 }
 
 /** A chest, a prisoner, a sentry: anything that opens a dialogue when stepped on. */
@@ -114,6 +117,8 @@ export interface EncounterState {
   featureId: string;
   /** Where the party goes if it retreats. */
   returnTo: Pos;
+  /** The fight itself, once it has started. */
+  combat?: CombatState;
 }
 
 const LOG_LIMIT = 30;

@@ -1,34 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { assetUrl, AssetImage, useAssetIndex, type AssetEntry } from '../screens/assets';
+import { AnimationPreview, assetUrl, AssetImage, useAssetIndex, type AssetEntry } from '../screens/assets';
 
 const PAGE = 240;
 
-/** Plays a sprite-sheet animation: 192 px frames, 5 per row. */
-export function AnimationPreview({ id, frames = 15, size = 96 }: { id: string; frames?: number; size?: number }) {
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    setFrame(0);
-    const timer = window.setInterval(() => setFrame((f) => (f + 1) % Math.max(1, frames)), 1000 / 15);
-    return () => window.clearInterval(timer);
-  }, [id, frames]);
-  const col = frame % 5;
-  const row = Math.floor(frame / 5);
-  const rows = Math.max(1, Math.ceil(frames / 5));
-  return (
-    <span
-      className="animation-preview"
-      role="img"
-      aria-label={id}
-      style={{
-        width: size,
-        height: size,
-        backgroundImage: `url(${assetUrl(id)})`,
-        backgroundSize: `${size * 5}px ${size * rows}px`,
-        backgroundPosition: `-${col * size}px -${row * size}px`,
-      }}
-    />
-  );
-}
+export { AnimationPreview };
 
 /** Only the first frame of an animation, for grids where playing them all would be noisy. */
 function FirstFrame({ entry, size }: { entry: AssetEntry; size: number }) {

@@ -45,6 +45,40 @@ export function useAssetIndex(): AssetEntry[] | null {
   return entries;
 }
 
+/**
+ * Plays a sprite-sheet animation: 192 px frames, 5 per row, 15 frames a second.
+ * With `once`, it stops on the last frame instead of looping.
+ */
+export function AnimationPreview({ id, frames = 15, size = 96, once = false }: { id: string; frames?: number; size?: number; once?: boolean }) {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    setFrame(0);
+    const total = Math.max(1, frames);
+    const timer = window.setInterval(
+      () => setFrame((f) => (once ? Math.min(f + 1, total - 1) : (f + 1) % total)),
+      1000 / 15,
+    );
+    return () => window.clearInterval(timer);
+  }, [id, frames, once]);
+  const col = frame % 5;
+  const row = Math.floor(frame / 5);
+  const rows = Math.max(1, Math.ceil(frames / 5));
+  return (
+    <span
+      className="animation-preview"
+      role="img"
+      aria-label={id}
+      style={{
+        width: size,
+        height: size,
+        backgroundImage: `url(${assetUrl(id)})`,
+        backgroundSize: `${size * 5}px ${size * rows}px`,
+        backgroundPosition: `-${col * size}px -${row * size}px`,
+      }}
+    />
+  );
+}
+
 interface Props {
   id?: string;
   /** Shown when there is no id or the file is missing, e.g. initials. */

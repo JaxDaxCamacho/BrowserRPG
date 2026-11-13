@@ -54,6 +54,8 @@ export interface Merc extends Omit<MercDraft, 'loadout'> {
   wounds: number;
   /** At 0 HP: out of action until healed. */
   down: boolean;
+  /** Potions still working, and for how many more encounters. */
+  potionEffects: { itemId: string; encounters: number }[];
 }
 
 /** Base stats with the race's fixed changes and chosen bonuses applied (no gear). */
@@ -102,10 +104,12 @@ export function validateDraft(draft: MercDraft, race: RaceDefinition, gear: Gear
 }
 
 /** Turns a validated draft into the starting equipment, inventory and purse of a new merc. */
-export function startingKit(draft: MercDraft): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down'> {
+export function startingKit(
+  draft: MercDraft,
+): Pick<Merc, 'equipment' | 'inventory' | 'purse' | 'wounds' | 'down' | 'potionEffects'> {
   const equipment: Equipment = { ...draft.loadout };
   const inventory: InventoryStack[] = draft.loadout.ammo ? [{ itemId: draft.loadout.ammo, quantity: STARTING_AMMO }] : [];
-  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false };
+  return { equipment, inventory, purse: STARTING_PURSE, wounds: 0, down: false, potionEffects: [] };
 }
 
 export interface MercSheet {
