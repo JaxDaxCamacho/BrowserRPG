@@ -5,6 +5,10 @@ rem The game itself is built inside WSL, like Play.bat runs it.
 title Building the Allerya Heroes installer
 cd /d "%~dp0"
 
+rem A fresh Rust install is not on the PATH of windows opened before it (Explorer keeps its old PATH),
+rem so look in Rust's default folder too.
+if exist "%USERPROFILE%\.cargo\bin\cargo.exe" set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
+
 where cargo >/dev/null 2>nul
 if errorlevel 1 (
   echo Rust is not installed on Windows.
