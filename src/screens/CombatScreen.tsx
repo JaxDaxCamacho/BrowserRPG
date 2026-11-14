@@ -11,6 +11,7 @@ import {
   kickTargets,
   isEngaged,
   obstacleTargets,
+  rangePenalty,
   reachableTiles,
   rescuersExist,
   shareXp,
@@ -31,6 +32,7 @@ import { useGameStore } from '../state/store';
 import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
 import { ActionBar, needsPick, slotsFor } from './ActionBar';
 import { CombatantDetails } from './CombatantDetails';
+import { CombatLog, STAT_SHORT } from './CombatLog';
 import { PartyWindow } from './PartyWindow';
 import { DieFace } from './Dice';
 import { MuteButton } from './MuteButton';
@@ -170,15 +172,6 @@ function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; target
   );
 }
 
-const STAT_SHORT: Record<string, string> = {
-  strength: 'STR',
-  agility: 'AGI',
-  toughness: 'TOU',
-  intellect: 'INT',
-  spirit: 'SPI',
-  charisma: 'CHA',
-};
-
 const OUTCOME_LABEL: Record<string, string> = { miss: 'Miss', graze: 'Graze', hit: 'Hit', crit: 'Critical!' };
 
 function signed(n: number): string {
@@ -237,7 +230,8 @@ function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
             </p>
             <p className="roll-sum">
               {roll.natural} {signed(roll.modifier)} {STAT_SHORT[roll.stat]}
-              {roll.rollBonus ? ` ${signed(roll.rollBonus)} off hand` : ''} = <strong>{roll.total}</strong> vs Defense {roll.defense}
+              {roll.rollBonus ? ` ${signed(roll.rollBonus)} off hand` : ''}
+              {roll.rangePenalty ? ` ${signed(-roll.rangePenalty)} range` : ''} = <strong>{roll.total}</strong> vs Defense {roll.defense}
               {roll.mode !== 'normal' && <span className="dim"> · {roll.mode} (rolled {roll.dice.join(' and ')})</span>}
               {roll.critThreshold < 20 && <span className="dim"> · crits on {roll.critThreshold}+</span>}
               <span className="roll-outcome"> {OUTCOME_LABEL[outcome]}</span>
@@ -250,9 +244,9 @@ function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
   );
 }
 
-/** The natural roll the actor needs to hit (not graze) this target, for the targeting hint. */
+/** The natural roll the actor needs to hit (not graze) this target, for the targeting hint. Distance counts against ranged attacks. */
 function hitOn(actor: Combatant, target: Combatant, kind: keyof typeof ATTACK_STAT): number {
-  const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]);
+  const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]) - rangePenalty(kind, actor.pos, target.pos);
   return Math.min(20, Math.max(2, effectiveDefense(target) - modifier + 1));
 }
 
@@ -597,77 +591,80 @@ export function CombatScreen() {
         </ol>
       </header>
 
-      <section className="battlefield" aria-label="Battlefield">
-        <div className="battlefield-stage">
-          <div
-            className="combat-grid"
-            style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
-          >
-            {cells.flat().map((p) => {
-              // Someone standing here, or failing that someone lying here.
-              const here =
-                combat.combatants.find((x) => x.hp > 0 && x.pos.x === p.x && x.pos.y === p.y) ??
-                combat.combatants.find((x) => x.pos.x === p.x && x.pos.y === p.y);
-              const obstacle = combat.obstacles.find((o) => o.pos.x === p.x && o.pos.y === p.y);
-              const canWalk = reachable.has(`${p.x},${p.y}`);
-              return (
-                <div key={`${p.x},${p.y}`} className={`combat-cell${canWalk ? ' walkable' : ''}`}>
-                  {canWalk && !here && !obstacle && (
-                    <button
-                      type="button"
-                      className="cell-move"
-                      aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
-                      onClick={() => dispatch({ type: 'move', to: p })}
-                    />
-                  )}
-                  {obstacle && (
-                    <ObstacleToken
-                      o={obstacle}
-                      targetable={targets.has(obstacle.id)}
-                      flashes={flashes.filter((f) => f.targetId === obstacle.id)}
-                      onPick={() => pick(obstacle.id)}
-                    />
-                  )}
+      <div className="combat-main">
+        <CombatLog combat={combat} />
+        <section className="battlefield" aria-label="Battlefield">
+          <div className="battlefield-stage">
+            <div
+              className="combat-grid"
+              style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
+            >
+              {cells.flat().map((p) => {
+                // Someone standing here, or failing that someone lying here.
+                const here =
+                  combat.combatants.find((x) => x.hp > 0 && x.pos.x === p.x && x.pos.y === p.y) ??
+                  combat.combatants.find((x) => x.pos.x === p.x && x.pos.y === p.y);
+                const obstacle = combat.obstacles.find((o) => o.pos.x === p.x && o.pos.y === p.y);
+                const canWalk = reachable.has(`${p.x},${p.y}`);
+                return (
+                  <div key={`${p.x},${p.y}`} className={`combat-cell${canWalk ? ' walkable' : ''}`}>
+                    {canWalk && !here && !obstacle && (
+                      <button
+                        type="button"
+                        className="cell-move"
+                        aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
+                        onClick={() => dispatch({ type: 'move', to: p })}
+                      />
+                    )}
+                    {obstacle && (
+                      <ObstacleToken
+                        o={obstacle}
+                        targetable={targets.has(obstacle.id)}
+                        flashes={flashes.filter((f) => f.targetId === obstacle.id)}
+                        onPick={() => pick(obstacle.id)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="token-layer">
+              {combat.combatants.filter((x) => !(x.summoned && x.hp === 0)).map((x) => (
+                <div key={x.id} className="token-slot" style={pctStyle(x.pos, combat.width, combat.height)}>
+                  <CombatToken
+                    x={x}
+                    active={actor?.id === x.id}
+                    targetable={targets.has(x.id)}
+                    hint={targets.get(x.id)}
+                    flashes={flashes.filter((f) => f.targetId === x.id)}
+                    frames={frames}
+                    viewed={viewed?.id === x.id && viewed.id !== actor?.id}
+                    aiming={aim.attackers.has(x.id)}
+                    aimed={aim.targets.has(x.id)}
+                    onPick={() => pick(x.id)}
+                    onSelect={() => {
+                      if (x.side === 'party' && !x.summoned && !targeting) setViewId(x.id === actor?.id ? null : x.id);
+                    }}
+                    onInspect={() => rightClick(x.id)}
+                  />
                 </div>
-              );
-            })}
-          </div>
-          <div className="token-layer">
-            {combat.combatants.filter((x) => !(x.summoned && x.hp === 0)).map((x) => (
-              <div key={x.id} className="token-slot" style={pctStyle(x.pos, combat.width, combat.height)}>
-                <CombatToken
-                  x={x}
-                  active={actor?.id === x.id}
-                  targetable={targets.has(x.id)}
-                  hint={targets.get(x.id)}
-                  flashes={flashes.filter((f) => f.targetId === x.id)}
-                  frames={frames}
-                  viewed={viewed?.id === x.id && viewed.id !== actor?.id}
-                  aiming={aim.attackers.has(x.id)}
-                  aimed={aim.targets.has(x.id)}
-                  onPick={() => pick(x.id)}
-                  onSelect={() => {
-                    if (x.side === 'party' && !x.summoned && !targeting) setViewId(x.id === actor?.id ? null : x.id);
-                  }}
-                  onInspect={() => rightClick(x.id)}
-                />
-              </div>
-            ))}
-          </div>
-          {aim.lines.length > 0 && (
-            <svg className="aim-layer" viewBox={`0 0 ${combat.width} ${combat.height}`} preserveAspectRatio="none" aria-hidden="true">
-              {aim.lines.map((l) => (
-                <line key={l.key} x1={l.from.x + 0.5} y1={l.from.y + 0.5} x2={l.to.x + 0.5} y2={l.to.y + 0.5} className="aim-line" vectorEffect="non-scaling-stroke" />
               ))}
-            </svg>
-          )}
-          <div className="projectile-layer" aria-hidden="true">
-            {projectiles.map((p) => (
-              <ProjectileFX key={p.key} spec={p} width={combat.width} height={combat.height} />
-            ))}
+            </div>
+            {aim.lines.length > 0 && (
+              <svg className="aim-layer" viewBox={`0 0 ${combat.width} ${combat.height}`} preserveAspectRatio="none" aria-hidden="true">
+                {aim.lines.map((l) => (
+                  <line key={l.key} x1={l.from.x + 0.5} y1={l.from.y + 0.5} x2={l.to.x + 0.5} y2={l.to.y + 0.5} className="aim-line" vectorEffect="non-scaling-stroke" />
+                ))}
+              </svg>
+            )}
+            <div className="projectile-layer" aria-hidden="true">
+              {projectiles.map((p) => (
+                <ProjectileFX key={p.key} spec={p} width={combat.width} height={combat.height} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <footer className="combat-footer">
         <div className="combat-actions">
@@ -731,11 +728,6 @@ export function CombatScreen() {
           )}
         </div>
         <RollReadout rolls={rolls} />
-        <ol className="combat-log" aria-live="polite">
-          {combat.log.slice(-6).map((line, i) => (
-            <li key={`${combat.log.length}-${i}`}>{line}</li>
-          ))}
-        </ol>
       </footer>
       {inspecting &&
         (() => {

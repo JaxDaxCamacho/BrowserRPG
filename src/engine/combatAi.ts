@@ -1,4 +1,5 @@
 ﻿import {
+  rangePenalty,
   abilityTargets,
   activeCombatant,
   attack,
@@ -67,8 +68,10 @@ function softest(targets: Combatant[]): Combatant | undefined {
   return [...targets].sort((a, b) => a.hp + a.armour.physical - (b.hp + b.armour.physical))[0];
 }
 
-function easiestToHit(targets: Combatant[]): Combatant | undefined {
-  return [...targets].sort((a, b) => effectiveDefense(a) - effectiveDefense(b) || a.hp - b.hp)[0];
+/** The target needing the lowest roll, counting what distance takes off a ranged attack. */
+function easiestToHit(actor: Combatant, targets: Combatant[]): Combatant | undefined {
+  const needs = (t: Combatant) => effectiveDefense(t) + rangePenalty(actor.attack.profile.kind, actor.pos, t.pos);
+  return [...targets].sort((a, b) => needs(a) - needs(b) || a.hp - b.hp)[0];
 }
 
 function usableAbilities(c: CombatState, actor: Combatant, ctx: Pick<CombatContext, 'getAbility'>): AbilityDefinition[] {
@@ -125,7 +128,7 @@ function chooseAction(c: CombatState, actor: Combatant, ctx: Pick<CombatContext,
 
   const targets = attackTargets(c, actor);
   if (targets.length > 0) {
-    const pick = arch === 'assassin' ? softest(targets) : arch === 'archer' ? easiestToHit(targets) : weakest(targets);
+    const pick = arch === 'assassin' ? softest(targets) : arch === 'archer' ? easiestToHit(actor, targets) : weakest(targets);
     return { kind: 'attack', targetId: pick!.id };
   }
   if (arch === 'tank') return { kind: 'defend' };
@@ -224,13 +227,14 @@ export function runEnemyStep(state: GameState, ctx: Pick<CombatContext, 'getAbil
     if (target) {
       const moved = moveTo(state, target);
       const after = moved.encounter?.combat;
-      if (after && !after.outcome && after.order[after.turn] === actor.id && combatantById(after, actor.id).hp === 0) return endTurn(moved);
+      if (after && !after.outcome && after.order[after.turn] === actor.id && combatantById(after, actor.id).hp === 0) return endTurn(moved, { keepEvents: true });
       return moved;
     }
   }
   let next = act(state, chooseAction(c, actor, ctx), ctx);
   const end = next.encounter?.combat;
-  if (end && !end.outcome && end.order[end.turn] === actor.id) next = endTurn(next);
+  // The turn ends in this same step, so keep the action's events for the screen to play.
+  if (end && !end.outcome && end.order[end.turn] === actor.id) next = endTurn(next, { keepEvents: true });
   return next;
 }
 

@@ -1,4 +1,4 @@
-﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackOutcome, type AttackProfile } from './attack';
+﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackKind, type AttackOutcome, type AttackProfile } from './attack';
 import { makeCheck } from './checks';
 import { rollD20, rollDice, type RollMode } from './dice';
 import { featureById, groupsOf, roomAt, setGroups, type DungeonDefinition, type Pos } from './dungeon';
@@ -160,6 +160,28 @@ export interface CombatEvent {
   style?: DamageStyle;
 }
 
+/** One line of the fight's history, as the combat log shows it. */
+export interface CombatLogEntry {
+  round: number;
+  text: string;
+  /** Set for attack rolls: who attacked whom, the dice and the damage. */
+  attack?: AttackLogDetail;
+  /** Set when someone goes down or dies. */
+  down?: boolean;
+}
+
+export interface AttackLogDetail {
+  attackerId: string;
+  attacker: string;
+  attackerSide: Side;
+  targetId: string;
+  target: string;
+  /** Null when the target is an obstacle. */
+  targetSide: Side | null;
+  outcome: AttackOutcome;
+  roll: AttackRoll;
+}
+
 /** Everything about one attack roll that the player should be able to see. */
 export interface AttackRoll {
   /** What was used, e.g. "Arming Sword" or "Aimed Shot". */
@@ -189,6 +211,8 @@ export interface AttackRoll {
   bonusDamage: number;
   /** Added to the roll only, such as the off hand's penalty. */
   rollBonus?: number;
+  /** Taken off the roll for the distance to the target (ranged and magic attacks). */
+  rangePenalty?: number;
   /** True for a ranged or magic attack: the screen draws a projectile for it. */
   ranged?: boolean;
 }
@@ -209,6 +233,8 @@ export interface CombatState {
   acted: boolean;
   outcome: 'victory' | 'defeat' | 'fled' | null;
   log: string[];
+  /** Every line of the fight so far, with the rolls behind each attack. Missing in saves made before it existed. */
+  history?: CombatLogEntry[];
   /** What the last action did, for the screen to animate. */
   events: CombatEvent[];
   /** Goes up with every action so the screen knows when to play `events`. */
@@ -237,6 +263,8 @@ export interface CombatContext {
 }
 
 const LOG_LIMIT = 40;
+/** Kept modest: the whole game state goes to co-op players after every change. */
+const HISTORY_LIMIT = 150;
 
 // ---------- effects for every attack ----------
 
@@ -350,6 +378,14 @@ export const opposite = (side: Side): Side => (side === 'party' ? 'enemy' : 'par
 
 /** Tiles between two points when moving in any of eight directions. */
 export const distance = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+
+/** Every this many squares between a ranged attacker and the target costs 1 on the attack roll. */
+export const RANGE_PENALTY_STEP = 2;
+
+/** What distance takes off the attack roll: nothing for melee, -1 per two squares for anything else. */
+export function rangePenalty(kind: AttackKind, from: Pos, to: Pos): number {
+  return kind === 'melee' ? 0 : Math.floor(distance(from, to) / RANGE_PENALTY_STEP);
+}
 const key = (p: Pos) => `${p.x},${p.y}`;
 
 /** Someone standing on this tile, if anyone. Those who are down lie where they fell but do not block. */
@@ -857,6 +893,7 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     acted: false,
     outcome: null,
     log: [ambush ? `Ambush! ${feature.name} close in from both sides.` : `${feature.name} attack!`],
+    history: [{ round: 1, text: ambush ? `Ambush! ${feature.name} close in from both sides.` : `${feature.name} attack!` }],
     events: [],
     seq: 0,
     mercs: living.map((m) => structuredClone(m)),
@@ -871,7 +908,17 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
 // ---------- the turn loop ----------
 
 function withLog(c: CombatState, ...lines: string[]): CombatState {
-  return { ...c, log: [...c.log, ...lines].slice(-LOG_LIMIT) };
+  return withEntries(c, lines.map((text) => ({ round: c.round, text })));
+}
+
+/** Adds lines to both the short log and the full history. */
+function withEntries(c: CombatState, entries: CombatLogEntry[]): CombatState {
+  const history = c.history ?? c.log.map((text) => ({ round: c.round, text }));
+  return {
+    ...c,
+    log: [...c.log, ...entries.map((e) => e.text)].slice(-LOG_LIMIT),
+    history: [...history, ...entries].slice(-HISTORY_LIMIT),
+  };
 }
 
 function updateCombatant(c: CombatState, id: string, change: (x: Combatant) => Combatant): CombatState {
@@ -988,12 +1035,20 @@ function advance(c: CombatState): CombatState {
   return { ...c, turn, round, combatants };
 }
 
-/** Ends the active combatant's turn. */
-export function endTurn(state: GameState): GameState {
+/**
+ * Ends the active combatant's turn. With `keepEvents`, what the turn's last
+ * action did stays in `events` for the screen to play: an enemy acts and ends
+ * its turn in one step, and its attack must still be shown.
+ */
+export function endTurn(state: GameState, opts: { keepEvents?: boolean } = {}): GameState {
   const c = state.encounter?.combat;
   if (!c || c.outcome || !state.encounter) return state;
-  const next = skipDownedTurn({ ...advance(c), events: [], seq: c.seq + 1 }, state.rngSeed);
-  return withRolls({ ...state, rngSeed: next.seed, encounter: { ...state.encounter, combat: checkOutcome(next.combat) } });
+  const kept = opts.keepEvents ? c.events : [];
+  const next = skipDownedTurn({ ...advance(c), events: kept, seq: c.seq + 1 }, state.rngSeed);
+  const ended = { ...state, rngSeed: next.seed, encounter: { ...state.encounter, combat: checkOutcome(next.combat) } };
+  // The kept action's dice were already handed to the tray; only new ones go now.
+  const fresh = next.combat.events.slice(kept.length).flatMap((e) => (e.shown ? [e.shown] : []));
+  return announceRolls(ended, fresh);
 }
 
 /** Ends the turn by itself once the active combatant has acted and has no movement left. */
@@ -1072,7 +1127,7 @@ function applyDamage(c: CombatState, seed: number, targetId: string, amount: num
   if (merc) {
     const fall = knockDown(merc, { deathSave: target.deathSave }, nextSeed);
     nextSeed = fall.seed;
-    next = withLog({ ...next, mercs: next.mercs.map((m) => (m.id === merc.id ? fall.merc : m)) }, fall.line);
+    next = withEntries({ ...next, mercs: next.mercs.map((m) => (m.id === merc.id ? fall.merc : m)) }, [{ round: next.round, text: fall.line, down: true }]);
     if (fall.outcome.kind === 'dead') next = updateCombatant(next, targetId, (x) => ({ ...x, dead: true }));
     next = {
       ...next,
@@ -1082,7 +1137,7 @@ function applyDamage(c: CombatState, seed: number, targetId: string, amount: num
       ],
     };
   } else {
-    next = withLog({ ...next, events: [...next.events, { kind: 'down', actorId: targetId }] }, `${target.name} goes down.`);
+    next = withEntries({ ...next, events: [...next.events, { kind: 'down', actorId: targetId }] }, [{ round: next.round, text: `${target.name} goes down.`, down: true }]);
   }
   // The other side feeds on the fall.
   next = {
@@ -1104,6 +1159,9 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
   const modifier = statModifier(effectiveStats(attacker)[stat]);
   // Mage hunters hit casters harder with their weapons.
   const burn = s.weapon && s.target.caster ? attacker.manaBurn : 0;
+  // Shots and spells lose accuracy with distance.
+  const farPenalty = rangePenalty(s.profile.kind, attacker.pos, combatantById(c, s.target.id).pos);
+  const rollBonus = (s.rollBonus ?? 0) - farPenalty;
   const result = resolveAttack(seed, {
     profile: s.profile,
     modifier,
@@ -1112,14 +1170,10 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     mode,
     critThreshold: s.critThreshold,
     bonusDamage: (s.bonusDamage ?? 0) + burn,
-    ...(s.rollBonus ? { rollBonus: s.rollBonus } : {}),
+    ...(rollBonus ? { rollBonus } : {}),
   });
   const r = result.value;
   const roll = r.roll.dice.length > 1 ? `${r.roll.dice.join('/')}→${r.roll.natural}` : `${r.roll.natural}`;
-  let next = withLog(
-    c,
-    `${attacker.name} ${describeOutcome(r.outcome)} ${s.target.name} with ${s.label}${r.damage ? ` for ${r.damage}` : ''} (${roll}${modifier >= 0 ? '+' : ''}${modifier} vs ${r.defense}${mode === 'disadvantage' ? ', disadvantage' : mode === 'advantage' ? ', advantage' : ''}).`,
-  );
   const detail: AttackRoll = {
     label: s.label,
     dice: r.roll.dice,
@@ -1137,9 +1191,26 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     damage: r.damage,
     bonusDamage: r.bonusDamage,
     ...(s.rollBonus ? { rollBonus: s.rollBonus } : {}),
+    ...(farPenalty ? { rangePenalty: farPenalty } : {}),
     ...(s.free ? { free: true } : {}),
     ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
   };
+  let next = withEntries(c, [
+    {
+      round: c.round,
+      text: `${attacker.name} ${describeOutcome(r.outcome)} ${s.target.name} with ${s.label}${r.damage ? ` for ${r.damage}` : ''} (${roll}${modifier >= 0 ? '+' : ''}${modifier}${farPenalty ? `-${farPenalty} range` : ''}${s.rollBonus ? `${s.rollBonus >= 0 ? '+' : ''}${s.rollBonus} off hand` : ''} vs ${r.defense}${mode === 'disadvantage' ? ', disadvantage' : mode === 'advantage' ? ', advantage' : ''}).`,
+      attack: {
+        attackerId: attacker.id,
+        attacker: attacker.name,
+        attackerSide: attacker.side,
+        targetId: s.target.id,
+        target: s.target.name,
+        targetSide: s.target.side,
+        outcome: r.outcome,
+        roll: detail,
+      },
+    },
+  ]);
   next = {
     ...next,
     events: [
@@ -1214,10 +1285,6 @@ function strikeObstacle(
   const obstacles = destroyed
     ? c.obstacles.filter((o) => o.id !== s.obstacle.id)
     : c.obstacles.map((o) => (o.id === s.obstacle.id ? { ...o, hp } : o));
-  let next = withLog(
-    { ...c, obstacles },
-    `${s.attacker.name} ${describeOutcome(r.outcome)} the ${name}${r.damage ? ` for ${r.damage}` : ''}${destroyed ? ', smashing it apart' : ''}.`,
-  );
   const detail: AttackRoll = {
     label: s.label,
     dice: r.roll.dice,
@@ -1236,6 +1303,22 @@ function strikeObstacle(
     bonusDamage: r.bonusDamage,
     ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
   };
+  let next = withEntries({ ...c, obstacles }, [
+    {
+      round: c.round,
+      text: `${s.attacker.name} ${describeOutcome(r.outcome)} the ${name}${r.damage ? ` for ${r.damage}` : ''}${destroyed ? ', smashing it apart' : ''}.`,
+      attack: {
+        attackerId: s.attacker.id,
+        attacker: s.attacker.name,
+        attackerSide: s.attacker.side,
+        targetId: s.obstacle.id,
+        target: `the ${name}`,
+        targetSide: null,
+        outcome: r.outcome,
+        roll: detail,
+      },
+    },
+  ]);
   const events: CombatEvent[] = [
     {
       kind: 'attack',

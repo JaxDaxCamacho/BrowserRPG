@@ -18,9 +18,11 @@ import {
   flee,
   moveTo,
   planEnemyTurn,
+  rangePenalty,
   reach,
   reachableTiles,
   retryCombat,
+  runEnemyStep,
   runEnemyTurn,
   setLeader,
   standing,
@@ -143,6 +145,29 @@ describe('reach', () => {
     expect(reach(clear, 8, { x: 0, y: 0 }, { x: 9, y: 0 }, false).ok).toBe(false);
     expect(reach(clear, 8, { x: 0, y: 0 }, { x: 1, y: 0 }, true).mode).toBe('disadvantage');
   });
+
+  it('takes 1 off a ranged or magic roll for every two squares to the target, and nothing off melee', () => {
+    const at = { x: 0, y: 0 };
+    expect(rangePenalty('ranged', at, { x: 1, y: 0 })).toBe(0);
+    expect(rangePenalty('ranged', at, { x: 2, y: 1 })).toBe(1);
+    expect(rangePenalty('ranged', at, { x: 3, y: 3 })).toBe(1);
+    expect(rangePenalty('magic', at, { x: 4, y: 0 })).toBe(2);
+    expect(rangePenalty('ranged', at, { x: 8, y: 5 })).toBe(4);
+    expect(rangePenalty('melee', at, { x: 1, y: 1 })).toBe(0);
+  });
+
+  it('applies the distance penalty to a real bow shot', () => {
+    const { state } = fight(arena(10, 6, [{ monsterId: 'bandit-thug', count: 1 }]));
+    const sylwen = combatOf(state).combatants.find((x) => x.name === 'Sylwen Ashbow')!;
+    let s = giveTurnTo(state, sylwen.id);
+    s = place(s, { [sylwen.id]: { x: 0, y: 0 }, 'bandit-thug-1': { x: 5, y: 0 } });
+    // Keep everyone else out of the line of fire.
+    const c = combatOf(s);
+    s = place(s, Object.fromEntries(c.combatants.filter((x) => x.id !== sylwen.id && x.side === 'party').map((x, i) => [x.id, { x: i, y: 5 }])));
+    const roll = combatOf(attack(s, 'bandit-thug-1')).events.find((e) => e.kind === 'attack')!.roll!;
+    expect(roll.rangePenalty).toBe(2);
+    expect(roll.total).toBe(roll.natural + roll.modifier - 2);
+  });
 });
 
 describe('moving', () => {
@@ -250,6 +275,53 @@ describe('enemy tactics', () => {
     const { state, ctx } = fight(arena(12, 9, [{ monsterId: 'bandit-captain', count: 1 }]));
     const s = giveTurnTo(state, 'bandit-captain-1', { movement: 1 });
     expect(planEnemyTurn(s, ctx).action).toEqual({ kind: 'defend' });
+  });
+});
+
+describe('showing enemy attacks', () => {
+  /** A thug standing next to Aldric with its whole move left, so its turn ends in the same step as its attack. */
+  function thugBesideAldric(hp?: number): { state: GameState; ctx: CombatContext } {
+    const { state, ctx } = fight(room);
+    const aldric = combatOf(state).combatants.find((x) => x.mercId === 'merc-1')!;
+    let s = place(giveTurnTo(state, 'bandit-thug-1'), { 'bandit-thug-1': { x: aldric.pos.x + 1, y: aldric.pos.y } });
+    if (hp !== undefined) {
+      const c = combatOf(s);
+      s = { ...s, encounter: { ...s.encounter!, combat: { ...c, combatants: c.combatants.map((x) => (x.id === aldric.id ? { ...x, hp } : x)) } } };
+    }
+    return { state: s, ctx };
+  }
+
+  it('keeps the attack in the events when the enemy ends its turn in the same step', () => {
+    const { state, ctx } = thugBesideAldric();
+    const before = combatOf(state);
+    const after = combatOf(runEnemyStep(state, ctx));
+    expect(after.order[after.turn]).not.toBe('bandit-thug-1');
+    expect(after.seq).toBeGreaterThan(before.seq);
+    expect(after.events.some((e) => e.kind === 'attack' && e.actorId === 'bandit-thug-1' && e.roll)).toBe(true);
+  });
+
+  it('keeps the attack and the fall when the blow takes a merc down', () => {
+    // Find a seed where the thug's blow gets through Aldric's armour while he has 1 HP.
+    for (let seed = 1; seed <= 200; seed++) {
+      const { state, ctx } = thugBesideAldric(1);
+      const after = combatOf(runEnemyStep({ ...state, rngSeed: seed }, ctx));
+      const blow = after.events.find((e) => e.kind === 'attack' && e.actorId === 'bandit-thug-1');
+      expect(blow, `seed ${seed}`).toBeDefined();
+      if (!blow!.amount) continue;
+      expect(after.events.some((e) => e.kind === 'down' && e.actorId === blow!.targetId)).toBe(true);
+      return;
+    }
+    throw new Error('No seed got a blow through.');
+  });
+
+  it('records each attack in the history with the roll and the damage', () => {
+    const { state, ctx } = thugBesideAldric();
+    const after = combatOf(runEnemyStep(state, ctx));
+    const entry = after.history!.find((e) => e.attack?.attackerId === 'bandit-thug-1')!;
+    expect(entry.attack!.attackerSide).toBe('enemy');
+    expect(entry.attack!.targetSide).toBe('party');
+    expect(entry.attack!.roll.total).toBe(entry.attack!.roll.natural + entry.attack!.roll.modifier);
+    expect(entry.attack!.roll.damage).toBe(after.events.find((e) => e.kind === 'attack')!.amount);
   });
 });
 

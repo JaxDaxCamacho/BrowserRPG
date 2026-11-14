@@ -1755,20 +1755,6 @@ button.option {
   font-size: 0.95rem;
 }
 
-.combat-log {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-size: 0.85rem;
-  color: var(--ink-dim);
-  max-height: 140px;
-  overflow-y: auto;
-}
-
-.combat-log li:last-child {
-  color: var(--ink);
-}
-
 .outcome {
   display: flex;
   flex-direction: column;
@@ -1803,7 +1789,7 @@ button.option {
 /* ---------- attack dice readout ---------- */
 
 .combat-footer {
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
 }
 
 .roll-empty {
@@ -3442,4 +3428,160 @@ button.portrait-choice:hover {
 .tool-card .dim {
   font-size: 0.85rem;
   font-family: system-ui, sans-serif;
+}
+
+/* ---------- combat log (left of the battlefield) ---------- */
+
+.combat-main {
+  --log-width: clamp(240px, 22vw, 320px);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--log-width) minmax(0, 1fr);
+}
+
+.combat-main .battlefield-stage {
+  --cell: clamp(52px, min(calc((100vw - 48px - var(--log-width)) / 12), calc((100vh - 290px) / 9)), 96px);
+}
+
+.combat-history {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgb(31 26 23 / 85%);
+  border-right: 1px solid var(--border);
+}
+
+.combat-history h2 {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.combat-history ol {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px 10px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.combat-history p {
+  margin: 0;
+}
+
+.log-round {
+  margin-top: 6px;
+  padding-bottom: 2px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 1px solid rgb(201 150 60 / 25%);
+}
+
+.log-note {
+  color: var(--ink-dim);
+  padding: 0 4px;
+}
+
+.log-down {
+  color: #ff8a7a;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-left: 3px solid #d0533c;
+  background: rgb(208 83 60 / 12%);
+  border-radius: 4px;
+}
+
+.log-attack {
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 25%);
+}
+
+.log-attack.outcome-miss {
+  border-left-color: #8a8f99;
+}
+
+.log-attack.outcome-graze {
+  border-left-color: #c9963c;
+}
+
+.log-attack.outcome-hit {
+  border-left-color: #e07a5f;
+}
+
+.log-attack.outcome-crit {
+  border-left-color: #ff4d4d;
+  background: rgb(255 77 77 / 10%);
+}
+
+.log-name {
+  font-weight: bold;
+}
+
+.log-name.side-party {
+  color: #8fc7ff;
+}
+
+.log-name.side-enemy {
+  color: #ff8a7a;
+}
+
+.log-arrow {
+  color: var(--ink-dim);
+}
+
+.log-roll {
+  color: var(--ink);
+}
+
+.log-outcome {
+  font-weight: bold;
+  margin-left: 4px;
+}
+
+.outcome-crit .log-outcome {
+  color: #ff6b6b;
+}
+
+.outcome-hit .log-outcome {
+  color: #f0a08a;
+}
+
+.outcome-graze .log-outcome {
+  color: #f0c870;
+}
+
+.outcome-miss .log-outcome {
+  color: #b0b4bc;
+}
+
+@media (max-width: 900px) {
+  .combat-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .combat-main .battlefield-stage {
+    --cell: clamp(52px, min(calc((100vw - 48px) / 12), calc((100vh - 470px) / 9)), 96px);
+  }
+
+  .combat-history {
+    order: 2;
+    max-height: 180px;
+    border-right: 0;
+    border-top: 1px solid var(--border);
+  }
 }

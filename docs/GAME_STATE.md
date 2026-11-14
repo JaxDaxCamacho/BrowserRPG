@@ -90,7 +90,8 @@ For how to run, build and package the game, see the [README](../README.md).
   barrel, chest, barricade, pillar, crate, boulder. Some block movement or line of sight.
 - Each turn a combatant moves up to their movement (race base + Agility modifier) and takes one
   action. Melee reaches the eight adjacent tiles. Ranged weapons have a range in tiles and roll
-  with disadvantage while an enemy is adjacent.
+  with disadvantage while an enemy is adjacent. Ranged and magic attacks take **-1 on the attack
+  roll for every 2 squares** to the target.
 - **Attacks:** a d20 plus the stat modifier against Defense. A natural 1 misses, and 20 (or the crit
   threshold) crits. Above Defense is a hit, otherwise a graze. Armour reduces damage by type:
   physical armour against physical damage, magic armour against magic damage.
@@ -102,8 +103,12 @@ For how to run, build and package the game, see the [README](../README.md).
   (mana, adrenaline or souls).
 - **9 monsters:** Bandit Thug, Bandit Archer, Bandit Captain, Hedge Mage, War Hound, Imp, Wolf, Hawk
   and Bear. Monster AI acts on its own.
-- Animations, sound effects, "Down!" / "Slain!" callouts, and HP and resource bars on the character
-  sheet and enemy details.
+- Every attack, by mercs and enemies alike, plays the same sequence: aim, dice, result, then
+  damage. Animations, sound effects, "Down!" / "Slain!" callouts, and HP and resource bars on the
+  character sheet and enemy details.
+- **Combat log** on the left of the battlefield, grouped by round: who attacked whom, the roll
+  against Defense (with every modifier), the outcome, the damage and how much armour soaked.
+  Falls are highlighted.
 
 ### Content
 
@@ -141,7 +146,7 @@ For how to run, build and package the game, see the [README](../README.md).
 ## Part 2: What's next
 
 ### Combat feel
-- [ ] **Fix the enemy animation sequence.**
+- [x] **Fix the enemy animation sequence.**
 - [ ] **Better effects when characters get attacked.** Impact feedback on hit, graze, crit and
   miss.
 - [ ] **Combat screen rework.** Show more information (turn order, hit chances, statuses, ranges)
@@ -149,7 +154,7 @@ For how to run, build and package the game, see the [README](../README.md).
 
 ### Battlefield rules
 - [ ] **Rebalance weapon ranges.** Today: shortbow 8, crossbow, wand, staff and focus 6, melee
-  adjacent.
+  adjacent. A first step is in: -1 to hit per 2 squares for ranged and magic attacks.
 - [ ] **Starting positions from the approach.** Place the party according to how far each merc was
   from the enemy when combat started.
 - [ ] **Ambush.** If the party reaches a square next to an enemy token without being detected, the
@@ -173,3 +178,6 @@ For how to run, build and package the game, see the [README](../README.md).
 
 ### Done
 - [x] Rule decision: spiritual damage ignores both physical and magic armour.
+- [x] Enemy attacks play the full attack sequence (they used to skip it when the enemy still had movement left).
+- [x] Combat log panel with rolls and damage.
+- [x] Ranged and magic attacks: -1 to hit per 2 squares to the target.
