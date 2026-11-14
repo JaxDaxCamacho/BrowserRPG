@@ -2,21 +2,26 @@
 #
 #   Play.bat      the game, from a production build: loads in a moment. Rebuilds first when the
 #                 code has changed since the last build.
-#   Develop.bat   the development server, with the content editor and dungeon maker. Slower to load.
+#   Develop.bat   the game on the development server: changes to the code show up live. Slower to load.
+#   Tools.bat     the content editor and dungeon maker (tools.html), on the development server.
 #
 # The server runs hidden inside WSL. The window is Edge (or Chrome) in app mode with its own profile,
 # so it is a separate process the script can wait on. It opens at once on a "getting ready" page that
 # moves on to the game when the server answers.
 
 param(
-  [switch]$Dev,          # development server with the editors
+  [switch]$Dev,          # the development server
+  [switch]$Tools,        # the tools app (implies the development server)
   [switch]$ServerOnly    # start the server and exit, for testing
 )
+if ($Tools) { $Dev = $true }
 
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 $Port = if ($Dev) { 5173 } else { 4173 }
 $Url = "http://127.0.0.1:$Port/"
+# The page the window opens: the game, or the tools app.
+$PageUrl = if ($Tools) { "${Url}tools.html" } else { $Url }
 $WindowProfile = Join-Path $env:LOCALAPPDATA 'AlleryaHeroes\window'
 # Inside WSL, so the path needs no translating or quoting.
 $Log = '/tmp/allerya-server.log'
@@ -82,7 +87,7 @@ $browser = $browsers | Where-Object { $_ -and (Test-Path $_) } | Select-Object -
 
 # Open straight away on the "getting ready" page; it moves on to the game when the server answers.
 $launchPage = (New-Object System.Uri (Join-Path $PSScriptRoot 'launch.html')).AbsoluteUri
-$query = "?url=$([uri]::EscapeDataString($Url))" + $(if ($building) { '&building=1' } else { '' })
+$query = "?url=$([uri]::EscapeDataString($PageUrl))" + $(if ($building) { '&building=1' } else { '' })
 
 if ($browser) {
   $window = Start-Process -FilePath $browser -PassThru -ArgumentList @(
@@ -107,7 +112,7 @@ if ($browser) {
     Show-Error "The game server did not start. To see why, run this in a terminal:`n`nwsl cat $Log"
     exit 1
   }
-  Start-Process $Url
+  Start-Process $PageUrl
   [System.Windows.MessageBox]::Show('The game is open in your browser. Click OK when you have finished playing to stop the game server.', 'Allerya Heroes') | Out-Null
 }
 

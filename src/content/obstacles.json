@@ -1,0 +1,60 @@
+[
+  {
+    "id": "barrel",
+    "name": "Barrel",
+    "icon": "obstacles/containers/barrel",
+    "emoji": "🛢️",
+    "description": "A wooden barrel. Cover to hide behind, and easily smashed.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 6
+  },
+  {
+    "id": "chest",
+    "name": "Chest",
+    "icon": "obstacles/containers/bagsandboxes-94-t",
+    "emoji": "🧰",
+    "description": "An iron-bound chest, too heavy to move or break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "barricade",
+    "name": "Barricade",
+    "icon": "obstacles/containers/bagsandboxes-40-t",
+    "emoji": "🚧",
+    "description": "Planks and crates piled high: blocks arrows and spells until it is hacked apart.",
+    "blocksMove": true,
+    "blocksLoS": true,
+    "hp": 10
+  },
+  {
+    "id": "pillar",
+    "name": "Pillar",
+    "emoji": "🗿",
+    "description": "Solid stone. Blocks movement and line of sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": true,
+    "hp": null
+  },
+  {
+    "id": "crate",
+    "name": "Crate",
+    "icon": "obstacles/containers/bagsandboxes-29-t",
+    "emoji": "📦",
+    "description": "A sturdy crate: cover that takes a few blows to break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 8
+  },
+  {
+    "id": "boulder",
+    "name": "Boulder",
+    "emoji": "🪨",
+    "description": "A great rock. Blocks movement and line of sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": true,
+    "hp": null
+  }
+]

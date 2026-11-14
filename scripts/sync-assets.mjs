@@ -83,6 +83,8 @@ const RULES = [
   { root: 'local', category: 'classes', pack: 'Class icons', dir: 'Classes', size: 192 },
   { root: 'local', category: 'races', pack: 'Race icons', dir: 'RaceIcons', size: 192 },
   { root: 'local', category: 'obstacles/containers', pack: 'Containers', dir: 'Obstacles/Containers', size: 128 },
+  // Dialogue scene art, one folder per adventure: scenes/<adventure id>/<image key>.
+  { root: 'local', category: 'scenes/greywater-ford', pack: 'The Toll at Greywater Ford', dir: 'TollGreywaterFord', size: 1344 },
   // Portraits and monster tokens (the Avatars Megapack): the same ids as the original packs.
   { root: 'local', category: 'portraits/female', pack: 'Avatars Megapack', dir: 'Tokens/CharactersAvatarIcons/female', size: 192 },
   { root: 'local', category: 'portraits/male', pack: 'Avatars Megapack', dir: 'Tokens/CharactersAvatarIcons/male', size: 192 },

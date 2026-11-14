@@ -644,3 +644,19 @@ describe('dual wielding', () => {
     expect(labels).toEqual(['Greataxe', 'Warhammer (off hand)']);
   });
 });
+
+describe('attacks of opportunity', () => {
+  it('only an enemy engaged with the mover at the start gets a free swing', () => {
+    let s = fight(party([{ premade: 'aldric-vane' }]));
+    // Aldric starts next to thug 1 and walks past thug 2 on the way.
+    s = setUp(s, 'merc-1', {
+      'merc-1': { pos: at(1, 3), movement: 6, hp: 99, maxHp: 99 },
+      'bandit-thug-1': { pos: at(0, 3) },
+      'bandit-thug-2': { pos: at(3, 2) },
+    });
+    s = { ...s, encounter: { ...s.encounter!, combat: { ...combatOf(s), moveLeft: 6 } } };
+    const after = moveTo(s, at(6, 3));
+    const swings = combatOf(after).events.filter((e) => e.kind === 'attack').map((e) => e.actorId);
+    expect(swings).toEqual(['bandit-thug-1']);
+  });
+});

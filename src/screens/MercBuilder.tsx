@@ -5,7 +5,6 @@ import {
   CREATION_POINTS,
   createStartingStats,
   creationPointsSpent,
-  formatCoins,
   MAX_NAME_LENGTH,
   mercSheet,
   raceCanWield,
@@ -24,6 +23,7 @@ import {
   type Stats,
   type WeaponItem,
 } from '../engine';
+import { Coins } from './Coins';
 import { AssetImage, assetUrl } from './assets';
 import { formatModifier, STAT_LABELS, Token } from './MercCard';
 
@@ -435,7 +435,7 @@ export function MercBuilder({ disabled, onAdd }: Props) {
           {sheet.armour.magic > 0 && ` / magic ${sheet.armour.magic}`}
         </span>
         <span className="stat-chip">
-          <span className="dim">Purse</span> {formatCoins(STARTING_PURSE)}
+          <span className="dim">Purse</span> <Coins copper={STARTING_PURSE} />
         </span>
       </p>
 

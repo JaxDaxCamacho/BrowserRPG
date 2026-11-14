@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ADVENTURES } from '../content';
-import { formatCoins, isAdventureComplete } from '../engine';
+import { isAdventureComplete } from '../engine';
 import { useGameStore } from '../state/store';
+import { Coins } from './Coins';
 import { CoopWindow } from './Coop';
 import { mercsWithPoints, TrainingDialog } from './TrainingPanel';
 
@@ -25,7 +26,7 @@ export function AdventureSelect() {
         <h1>Pick an adventure</h1>
         <p className="dim">
           {done.length === 0 ? 'Word of paying work reaches your company.' : `Contracts completed: ${done.length}.`} The company
-          holds {formatCoins(purse)}.
+          holds <Coins copper={purse} />.
         </p>
       </header>
 

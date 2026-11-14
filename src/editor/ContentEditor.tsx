@@ -50,6 +50,7 @@ const ASSET_HOME: Record<CollectionKey, string> = {
   races: 'badges',
   premades: 'portraits',
   portraits: 'portraits',
+  obstacles: 'obstacles',
 };
 
 function uniqueId(base: string, taken: Set<string>): string {

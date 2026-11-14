@@ -29,6 +29,7 @@ import {
   giveStack,
   goToScreen,
   kick,
+  leaveTheFallen,
   leaveDungeon,
   longRest,
   moveInPack,
@@ -106,6 +107,7 @@ export type GameCommand =
   | { type: 'endTurn' }
   | { type: 'finishCombat' }
   | { type: 'retryCombat' }
+  | { type: 'leaveTheFallen' }
   // The store, and supplies
   | { type: 'buy'; mercId: string; itemId: string }
   | { type: 'sell'; mercId: string; index: number }
@@ -224,6 +226,8 @@ export function runCommand(g: GameState, cmd: GameCommand, voting?: Voting): Gam
       return finishCombat(g, combatContext);
     case 'retryCombat':
       return retryCombat(g, combatContext);
+    case 'leaveTheFallen':
+      return leaveTheFallen(g);
     case 'buy':
       return buyItem(g, cmd.mercId, cmd.itemId, getItem);
     case 'sell':
@@ -302,7 +306,7 @@ export function commandBlocker(g: GameState, cmd: GameCommand, isHost: boolean, 
     const actor = activeCombatant(c);
     return actor.mercId && controls(actor.mercId) ? null : 'It is not your turn.';
   }
-  if (cmd.type === 'finishCombat' || cmd.type === 'retryCombat') {
+  if (cmd.type === 'finishCombat' || cmd.type === 'retryCombat' || cmd.type === 'leaveTheFallen') {
     const e = g.encounter;
     return e && encounterMercIds(g, e).some(controls) ? null : 'You are not in this fight.';
   }

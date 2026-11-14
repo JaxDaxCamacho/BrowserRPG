@@ -188,8 +188,25 @@ function nextSlot(state: GameState): GameState {
   return next;
 }
 
+/**
+ * The party lost this fight, but others are still out there: leave the fallen
+ * where they lie, with the enemy holding the room, and carry on with the rest.
+ * The fight waits until someone walks in to the rescue.
+ */
+export function leaveTheFallen(state: GameState): GameState {
+  const c = state.encounter?.combat;
+  if (!c || c.outcome !== 'defeat' || !state.encounter || !rescuersExist(state, state.encounter)) return state;
+  let s: GameState = { ...state, encounter: { ...state.encounter, combat: { ...c, outcome: null, dormant: true } } };
+  // Move the turn on past whoever struck the last blow; the waiting fight cannot end in defeat.
+  s = endTurn(s);
+  const fallen = s.party.filter((m) => encounterMercIds(s, s.encounter!).includes(m.id)).map((m) => m.name);
+  s = log(s, `${fallen.join(', ')} ${fallen.length === 1 ? 'has' : 'have'} fallen. The enemy holds the room: the rest of the party can still come to the rescue.`);
+  const w = s.dungeon?.world;
+  return w ? nextSlot(withWorld(s, { ...w, fightRound: undefined })) : s;
+}
+
 /** Someone outside this fight is still on their feet and could come to help. */
-function rescuersExist(state: GameState, fight: EncounterState): boolean {
+export function rescuersExist(state: GameState, fight: EncounterState): boolean {
   const inFight = new Set(encounterMercIds(state, fight));
   return state.party.some((m) => !inFight.has(m.id) && !m.dead && !m.down);
 }
@@ -257,17 +274,8 @@ export function settle(state: GameState, ctx: WorldContext): GameState {
       }
       if (s.screen !== 'combat') s = { ...s, screen: 'combat' };
       const c = s.encounter!.combat!;
-      // Lost, but others are still standing elsewhere: the fight waits for a rescue instead of ending the adventure.
-      if (c.outcome === 'defeat' && rescuersExist(s, s.encounter!)) {
-        s = { ...s, encounter: { ...s.encounter!, combat: { ...c, outcome: null, dormant: true } } };
-        // Move the turn on past whoever struck the last blow; the waiting fight cannot end in defeat.
-        s = endTurn(s);
-        const fallen = s.party.filter((m) => encounterMercIds(s, s.encounter!).includes(m.id)).map((m) => m.name);
-        s = log(s, `${fallen.join(', ')} ${fallen.length === 1 ? 'has' : 'have'} fallen. The enemy holds the room: the rest of the party can still come to the rescue.`);
-        s = nextSlot(withWorld(s, { ...s.dungeon!.world!, fightRound: undefined }));
-        continue;
-      }
-      // The outcome waits on screen until the player moves on.
+      // The outcome waits on screen until the player moves on. A lost fight while others still
+      // stand is left waiting for a rescue (leaveTheFallen) once the player has seen it.
       if (c.outcome) return s;
       if (w.fightRound === undefined) {
         s = withWorld(s, { ...w, fightRound: c.round });

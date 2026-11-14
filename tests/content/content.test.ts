@@ -174,3 +174,16 @@ describe('race passives', () => {
     expect(raceDeathSaveDifficulty(getRace('human'))).toBeNull();
   });
 });
+
+describe('obstacle types', () => {
+  it('come from content, and a dungeon placing an unknown one is flagged', async () => {
+    const { CONTENT: content, crossCheck: check, getObstacle } = await import('../../src/content');
+    expect(getObstacle('barricade')).toMatchObject({ blocksLoS: true, hp: 10 });
+    expect(getObstacle('pillar').hp).toBeNull();
+    const dungeon = structuredClone(content.dungeons[0]!);
+    const encounter = dungeon.features.find((f) => f.type === 'encounter')!;
+    if (encounter.type === 'encounter') encounter.obstacles = [{ id: 'odd', kind: 'no-such-thing', x: 1, y: 1 }];
+    const problems = check({ ...content, dungeons: [dungeon, ...content.dungeons.slice(1)] });
+    expect(problems.some((p) => p.includes('unknown obstacle "no-such-thing"'))).toBe(true);
+  });
+});

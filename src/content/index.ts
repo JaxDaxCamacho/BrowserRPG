@@ -9,6 +9,7 @@ import {
   type MonsterDefinition,
   type RaceDefinition,
   type TalentTree,
+  type ObstacleDefinition,
 } from '../engine';
 import abilitiesJson from './abilities.json';
 import classesJson from './classes.json';
@@ -18,6 +19,7 @@ import portraitsJson from './portraits.json';
 import premadesJson from './premades.json';
 import racesJson from './races.json';
 import talentsJson from './talents.json';
+import obstaclesJson from './obstacles.json';
 import {
   abilitySchema,
   adventureSchema,
@@ -30,6 +32,7 @@ import {
   premadeSchema,
   raceSchema,
   talentTreeSchema,
+  obstacleTypeSchema,
   type AdventureDefinition,
   type PortraitDefinition,
   type ClassDefinition,
@@ -46,6 +49,7 @@ export interface ContentSet {
   portraits: PortraitDefinition[];
   adventures: AdventureDefinition[];
   dungeons: DungeonDefinition[];
+  obstacles: ObstacleDefinition[];
   /** One tree per class that has one. Not edited in the content editor yet. */
   talents: (TalentTree & { id: string })[];
 }
@@ -83,6 +87,7 @@ export const COLLECTIONS: CollectionInfo[] = [
   { key: 'races', label: 'Races', file: 'races.json', schema: raceSchema, imageField: 'icon' },
   { key: 'premades', label: 'Pre-built mercs', file: 'premades.json', schema: premadeSchema, imageField: 'portrait' },
   { key: 'portraits', label: 'Portraits', file: 'portraits.json', schema: portraitSchema, imageField: 'asset' },
+  { key: 'obstacles', label: 'Obstacles', file: 'obstacles.json', schema: obstacleTypeSchema, imageField: 'icon' },
 ];
 
 export function parseCollection(key: CollectionKey, data: unknown): { id: string }[] {
@@ -211,6 +216,9 @@ export function crossCheck(set: ContentSet): string[] {
           for (const m of f.monsters) {
             if (!has(set.monsters, m.monsterId)) problems.push(`Dungeon "${dungeon.id}": ${f.id} has unknown monster "${m.monsterId}".`);
           }
+          for (const o of f.obstacles ?? []) {
+            if (!has(set.obstacles ?? [], o.kind)) problems.push(`Dungeon "${dungeon.id}": ${f.id} places unknown obstacle "${o.kind}".`);
+          }
           continue;
         }
         const dialogue = dialogues.get(f.dialogueId);
@@ -308,6 +316,7 @@ export const CONTENT: ContentSet = {
   adventures: parseList(adventureSchema, byFileName(adventureFiles), 'adventure'),
   dungeons: parseList(dungeonSchema, byFileName(dungeonFiles), 'dungeon'),
   talents: parseList(talentTreeSchema, talentsJson, 'talent tree'),
+  obstacles: parseList(obstacleTypeSchema, obstaclesJson, 'obstacle'),
 };
 
 const contentProblems = crossCheck(CONTENT);
@@ -327,6 +336,7 @@ export const getClass = lookup(CLASSES, 'class');
 export const getRace = lookup(RACES, 'race');
 export const getItem = lookup(ITEMS, 'item');
 export const getAbility = lookup(ABILITIES, 'ability');
+export const getObstacle = lookup(CONTENT.obstacles, 'obstacle');
 
 /** The talent tree for a class, if it has one yet. */
 export function getTalentTree(classId: string): TalentTree | undefined {

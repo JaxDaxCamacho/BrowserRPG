@@ -1,7 +1,6 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import { getClass, getItem, getRace, getTalentTree } from '../content';
 import {
-  formatCoins,
   itemSize,
   naturalSlot,
   PACK_HEIGHT,
@@ -19,6 +18,7 @@ import { currentHp, sheetOf } from '../state/context';
 import type { GameCommand } from '../state/commands';
 import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
+import { Coins } from './Coins';
 import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
 import { formatModifier, initials, Token } from './MercCard';
@@ -252,7 +252,7 @@ export function PartyWindow({
                 <span className="dim">Movement</span> {Math.max(1, (race.movement ?? 3) + statModifier(sheet.stats.agility))}
               </span>
               <span className="stat-chip">
-                <span className="dim">Purse</span> {formatCoins(merc.purse)}
+                <span className="dim">Purse</span> <Coins copper={merc.purse} />
               </span>
             </p>
             <h3>Injuries</h3>

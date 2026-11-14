@@ -61,10 +61,10 @@ export interface TrapFeature extends FeatureBase {
   disarmNode?: string;
 }
 
-/** Battlefield dressing: barrels, chests, barricades and pillars. Position is on the combat grid, not the dungeon map. */
+/** Battlefield dressing placed on an encounter. `kind` is an obstacle type id (obstacles.json). Position is on the combat grid, not the dungeon map. */
 export interface ObstacleFeature {
   id: string;
-  kind: 'barrel' | 'chest' | 'barricade' | 'pillar';
+  kind: string;
   x: number;
   y: number;
 }

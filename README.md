@@ -10,8 +10,8 @@ Requires Node.js 20.19 or newer.
 
 - `Play.bat` plays the game from a production build, which loads in about a second. After a code
   change, the first start rebuilds it (about 20 seconds, with a "getting ready" screen).
-- `Develop.bat` runs the development server instead, with the content editor and dungeon maker on the
-  main menu and changes showing up live. It is slower to load from the Windows drive: reading files
+- `Develop.bat` runs the game on the development server instead, with code changes showing up live.
+- `Tools.bat` opens the tools app: the content editor and the dungeon maker. It is slower to load from the Windows drive: reading files
   across the WSL boundary is slow. Keeping the project inside WSL (for example `~/projects`) loads it
   in under a second.
 
@@ -82,11 +82,17 @@ does, and takes a merc back if its player drops out (rejoining from the same bro
 - Browsers connect directly (WebRTC through PeerJS). PeerJS's free public server only introduces them,
   so it sees the join code but never the game. Only the host's game is saved.
 
-## Content editor
+## Tools: content editor and dungeon maker
 
-Run `npm run dev` and choose **Content Editor** on the main menu (development builds only).
-It edits gear, abilities, monsters, classes, races and pre-built mercs, validates them
-against the same rules the game uses, and writes the JSON files in `src/content/`.
+`Tools.bat` (or `npm run dev` and open `/tools.html`) opens the tools, apart from the game:
+
+- **Content Editor**: gear, abilities, monsters, classes, races, pre-built mercs, portraits and
+  obstacle types. Entries are validated against the same rules the game uses, and saving writes the
+  JSON files in `src/content/`.
+- **Dungeon Maker**: maps, rooms, traps, events, goals and enemy groups, including the obstacles on
+  each battlefield (placed by obstacle type). Test play drops the pre-built party into the map.
+
+The tools need the development server, which writes the files; they are not in the game's builds.
 
 ## Layout
 

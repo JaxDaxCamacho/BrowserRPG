@@ -591,6 +591,21 @@ select:disabled {
   border-radius: 8px;
 }
 
+.dialogue-image.has-art {
+  flex: 0 1 auto;
+  min-height: 0;
+  background: none;
+  border: none;
+}
+
+.dialogue-image img {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 .dialogue-options {
   display: flex;
   flex-direction: column;
@@ -3362,4 +3377,69 @@ button.portrait-choice:hover {
 .store-price {
   color: var(--accent);
   font-weight: bold;
+}
+
+/* ---------- money: numbers with little coins ---------- */
+
+.coins {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.coin-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.coin {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  font-size: 0.75em;
+}
+
+/* One silver coin, tinted for each metal. */
+.coin-gold {
+  filter: sepia(1) saturate(5) hue-rotate(-8deg) brightness(1.15);
+}
+
+.coin-silver {
+  filter: brightness(1.1);
+}
+
+.coin-copper {
+  filter: sepia(1) saturate(3.5) hue-rotate(-28deg) brightness(0.72);
+}
+
+/* "Down!" and "Slain!" rise after the damage number, not on top of it. */
+.flash-text.late {
+  animation-delay: 0.5s;
+  animation-fill-mode: both;
+  font-size: 1.4rem;
+}
+
+/* ---------- the tools app ---------- */
+
+.tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(520px, 90vw);
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 14px 18px;
+  font-size: 1.05rem;
+}
+
+.tool-card .dim {
+  font-size: 0.85rem;
+  font-family: system-ui, sans-serif;
 }

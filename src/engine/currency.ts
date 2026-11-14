@@ -32,5 +32,5 @@ export function formatCoins(totalCopper: number): string {
   return parts.length > 0 ? parts.join(' ') : '0c';
 }
 
-/** Every new merc starts with 3 gold, 50 silver and 20 copper. */
-export const STARTING_PURSE = toCopper({ gold: 3, silver: 50, copper: 20 });
+/** Every new merc starts with 50 silver. */
+export const STARTING_PURSE = toCopper({ gold: 0, silver: 50, copper: 0 });

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { getClass, getItem, getRace } from '../content';
 import {
-  formatCoins,
   mercSheet,
   STARTING_PURSE,
   STAT_NAMES,
@@ -12,6 +11,7 @@ import {
   type MercDraft,
   type StatName,
 } from '../engine';
+import { Coins } from './Coins';
 import { AssetImage } from './assets';
 
 export const STAT_LABELS: Record<StatName, string> = {
@@ -112,7 +112,7 @@ export function MercCard({ merc, actions, badge, selected, onSelect }: Props) {
           )}
         </span>
         <span className="stat-chip">
-          <span className="dim">Purse</span> {formatCoins(purse)}
+          <span className="dim">Purse</span> <Coins copper={purse} />
         </span>
       </span>
     </>

@@ -15,6 +15,7 @@ import {
   groupMovement,
   groupsOf,
   isSplit,
+  leaveTheFallen,
   regroup,
   restBlocker,
   setDestination,
@@ -234,8 +235,10 @@ describe('a fallen group while split', () => {
     let downed = s;
     for (let seed = 1; seed < 300; seed++) {
       const tryIt = run({ ...s, rngSeed: seed }, (g) => attack(g, 'merc-2'));
-      if (allEncounters(tryIt).some((e) => e.combat?.dormant)) {
-        downed = tryIt;
+      if (tryIt.encounter?.combat?.outcome === 'defeat') {
+        // The defeat waits on screen until the player chooses to carry on with the others.
+        expect(tryIt.screen).toBe('combat');
+        downed = run(tryIt, leaveTheFallen);
         break;
       }
     }

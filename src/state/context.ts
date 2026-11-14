@@ -1,4 +1,4 @@
-import { getAbility, getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getRace, getTalentTree } from '../content';
+import { getAbility, getAdventure, getClass, getDialogue, getDungeon, getItem, getMonster, getObstacle, getRace, getTalentTree } from '../content';
 import {
   finalStats,
   mercSheet,
@@ -51,6 +51,7 @@ export function dungeonContext(state: GameState): DungeonContext {
 /** What the combat engine needs from content. */
 export const combatContext: CombatContext = {
   getMonster,
+  getObstacle,
   getAbility,
   getItem,
   getDungeon,

@@ -16,6 +16,7 @@ export * from './items';
 export * from './levels';
 export * from './merc';
 export * from './monsters';
+export * from './obstacles';
 export * from './party';
 export * from './race';
 export * from './rest';

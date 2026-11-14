@@ -11,8 +11,8 @@ import {
   kickTargets,
   isEngaged,
   obstacleTargets,
-  OBSTACLE_PRESETS,
   reachableTiles,
+  rescuersExist,
   shareXp,
   statModifier,
   effectiveStats,
@@ -59,6 +59,8 @@ interface Flash {
   text: string;
   tone: 'damage' | 'heal' | 'miss' | 'buff';
   animation?: string;
+  /** Shown a moment after the others on the same token, so they do not overlap. */
+  late?: boolean;
 }
 
 function flashesFrom(events: CombatEvent[], seq: number): Flash[] {
@@ -71,6 +73,7 @@ function flashesFrom(events: CombatEvent[], seq: number): Flash[] {
     if (e.kind === 'heal' && e.targetId) return [{ key, targetId: e.targetId, text: `+${e.amount ?? 0}`, tone: 'heal', ...(e.animation ? { animation: e.animation } : {}) }];
     if (e.kind === 'buff' && e.targetId) return [{ key, targetId: e.targetId, text: 'Boost', tone: 'buff', ...(e.animation ? { animation: e.animation } : {}) }];
     if (e.kind === 'defend') return [{ key, targetId: e.actorId, text: 'Defend', tone: 'buff' }];
+    if (e.kind === 'down') return [{ key, targetId: e.actorId, text: e.label === 'dead' ? 'Slain!' : 'Down!', tone: 'damage', late: true }];
     if (e.kind === 'status' && e.targetId) {
       const text = e.amount ? `-${e.amount} ${e.label ?? ''}`.trim() : (STATUS_FLAIR[e.label as StatusKind]?.name ?? e.label ?? '');
       return [{ key, targetId: e.targetId, text, tone: e.amount ? 'damage' : 'buff' }];
@@ -140,9 +143,8 @@ function ProjectileFX({ spec, width, height }: { spec: ProjectileSpec; width: nu
   return <span className={`projectile kind-${spec.kind}`} style={{ ...pctStyle(pos, width, height), transform: `translate(-50%, -50%) rotate(${angle}deg)` }} />;
 }
 
-/** A barrel, chest, barricade or pillar dressing the battlefield; destructible ones can be targeted like an enemy. */
+/** An obstacle dressing the battlefield (a barrel, a pillar…); destructible ones can be targeted like an enemy. */
 function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; targetable: boolean; flashes: Flash[]; onPick: () => void }) {
-  const preset = OBSTACLE_PRESETS[o.kind];
   const destructible = o.hp !== null;
   return (
     <button
@@ -150,10 +152,10 @@ function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; target
       className={`obstacle-token${destructible ? ' destructible' : ''}${targetable ? ' targetable' : ''}`}
       disabled={!targetable}
       onClick={onPick}
-      title={`${preset.name}${destructible ? ` (${o.hp}/${o.maxHp} HP)` : ''}`}
-      aria-label={preset.name}
+      title={`${o.name}${destructible ? ` (${o.hp}/${o.maxHp} HP)` : ''}`}
+      aria-label={o.name}
     >
-      <AssetImage id={preset.icon} fallback={preset.emoji} size={56} className="obstacle-icon" />
+      <AssetImage id={o.icon} fallback={o.emoji} size={56} className="obstacle-icon" />
       {destructible && o.hp !== null && o.maxHp !== null && (
         <span className="obstacle-hp">
           <span style={{ width: `${(o.hp / o.maxHp) * 100}%` }} />
@@ -161,7 +163,7 @@ function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; target
       )}
       {flashes.map((f) => (
         <span key={f.key} className="token-flash">
-          <span className={`flash-text tone-${f.tone}`}>{f.text}</span>
+          <span className={`flash-text tone-${f.tone}${f.late ? ' late' : ''}`}>{f.text}</span>
         </span>
       ))}
     </button>
@@ -303,7 +305,7 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aim
         {flashes.map((f) => (
           <span key={f.key} className="token-flash">
             {f.animation && <AnimationPreview id={f.animation} frames={frames(f.animation) ?? 15} size={110} once />}
-            <span className={`flash-text tone-${f.tone}`}>{f.text}</span>
+            <span className={`flash-text tone-${f.tone}${f.late ? ' late' : ''}`}>{f.text}</span>
           </span>
         ))}
       </span>
@@ -670,7 +672,9 @@ export function CombatScreen() {
       <footer className="combat-footer">
         <div className="combat-actions">
           {combat.outcome ? (
-            <Outcome combat={combat} onContinue={() => dispatch({ type: 'finishCombat' })} onRetry={() => dispatch({ type: 'retryCombat' })} onMenu={backToMenu} />
+            <Outcome combat={combat} onContinue={() => dispatch({ type: 'finishCombat' })}
+              onRetry={() => dispatch({ type: 'retryCombat' })}
+              {...(game.encounter && rescuersExist(game, game.encounter) && game.dungeon.otherGroups?.length ? { onCarryOn: () => dispatch({ type: 'leaveTheFallen' }) } : {})} onMenu={backToMenu} />
           ) : viewed ? (
             <>
               <p className="turn-title">
@@ -744,7 +748,35 @@ export function CombatScreen() {
   );
 }
 
-function Outcome({ combat, onContinue, onRetry, onMenu }: { combat: CombatState; onContinue: () => void; onRetry: () => void; onMenu: () => void }) {
+function Outcome({
+  combat,
+  onContinue,
+  onRetry,
+  onMenu,
+  onCarryOn,
+}: {
+  combat: CombatState;
+  onContinue: () => void;
+  onRetry: () => void;
+  onMenu: () => void;
+  /** With the party split and others still standing: leave the fallen and carry on. */
+  onCarryOn?: () => void;
+}) {
+  if (combat.outcome === 'defeat' && onCarryOn) {
+    return (
+      <div className="outcome">
+        <p className="turn-title">
+          <strong>Everyone in this fight has fallen.</strong>
+          <span className="dim"> The rest of the party is still out there and can come to the rescue.</span>
+        </p>
+        <div className="row">
+          <button type="button" className="primary" onClick={onCarryOn}>
+            Carry on with the others
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (combat.outcome === 'defeat') {
     return (
       <div className="outcome">

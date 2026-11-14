@@ -31,7 +31,6 @@ export function MainMenu() {
   const refreshSaves = useGameStore((s) => s.refreshSaves);
   const newGame = useGameStore((s) => s.newGame);
   const continueGame = useGameStore((s) => s.continueGame);
-  const openTool = useGameStore((s) => s.openTool);
   const hostOnline = useGameStore((s) => s.hostOnline);
 
   const [view, setView] = useState<View>('main');
@@ -69,16 +68,6 @@ export function MainMenu() {
           <button type="button" onClick={() => setView('join')}>
             Join a co-op game
           </button>
-          {import.meta.env.DEV && (
-            <>
-              <button type="button" className="tool-button" onClick={() => openTool('contentEditor')}>
-                Content Editor
-              </button>
-              <button type="button" className="tool-button" onClick={() => openTool('dungeonMaker')}>
-                Dungeon Maker
-              </button>
-            </>
-          )}
         </nav>
         {saveError && <p className="error">{saveError}</p>}
       </main>

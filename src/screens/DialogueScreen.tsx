@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { getClass, getDialogue, getItem, getRace } from '../content';
 import {
   checkMaker,
@@ -12,6 +13,8 @@ import { dialogueContext } from '../state/context';
 import { votersFor } from '../net/protocol';
 import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
+import { TUMBLE_MS } from './DiceTray';
+import { assetUrl } from './assets';
 import { DieFace } from './Dice';
 import { formatModifier } from './MercCard';
 
@@ -41,6 +44,25 @@ function describeCondition(condition: Condition): string {
 function imageCaption(key: string): string {
   const words = key.replace(/-/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The scene art for a node, from scenes/<adventure id>/<image key>; the caption stands in when it is missing. */
+function SceneImage({ adventureId, image }: { adventureId: string; image?: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [adventureId, image]);
+  const caption = image ? imageCaption(image) : 'Scene';
+  if (!image || failed) {
+    return (
+      <div className="dialogue-image" role="img" aria-label={caption}>
+        <span className="dim">{caption}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="dialogue-image has-art">
+      <img src={assetUrl(`scenes/${adventureId}/${image}`)} alt={caption} draggable={false} onError={() => setFailed(true)} />
+    </div>
+  );
 }
 
 function Paragraphs({ text }: { text: string }) {
@@ -73,7 +95,17 @@ export function DialogueScreen() {
   const game = useGameStore((s) => s.game);
   const dispatch = useGameStore((s) => s.dispatch);
   const net = useGameStore((s) => s.net);
+  const diceDelay = useGameStore((s) => s.diceDelay);
   const { myId } = useControl();
+  // A result that came from a roll waits until the die in the corner has landed.
+  const rolled = game.dialogue?.result?.check ? game.rollFeed?.seq : undefined;
+  const [landedSeq, setLandedSeq] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (rolled === undefined) return;
+    const timer = window.setTimeout(() => setLandedSeq(rolled), diceDelay + TUMBLE_MS + 150);
+    return () => window.clearTimeout(timer);
+  }, [rolled, diceDelay]);
+  const waitingForDie = rolled !== undefined && landedSeq !== rolled;
 
   if (!game.dialogue || !game.adventureId) return null;
   const dialogue = getDialogue(game.adventureId, game.dialogue.dialogueId);
@@ -96,15 +128,15 @@ export function DialogueScreen() {
     <main className="screen dialogue">
       <section className="dialogue-text" aria-live="polite">
         {node.speaker && <h1 className="speaker">{node.speaker}</h1>}
-        {result ? <Paragraphs text={result.text} /> : <Paragraphs text={node.text} />}
+        {result && !waitingForDie ? <Paragraphs text={result.text} /> : <Paragraphs text={node.text} />}
       </section>
 
-      <div className="dialogue-image" role="img" aria-label={node.image ? imageCaption(node.image) : 'Scene'}>
-        <span className="dim">{node.image ? imageCaption(node.image) : 'Scene'}</span>
-      </div>
+      <SceneImage adventureId={game.adventureId} image={node.image} />
 
       <section className="dialogue-options">
-        {result ? (
+        {result && waitingForDie ? (
+          <p className="dim rolling-note">The die is rolling…</p>
+        ) : result ? (
           <>
             {result.check && <CheckReadout check={result.check} />}
             {result.notes.length > 0 && (

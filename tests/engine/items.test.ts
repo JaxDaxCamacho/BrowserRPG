@@ -22,9 +22,9 @@ import {
 const knightGear = { race: getRace('human'), armourProficiency: 'heavy' as const, getItem, startersOnly: true };
 
 describe('money', () => {
-  it('starts every merc with 3 gold, 50 silver and 20 copper', () => {
-    expect(toCoins(STARTING_PURSE)).toEqual({ gold: 3, silver: 50, copper: 20 });
-    expect(formatCoins(STARTING_PURSE)).toBe('3g 50s 20c');
+  it('starts every merc with 50 silver', () => {
+    expect(toCoins(STARTING_PURSE)).toEqual({ gold: 0, silver: 50, copper: 0 });
+    expect(formatCoins(STARTING_PURSE)).toBe('50s');
   });
 
   it('converts at 100 copper to a silver and 100 silver to a gold', () => {

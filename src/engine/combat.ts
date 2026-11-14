@@ -1,7 +1,8 @@
 ﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackOutcome, type AttackProfile } from './attack';
 import { makeCheck } from './checks';
 import { rollD20, rollDice, type RollMode } from './dice';
-import { featureById, groupsOf, roomAt, setGroups, type DungeonDefinition, type ObstacleFeature, type Pos } from './dungeon';
+import { featureById, groupsOf, roomAt, setGroups, type DungeonDefinition, type Pos } from './dungeon';
+import type { ObstacleDefinition } from './obstacles';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import { awardXp } from './levels';
@@ -227,6 +228,7 @@ export interface CombatState {
 
 export interface CombatContext {
   getMonster: (id: string) => MonsterDefinition;
+  getObstacle: (id: string) => ObstacleDefinition;
   getAbility: (id: string) => AbilityDefinition;
   getItem: ItemLookup;
   getDungeon: (id: string) => DungeonDefinition;
@@ -270,11 +272,13 @@ const UNARMED: CombatAttack = {
 
 // ---------- obstacles ----------
 
-export type ObstacleKind = ObstacleFeature['kind'];
-
 export interface Obstacle {
   id: string;
-  kind: ObstacleKind;
+  /** The obstacle type it was made from (obstacles.json). */
+  kind: string;
+  name: string;
+  icon?: string;
+  emoji: string;
   pos: Pos;
   /** Blocks a ranged attack's line of sight through its tile. */
   blocksLoS: boolean;
@@ -284,14 +288,6 @@ export interface Obstacle {
   hp: number | null;
   maxHp: number | null;
 }
-
-/** What each obstacle kind looks and behaves like by default. */
-export const OBSTACLE_PRESETS: Record<ObstacleKind, { name: string; icon?: string; emoji: string; blocksLoS: boolean; hp: number | null }> = {
-  barrel: { name: 'Barrel', icon: 'obstacles/containers/barrel', emoji: '🛢️', blocksLoS: false, hp: 6 },
-  chest: { name: 'Chest', icon: 'obstacles/containers/bagsandboxes-94-t', emoji: '🧰', blocksLoS: false, hp: null },
-  barricade: { name: 'Barricade', icon: 'obstacles/containers/bagsandboxes-40-t', emoji: '🚧', blocksLoS: true, hp: 10 },
-  pillar: { name: 'Pillar', emoji: '🗿', blocksLoS: true, hp: null },
-};
 
 export function obstacleById(c: CombatState, id: string): Obstacle | undefined {
   return c.obstacles.find((o) => o.id === id);
@@ -802,8 +798,19 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   };
 
   const obstacles: Obstacle[] = (feature.obstacles ?? []).map((o) => {
-    const preset = OBSTACLE_PRESETS[o.kind];
-    return { id: o.id, kind: o.kind, pos: { x: o.x, y: o.y }, blocksLoS: preset.blocksLoS, blocksMove: true, hp: preset.hp, maxHp: preset.hp };
+    const type = ctx.getObstacle(o.kind);
+    return {
+      id: o.id,
+      kind: type.id,
+      name: type.name,
+      ...(type.icon ? { icon: type.icon } : {}),
+      emoji: type.emoji,
+      pos: { x: o.x, y: o.y },
+      blocksLoS: type.blocksLoS,
+      blocksMove: type.blocksMove,
+      hp: type.hp,
+      maxHp: type.hp,
+    };
   });
 
   const taken = new Set<string>(obstacles.map((o) => key(o.pos)));
@@ -1067,7 +1074,13 @@ function applyDamage(c: CombatState, seed: number, targetId: string, amount: num
     nextSeed = fall.seed;
     next = withLog({ ...next, mercs: next.mercs.map((m) => (m.id === merc.id ? fall.merc : m)) }, fall.line);
     if (fall.outcome.kind === 'dead') next = updateCombatant(next, targetId, (x) => ({ ...x, dead: true }));
-    next = { ...next, events: [...next.events, { kind: 'down', actorId: targetId, ...(fall.save ? { shown: saveRoll(merc.name, fall.save) } : {}) }] };
+    next = {
+      ...next,
+      events: [
+        ...next.events,
+        { kind: 'down', actorId: targetId, ...(fall.outcome.kind === 'dead' ? { label: 'dead' } : {}), ...(fall.save ? { shown: saveRoll(merc.name, fall.save) } : {}) },
+      ],
+    };
   } else {
     next = withLog({ ...next, events: [...next.events, { kind: 'down', actorId: targetId }] }, `${target.name} goes down.`);
   }
@@ -1195,7 +1208,7 @@ function strikeObstacle(
     critThreshold: s.critThreshold,
   });
   const r = result.value;
-  const name = OBSTACLE_PRESETS[s.obstacle.kind].name.toLowerCase();
+  const name = s.obstacle.name.toLowerCase();
   const hp = Math.max(0, (s.obstacle.hp ?? 0) - r.damage);
   const destroyed = hp === 0 && s.obstacle.hp !== null;
   const obstacles = destroyed
@@ -1787,8 +1800,9 @@ export function flee(state: GameState, ctx: Pick<CombatContext, 'sheetOf'>): Gam
 
 /**
  * Moves the active combatant to a tile within its remaining movement. Each
- * enemy the mover steps away from (out of the tiles next to it) gets one free
- * melee attack; going down ends the move where it happened.
+ * enemy the mover was engaged with at the start (standing next to) gets one
+ * free melee attack as the mover steps out of its reach; enemies merely walked
+ * past do not. Going down ends the move where it happened.
  */
 export function moveTo(state: GameState, to: Pos): GameState {
   const c = state.encounter?.combat;
@@ -1801,6 +1815,8 @@ export function moveTo(state: GameState, to: Pos): GameState {
   let seed = state.rngSeed;
   let at = actor.pos;
   const struck = new Set<string>();
+  // Only enemies the mover is engaged with when the move starts (standing next to them) get a free swing.
+  const engagedAtStart = new Set(standing(c, opposite(actor.side)).filter((e) => distance(e.pos, actor.pos) <= 1).map((e) => e.id));
   let walked = 0;
   for (const step of path) {
     // The evasive and the unseen slip away without giving anyone a free swing; the stunned cannot swing.
@@ -1809,7 +1825,14 @@ export function moveTo(state: GameState, to: Pos): GameState {
     const leavingFrom = slips
       ? []
       : standing(next, opposite(actor.side)).filter(
-          (e) => e.attack.range === 0 && !hasStatus(e, 'stunned') && !hasStatus(e, 'frozen') && !struck.has(e.id) && distance(e.pos, at) <= 1 && distance(e.pos, step) > 1,
+          (e) =>
+            engagedAtStart.has(e.id) &&
+            e.attack.range === 0 &&
+            !hasStatus(e, 'stunned') &&
+            !hasStatus(e, 'frozen') &&
+            !struck.has(e.id) &&
+            distance(e.pos, at) <= 1 &&
+            distance(e.pos, step) > 1,
         );
     for (const punisher of leavingFrom) {
       struck.add(punisher.id);

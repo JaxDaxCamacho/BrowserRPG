@@ -451,13 +451,22 @@ const featureBase = {
   icon: assetId.optional(),
 };
 
-/** Obstacle kinds the battlefield can be dressed with; each carries its own blocking defaults. */
-export const OBSTACLE_KINDS = ['barrel', 'chest', 'barricade', 'pillar'] as const;
-export type ObstacleKind = (typeof OBSTACLE_KINDS)[number];
+/** An obstacle type: how it looks, what it blocks and how much it takes to smash (null: unbreakable). */
+export const obstacleTypeSchema = z.strictObject({
+  id,
+  name: z.string().min(1),
+  icon: assetId.optional(),
+  emoji: z.string().min(1),
+  description: z.string().optional(),
+  blocksMove: z.boolean(),
+  blocksLoS: z.boolean(),
+  hp: z.number().int().positive().nullable(),
+});
 
+/** An obstacle placed on an encounter's battlefield: `kind` is the obstacle type's id. */
 const obstacleSchema = z.strictObject({
   id,
-  kind: z.enum(OBSTACLE_KINDS),
+  kind: id,
   /** Position on the combat grid (not the dungeon map): 0,0 is the top-left of the battlefield. */
   x: z.number().int().min(0).max(11),
   y: z.number().int().min(0).max(8),

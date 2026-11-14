@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { getDungeon, getItem } from '../content';
-import { formatCoins, sellPrice, type ItemDefinition } from '../engine';
+import { sellPrice, type ItemDefinition } from '../engine';
 import { useControl } from '../state/net';
 import { ALWAYS_IN_STOCK } from '../state/storeStock';
 import { useGameStore } from '../state/store';
+import { Coins } from './Coins';
 import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
 import { Token } from './MercCard';
@@ -63,7 +64,7 @@ export function StoreScreen() {
             <span className="store-buy">
               <span className="store-price">
                 {label && <span className="dim">{label} </span>}
-                {formatCoins(price)}
+                <Coins copper={price} />
               </span>
               <button
                 type="button"
@@ -109,7 +110,7 @@ export function StoreScreen() {
                       <span>
                         <strong>{m.name}</strong>
                         <br />
-                        <span className="dim">{mine ? formatCoins(m.purse) : `played by ${playerOf(m.id) ?? 'another player'}`}</span>
+                        <span className="dim">{mine ? <Coins copper={m.purse} /> : `played by ${playerOf(m.id) ?? 'another player'}`}</span>
                       </span>
                     </button>
                   </li>
@@ -129,7 +130,7 @@ export function StoreScreen() {
           <h2>{merc ? `${merc.name}'s pack` : 'Your pack'}</h2>
           {merc ? (
             <>
-              <p className="dim note">Purse: {formatCoins(merc.purse)}. Equipped gear is not for sale; take it off first in Party &amp; gear.</p>
+              <p className="dim note">Purse: <Coins copper={merc.purse} />. Equipped gear is not for sale; take it off first in Party &amp; gear.</p>
               {merc.inventory.length === 0 ? (
                 <p className="dim">The pack is empty.</p>
               ) : (
@@ -145,7 +146,7 @@ export function StoreScreen() {
                           {stack.quantity > 1 && <span className="dim"> ×{stack.quantity}</span>}
                         </span>
                         <span className="store-buy">
-                          <span className="store-price">{formatCoins(sellPrice(item.value) * count)}</span>
+                          <span className="store-price"><Coins copper={sellPrice(item.value) * count} /></span>
                           <button type="button" onClick={() => tryDispatch({ type: 'sell', mercId: merc.id, index })}>
                             Sell{count > 1 ? ' all' : ''}
                           </button>
