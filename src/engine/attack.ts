@@ -16,14 +16,20 @@ export const ATTACK_STAT: Record<AttackKind, StatName> = {
 };
 
 /**
- * Which armour reduces each damage type.
- * Spiritual damage against magic armour is a proposed default, not yet confirmed.
+ * Which armour reduces each damage type. Spiritual damage goes through both
+ * physical and magic armour, so nothing reduces it.
  */
-export const ARMOUR_AGAINST: Record<DamageType, ArmourType> = {
+export const ARMOUR_AGAINST: Record<DamageType, ArmourType | null> = {
   physical: 'physical',
   magic: 'magic',
-  spiritual: 'magic',
+  spiritual: null,
 };
+
+/** The armour that applies to a damage type: 0 for spiritual damage. */
+export function armourAgainst(armour: Armour, damageType: DamageType): number {
+  const type = ARMOUR_AGAINST[damageType];
+  return type ? armour[type] : 0;
+}
 
 export const DEFAULT_CRIT_THRESHOLD = 20;
 
@@ -159,11 +165,11 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
     next = r.seed;
   }
 
-  const armour = targetArmour[ARMOUR_AGAINST[profile.damageType]];
+  const armour = armourAgainst(targetArmour, profile.damageType);
   const bonusDamage = outcome === 'miss' ? 0 : Math.max(0, input.bonusDamage ?? 0);
   const damage = outcome === 'miss' ? 0 : Math.max(0, damageDealt(outcome, grazeRoll, hitRoll, modifier, 0) + bonusDamage - armour);
   const extraDamage = profile.extra
-    ? extraDamageDealt(outcome, profile.extra.amount, targetArmour[ARMOUR_AGAINST[profile.extra.damageType]])
+    ? extraDamageDealt(outcome, profile.extra.amount, armourAgainst(targetArmour, profile.extra.damageType))
     : 0;
   return {
     value: {

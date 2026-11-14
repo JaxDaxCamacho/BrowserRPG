@@ -216,6 +216,24 @@ describe('resolveAttack', () => {
     }
   });
 
+  it('lets spiritual damage through both physical and magic armour', () => {
+    const touch: AttackProfile = {
+      kind: 'spiritual',
+      damageType: 'spiritual',
+      graze: '5',
+      hit: '5',
+      extra: { damageType: 'spiritual', amount: 2 },
+    };
+    const armour = { physical: 100, magic: 100 };
+    for (const seed of seeds.slice(0, 50)) {
+      const r = resolveAttack(seed, { profile: touch, modifier: 0, targetDefense: 10, targetArmour: armour }).value;
+      if (r.outcome === 'graze' || r.outcome === 'hit') {
+        expect(r.damage).toBe(7);
+        expect(r.armour).toBe(0);
+      }
+    }
+  });
+
   it('is reproducible from the seed', () => {
     const input = { profile: sword, modifier: 1, targetDefense: 11, targetArmour: noArmour };
     expect(resolveAttack(777, input)).toEqual(resolveAttack(777, input));
