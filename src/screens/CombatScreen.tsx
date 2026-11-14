@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { getDungeon } from '../content';
 import {
   abilityTargets,
@@ -18,8 +18,8 @@ import {
   statModifier,
   effectiveStats,
   type AbilityDefinition,
+  type AttackOutcome,
   type AttackRoll,
-  type CombatEvent,
   type Combatant,
   type CombatState,
   type Obstacle,
@@ -33,6 +33,8 @@ import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
 import { ActionBar, needsPick, slotsFor } from './ActionBar';
 import { CombatantDetails } from './CombatantDetails';
 import { CombatLog, STAT_SHORT } from './CombatLog';
+import { ImpactFX, type ImpactKind } from './ImpactFX';
+import { StatBar } from './StatBar';
 import { PartyWindow } from './PartyWindow';
 import { DieFace } from './Dice';
 import { MuteButton } from './MuteButton';
@@ -52,6 +54,11 @@ const AIM_MS = 800;
 const RESULT_MS = 500;
 /** How long a projectile takes to cross the battlefield before it lands or goes wide. */
 const PROJECTILE_MS = 550;
+/** Battlefield squares never get smaller or larger than this, in px. Below the minimum the battlefield scrolls. */
+const MIN_CELL_PX = 56;
+const MAX_CELL_PX = 150;
+/** The grid's own padding and border, both sides together (see .combat-grid). */
+const GRID_FRAME_PX = 14;
 
 type Targeting = { kind: 'attack' } | { kind: 'kick' } | { kind: 'ability'; ability: AbilityDefinition };
 
@@ -59,23 +66,56 @@ interface Flash {
   key: string;
   targetId: string;
   text: string;
-  tone: 'damage' | 'heal' | 'miss' | 'buff';
+  tone: 'damage' | 'heal' | 'miss' | 'buff' | 'crit' | 'slain';
   animation?: string;
   /** Shown a moment after the others on the same token, so they do not overlap. */
   late?: boolean;
+  /** For attacks: how the blow landed, which picks the impact effect and the token's reaction. */
+  outcome?: AttackOutcome;
+  /** For attacks: the damage dealt. */
+  amount?: number;
+  /** A faint second line under the number, such as the armour that soaked part of the blow. */
+  sub?: string;
+  /** The direction the blow travelled, in radians, so blood sprays away from the attacker. */
+  dir?: number;
 }
 
-function flashesFrom(events: CombatEvent[], seq: number): Flash[] {
-  return events.flatMap((e, i): Flash[] => {
+/** The effect a blow leaves on whoever it lands on. */
+function impactOf(outcome: AttackOutcome | undefined, damage: number): ImpactKind | null {
+  if (!outcome || outcome === 'miss') return null;
+  if (outcome === 'graze' || damage === 0) return 'spark';
+  return outcome === 'crit' ? 'gore' : 'blood';
+}
+
+function flashesFrom(combat: CombatState, seq: number): Flash[] {
+  const at = (id: string) => combat.combatants.find((x) => x.id === id)?.pos ?? combat.obstacles.find((o) => o.id === id)?.pos;
+  return combat.events.flatMap((e, i): Flash[] => {
     const key = `${seq}-${i}`;
     if (e.kind === 'attack' && e.targetId) {
-      const text = e.outcome === 'miss' ? 'Miss' : `${e.outcome === 'crit' ? 'Crit! ' : e.outcome === 'graze' ? 'Graze ' : ''}-${e.amount ?? 0}`;
-      return [{ key, targetId: e.targetId, text, tone: e.outcome === 'miss' ? 'miss' : 'damage', ...(e.animation ? { animation: e.animation } : {}) }];
+      const amount = e.amount ?? 0;
+      const text = e.outcome === 'miss' ? 'Miss' : `${e.outcome === 'crit' ? 'Crit! ' : e.outcome === 'graze' ? 'Graze ' : ''}-${amount}`;
+      const from = at(e.actorId);
+      const to = at(e.targetId);
+      const dir = from && to && (from.x !== to.x || from.y !== to.y) ? Math.atan2(to.y - from.y, to.x - from.x) : Math.PI / 2;
+      const soaked = e.roll && e.outcome !== 'miss' && e.roll.armour > 0 ? `${e.roll.armour} soaked` : undefined;
+      return [
+        {
+          key,
+          targetId: e.targetId,
+          text,
+          tone: e.outcome === 'miss' ? 'miss' : e.outcome === 'crit' ? 'crit' : 'damage',
+          amount,
+          dir,
+          ...(e.outcome ? { outcome: e.outcome } : {}),
+          ...(soaked ? { sub: soaked } : {}),
+          ...(e.animation ? { animation: e.animation } : {}),
+        },
+      ];
     }
     if (e.kind === 'heal' && e.targetId) return [{ key, targetId: e.targetId, text: `+${e.amount ?? 0}`, tone: 'heal', ...(e.animation ? { animation: e.animation } : {}) }];
     if (e.kind === 'buff' && e.targetId) return [{ key, targetId: e.targetId, text: 'Boost', tone: 'buff', ...(e.animation ? { animation: e.animation } : {}) }];
     if (e.kind === 'defend') return [{ key, targetId: e.actorId, text: 'Defend', tone: 'buff' }];
-    if (e.kind === 'down') return [{ key, targetId: e.actorId, text: e.label === 'dead' ? 'Slain!' : 'Down!', tone: 'damage', late: true }];
+    if (e.kind === 'down') return [{ key, targetId: e.actorId, text: e.label === 'dead' ? 'Slain!' : 'Down!', tone: e.label === 'dead' ? 'slain' : 'damage', late: true }];
     if (e.kind === 'status' && e.targetId) {
       const text = e.amount ? `-${e.amount} ${e.label ?? ''}`.trim() : (STATUS_FLAIR[e.label as StatusKind]?.name ?? e.label ?? '');
       return [{ key, targetId: e.targetId, text, tone: e.amount ? 'damage' : 'buff' }];
@@ -165,10 +205,33 @@ function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; target
       )}
       {flashes.map((f) => (
         <span key={f.key} className="token-flash">
-          <span className={`flash-text tone-${f.tone}${f.late ? ' late' : ''}`}>{f.text}</span>
+          {f.outcome && f.outcome !== 'miss' && <ImpactFX kind="spark" seed={f.key} />}
+          <FlashText f={f} />
         </span>
       ))}
     </button>
+  );
+}
+
+/** The floating number (or word) over a token, with any faint second line. */
+function FlashText({ f }: { f: Flash }) {
+  return (
+    <span className={`flash-text tone-${f.tone}${f.late ? ' late' : ''}`}>
+      {f.text}
+      {f.sub && <span className="flash-sub">{f.sub}</span>}
+    </span>
+  );
+}
+
+/** A small health bar under a token. The trailing part lingers a moment after a blow, so the loss reads clearly. */
+function TokenHealth({ hp, max }: { hp: number; max: number }) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (hp / max) * 100)) : 0;
+  const tone = pct > 50 ? 'good' : pct > 25 ? 'low' : 'critical';
+  return (
+    <span className={`token-health ${tone}`} aria-hidden="true">
+      <span className="token-health-lag" style={{ width: `${pct}%` }} />
+      <span className="token-health-fill" style={{ width: `${pct}%` }} />
+    </span>
   );
 }
 
@@ -272,7 +335,9 @@ interface TokenProps {
 
 function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aiming, aimed, onPick, onSelect, onInspect }: TokenProps) {
   const down = x.hp === 0;
-  const pct = Math.max(0, (x.hp / x.maxHp) * 100);
+  // The blow that landed on this token, if one just did: it shakes (or dodges) to match.
+  const blow = flashes.find((f) => f.outcome);
+  const reaction = blow ? ` react-${blow.outcome}` : '';
   return (
     <button
       type="button"
@@ -283,9 +348,15 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aim
         onInspect();
       }}
       aria-label={`${x.name}, ${x.hp} of ${x.maxHp} HP${targetable ? `, target${hint ? `: ${hint}` : ''}` : ''}. Double right-click for details.`}
+      title={`${x.name}: ${down ? (x.dead ? 'dead' : 'down') : `${x.hp} / ${x.maxHp} HP`}`}
     >
       <span className="token-face">
-        <AssetImage id={x.portrait} fallback={initials(x.name)} className="token" size={64} />
+        {/* The body tips over when the token goes down; the inner part restarts its reaction on every blow. */}
+        <span className="token-body">
+          <span key={blow?.key ?? 'still'} className={`token-react${reaction}`}>
+            <AssetImage id={x.portrait} fallback={initials(x.name)} className="token" />
+          </span>
+        </span>
         {x.defending && <span className="token-status" title="Defending">🛡</span>}
         {x.statuses.length > 0 && (
           <span className="token-statuses">
@@ -296,18 +367,19 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aim
             ))}
           </span>
         )}
-        {flashes.map((f) => (
-          <span key={f.key} className="token-flash">
-            {f.animation && <AnimationPreview id={f.animation} frames={frames(f.animation) ?? 15} size={110} once />}
-            <span className={`flash-text tone-${f.tone}${f.late ? ' late' : ''}`}>{f.text}</span>
-          </span>
-        ))}
+        {flashes.map((f) => {
+          const impact = impactOf(f.outcome, f.amount ?? 0);
+          return (
+            <span key={f.key} className="token-flash">
+              {f.animation && <AnimationPreview id={f.animation} frames={frames(f.animation) ?? 15} size={110} once />}
+              {impact && <ImpactFX kind={impact} seed={f.key} {...(f.dir !== undefined ? { dir: f.dir } : {})} />}
+              <FlashText f={f} />
+            </span>
+          );
+        })}
       </span>
       <span className="token-name">{x.name}</span>
-      <span className="hp-bar">
-        <span style={{ width: `${pct}%` }} />
-      </span>
-      <span className="token-hp dim">{down ? 'Down' : `${x.hp} / ${x.maxHp}`}</span>
+      <TokenHealth hp={x.hp} max={x.maxHp} />
       {targetable && hint && <span className="token-hint">{hint}</span>}
       {x.buffs.length > 0 && <span className="token-buffs dim">{x.buffs.map((b) => b.source).join(', ')}</span>}
     </button>
@@ -331,6 +403,25 @@ export function CombatScreen() {
   const [projectiles, setProjectiles] = useState<ProjectileSpec[]>([]);
   const [rolls, setRolls] = useState<ShownRoll[]>([]);
   const lastSeq = useRef(-1);
+  // Squares as large as the battlefield allows for this room, so tokens and their health bars read clearly.
+  const fieldRef = useRef<HTMLElement>(null);
+  const [cellPx, setCellPx] = useState<number | null>(null);
+  const cols = game.encounter?.combat?.width;
+  const rows = game.encounter?.combat?.height;
+  useEffect(() => {
+    const field = fieldRef.current;
+    if (!field || !cols || !rows) return;
+    const fit = () => {
+      const style = getComputedStyle(field);
+      const width = field.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - GRID_FRAME_PX;
+      const height = field.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - GRID_FRAME_PX;
+      setCellPx(Math.round(Math.min(MAX_CELL_PX, Math.max(MIN_CELL_PX, Math.min(width / cols, height / rows)))));
+    };
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(field);
+    return () => watch.disconnect();
+  }, [cols, rows]);
   const frames = useMemo(() => {
     const map = new Map((assets ?? []).map((a) => [a.id, a.frames]));
     return (id: string) => map.get(id);
@@ -398,7 +489,7 @@ export function CombatScreen() {
   useEffect(() => {
     if (!combat || combat.seq === lastSeq.current) return;
     lastSeq.current = combat.seq;
-    const nextFlashes = flashesFrom(combat.events, combat.seq);
+    const nextFlashes = flashesFrom(combat, combat.seq);
     const nextShots = projectilesFrom(combat, combat.seq);
     let flashTimer: number | undefined;
     let shotTimer: number | undefined;
@@ -479,6 +570,8 @@ export function CombatScreen() {
   const viewed = picked ?? (yourTurn ? actor : undefined);
   const usable = !!viewed && yourTurn && viewed.id === actor!.id && !revealing;
   const viewedMerc = viewed ? live.mercs.find((m) => m.id === viewed.mercId) : undefined;
+  // Health as shown, so the bar drops when the blow lands rather than before the dice.
+  const viewedShown = viewed ? combat.combatants.find((x) => x.id === viewed.id) : undefined;
 
   /** Two right clicks on the same token within a short while open its details. */
   const rightClick = (id: string) => {
@@ -593,8 +686,8 @@ export function CombatScreen() {
 
       <div className="combat-main">
         <CombatLog combat={combat} />
-        <section className="battlefield" aria-label="Battlefield">
-          <div className="battlefield-stage">
+        <section ref={fieldRef} className="battlefield" aria-label="Battlefield">
+          <div className="battlefield-stage" style={cellPx ? ({ '--cell': `${cellPx}px` } as CSSProperties) : undefined}>
             <div
               className="combat-grid"
               style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
@@ -692,6 +785,11 @@ export function CombatScreen() {
                   </button>
                 )}
               </p>
+              {viewedShown && (
+                <div className="turn-vitals">
+                  <StatBar kind="hp" current={viewedShown.hp} max={viewedShown.maxHp} />
+                </div>
+              )}
               {targeting && actor && (
                 <p className="targeting-hint">
                   {targets.size > 0

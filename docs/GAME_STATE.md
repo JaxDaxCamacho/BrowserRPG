@@ -147,8 +147,8 @@ For how to run, build and package the game, see the [README](../README.md).
 
 ### Combat feel
 - [x] **Fix the enemy animation sequence.**
-- [ ] **Better effects when characters get attacked.** Impact feedback on hit, graze, crit and
-  miss.
+- [x] **Better effects when characters get attacked.** Sparks on a graze, blood splatter on a hit
+  (large on a crit), token reactions, popping damage numbers, draining health bars, falling tokens.
 - [ ] **Combat screen rework.** Show more information (turn order, hit chances, statuses, ranges)
   with a better layout.
 

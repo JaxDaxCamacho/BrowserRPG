@@ -21,6 +21,8 @@ export function StatBar({ kind, current, max, label }: { kind: BarKind; current:
     <div className={`stat-bar bar-${kind}${tone ? ` ${tone}` : ''}`} role="meter" aria-label={label ?? LABELS[kind]} aria-valuemin={0} aria-valuemax={max} aria-valuenow={current}>
       <span className="stat-bar-label">{label ?? LABELS[kind]}</span>
       <span className="stat-bar-track">
+        {/* Lingers behind the fill for a moment when the value drops, so the loss reads clearly. */}
+        <span className="stat-bar-lag" style={{ width: `${pct}%` }} />
         <span className="stat-bar-fill" style={{ width: `${pct}%` }} />
         <span className="stat-bar-value">
           {current} / {max}

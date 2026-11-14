@@ -1715,11 +1715,6 @@ button.option {
   white-space: nowrap;
 }
 
-.combat-token .hp-bar {
-  width: 80px;
-}
-
-.token-hp,
 .token-buffs {
   font-size: 0.75rem;
 }
@@ -2223,15 +2218,25 @@ button.portrait-choice:hover {
 .token-slot .combat-token {
   width: var(--cell);
   height: var(--cell);
-  padding: 2px;
-  gap: 1px;
+  padding: calc(var(--cell) * 0.04);
+  gap: calc(var(--cell) * 0.04);
   justify-content: center;
   border-width: 2px;
 }
 
+/* The portrait fills most of the square, with its health bar right beneath. */
 .token-slot .combat-token .token {
-  width: calc(var(--cell) * 0.6);
-  height: calc(var(--cell) * 0.6);
+  width: calc(var(--cell) * 0.72);
+  height: calc(var(--cell) * 0.72);
+}
+
+.token-slot .token-health {
+  width: calc(var(--cell) * 0.78);
+  height: clamp(6px, calc(var(--cell) * 0.085), 11px);
+  flex: none;
+  border-radius: 4px;
+  background: #160f0c;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 80%), 0 0 0 2px rgb(233 223 207 / 18%);
 }
 
 .token-slot .token-name,
@@ -2239,19 +2244,10 @@ button.portrait-choice:hover {
   display: none;
 }
 
-.token-slot .token-hp {
-  font-size: 0.65rem;
-  line-height: 1;
-}
-
-.token-slot .combat-token .hp-bar {
-  width: 80%;
-  height: 4px;
-}
-
 .token-slot .token-hint {
   position: absolute;
-  bottom: -2px;
+  /* Above the portrait, so it never covers the health bar. */
+  top: -2px;
   left: 50%;
   transform: translateX(-50%);
   padding: 0 4px;
@@ -3232,6 +3228,15 @@ button.portrait-choice:hover {
   overflow: hidden;
 }
 
+.stat-bar-lag {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  background: #f1dfb8;
+  opacity: 0.75;
+  transition: width 0.5s ease-in 0.45s;
+}
+
 .stat-bar-fill {
   position: absolute;
   inset: 0 auto 0 0;
@@ -3583,5 +3588,278 @@ button.portrait-choice:hover {
     max-height: 180px;
     border-right: 0;
     border-top: 1px solid var(--border);
+  }
+}
+
+/* ---------- hits: token health, reactions, impact effects ---------- */
+
+/* The small bar under each token (the number is in the tooltip and the details). */
+.token-health {
+  position: relative;
+  display: block;
+  width: 80%;
+  height: 5px;
+  border-radius: 3px;
+  background: #2a1d18;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 55%);
+  overflow: hidden;
+}
+
+.token-health-lag,
+.token-health-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+}
+
+.token-health-lag {
+  background: #f1dfb8;
+  opacity: 0.8;
+  transition: width 0.5s ease-in 0.45s;
+}
+
+.token-health-fill {
+  background: linear-gradient(180deg, #8ccf6a, #4b8a35);
+  transition: width 0.25s ease-out;
+}
+
+.token-health.low .token-health-fill {
+  background: linear-gradient(180deg, #e3b450, #a3701f);
+}
+
+.token-health.critical .token-health-fill {
+  background: linear-gradient(180deg, #e0644c, #9a2c1f);
+}
+
+/* The bigger bar beside the selected merc's actions. */
+.turn-vitals {
+  max-width: 360px;
+}
+
+/* Token reactions, on the portrait only (the numbers and blood stay put): a graze nudges,
+   a hit jolts, a crit shakes hard; a miss dodges aside. Hits also flash the portrait red. */
+.token-body,
+.token-react {
+  display: block;
+}
+
+.token-react.react-graze {
+  animation: react-graze 0.3s ease-out;
+}
+
+.token-react.react-hit {
+  animation: react-hit 0.42s ease-out;
+}
+
+.token-react.react-crit {
+  animation: react-crit 0.6s ease-out;
+}
+
+.token-react.react-miss {
+  animation: react-dodge 0.45s ease-out;
+}
+
+.token-react.react-hit .token {
+  animation: hurt-flash 0.45s ease-out;
+}
+
+.token-react.react-crit .token {
+  animation: hurt-flash 0.65s ease-out;
+}
+
+@keyframes react-graze {
+  30% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+}
+
+@keyframes react-hit {
+  15% { transform: translate(-5px, 1px) rotate(-3deg); }
+  35% { transform: translate(4px, -1px) rotate(2deg); }
+  55% { transform: translate(-3px, 0) rotate(-1deg); }
+  75% { transform: translate(2px, 0); }
+}
+
+@keyframes react-crit {
+  10% { transform: translate(-8px, 2px) rotate(-6deg) scale(1.06); }
+  25% { transform: translate(7px, -2px) rotate(5deg) scale(1.04); }
+  40% { transform: translate(-6px, 1px) rotate(-4deg); }
+  55% { transform: translate(5px, -1px) rotate(3deg); }
+  70% { transform: translate(-3px, 0) rotate(-1deg); }
+  85% { transform: translate(2px, 0); }
+}
+
+@keyframes react-dodge {
+  35% { transform: translateX(9px) rotate(4deg); }
+  100% { transform: none; }
+}
+
+@keyframes hurt-flash {
+  0% { filter: brightness(2.4) saturate(0) ; }
+  25% { filter: brightness(1.2) sepia(1) saturate(6) hue-rotate(-30deg); }
+  100% { filter: none; }
+}
+
+/* Damage numbers pop, then drift up. */
+.flash-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 1.15rem;
+  animation: pop-rise 1.2s ease-out forwards;
+}
+
+.flash-text.tone-crit {
+  font-size: 1.45rem;
+  color: #ffdf6b;
+  text-shadow: 0 0 8px rgb(255 60 40 / 90%), 0 2px 4px #000;
+  animation-duration: 1.5s;
+}
+
+.flash-text.tone-slain {
+  color: #ff4d4d;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 10px rgb(120 0 0 / 90%), 0 2px 4px #000;
+}
+
+.flash-sub {
+  font-size: 0.68rem;
+  font-weight: normal;
+  color: var(--ink-dim);
+  text-shadow: 0 1px 2px #000;
+}
+
+@keyframes pop-rise {
+  0% { transform: translateY(-14px) scale(0.5); opacity: 0; }
+  12% { transform: translateY(-20px) scale(1.3); opacity: 1; }
+  24% { transform: translateY(-22px) scale(1); }
+  70% { opacity: 1; }
+  100% { transform: translateY(-56px) scale(1); opacity: 0; }
+}
+
+/* Falling: the portrait of a token that goes down tips over once the blow's shake is done.
+   A transition, not an animation, so it plays once and a token already down just lies there. */
+.token-body {
+  transition: transform 0.7s ease-in 0.5s;
+}
+
+.combat-token.down .token-body {
+  transform: rotate(80deg) translateY(4px) scale(0.92);
+}
+
+/* Impact effects, centred on the token. */
+.impact {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.spark-core {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #ffe680 40%, rgb(255 170 40 / 0%) 70%);
+  animation: spark-core 0.32s ease-out forwards;
+}
+
+.spark-ray {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: var(--len);
+  height: 2px;
+  transform-origin: 0 50%;
+}
+
+.spark-ray::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0%), #fff6b0 40%, #ffb534);
+  box-shadow: 0 0 4px #ffcf4d;
+  animation: spark-ray 0.38s ease-out forwards;
+  animation-delay: inherit;
+  transform-origin: 0 50%;
+}
+
+@keyframes spark-core {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes spark-ray {
+  0% { transform: translateX(2px) scaleX(0.2); opacity: 1; }
+  60% { opacity: 1; }
+  100% { transform: translateX(16px) scaleX(1); opacity: 0; }
+}
+
+.blood-splat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  fill: #b0141c;
+  overflow: visible;
+  filter: drop-shadow(0 0 2px rgb(60 0 0 / 80%));
+  animation: splat 0.75s ease-out forwards;
+}
+
+.impact-gore .blood-splat {
+  fill: #8a0a12;
+  animation-duration: 1.2s;
+  filter: drop-shadow(0 0 3px rgb(90 0 0 / 70%));
+}
+
+.blood-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -3px 0 0 -3px;
+  border-radius: 50% 50% 50% 0;
+  background: #b5141c;
+  animation: drop-fly 0.6s cubic-bezier(0.2, 0.7, 0.4, 1) forwards;
+}
+
+.impact-gore .blood-drop {
+  background: #9c0f17;
+  animation-duration: 0.85s;
+}
+
+@keyframes splat {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; }
+  18% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.95; }
+  60% { opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+@keyframes drop-fly {
+  0% { transform: translate(0, 0) scale(1.2); opacity: 1; }
+  70% { opacity: 1; }
+  /* A touch of gravity at the end of the flight. */
+  100% { transform: translate(var(--dx), calc(var(--dy) + 8px)) scale(0.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .token-react,
+  .token-react .token {
+    animation: none !important;
+  }
+
+  .token-body {
+    transition: none;
+  }
+
+  .blood-drop,
+  .spark-ray {
+    display: none;
+  }
+
+  .flash-text {
+    animation-name: rise;
   }
 }
