@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { getMonster, PREMADES, premadeToDraft } from '../../src/content';
 import {
+  BOSS_IMMUNE,
+  covers,
+  footprint,
+  gap,
+  isEngaged,
+  kickTargets,
+  occupant,
+  rangePenaltyBetween,
+  roomFor,
+  sizeOf,
+  tileBlocked,
   activeCombatant,
   addMerc,
   attack,
@@ -450,5 +461,146 @@ describe('whole fights', () => {
       }
       expect(combatOf(state).outcome, `seed ${seed}`).not.toBeNull();
     }
+  });
+});
+
+describe('large creatures', () => {
+  const trollRoom = arena(10, 7, [{ monsterId: 'cave-troll', count: 1 }]);
+
+  it('covers every square of its size, and blocks them all', () => {
+    const { state } = fight(trollRoom);
+    const c = combatOf(state);
+    const troll = combatantById(c, 'cave-troll-1');
+    expect(sizeOf(troll)).toBe(2);
+    for (const p of footprint(troll, troll.pos)) {
+      expect(occupant(c, p)?.id).toBe('cave-troll-1');
+      expect(tileBlocked(c, p)).toBe(true);
+    }
+    // Nobody else starts on any of its squares, and it fits on the grid.
+    for (const x of c.combatants.filter((k) => k.id !== troll.id)) expect(covers(troll, troll.pos, x.pos)).toBe(false);
+    expect(troll.pos.x + 1).toBeLessThan(c.width);
+    expect(troll.pos.y + 1).toBeLessThan(c.height);
+  });
+
+  it('can be hit in melee from next to any of its squares, and reaches everyone next to it', () => {
+    const { state } = fight(trollRoom);
+    // Troll at 4,2 covers 4–5 × 2–3; Aldric stands off its bottom-right corner.
+    let s = place(state, { 'cave-troll-1': { x: 4, y: 2 }, 'merc-1': { x: 6, y: 4 } });
+    s = place(s, { 'merc-2': { x: 0, y: 6 }, 'merc-3': { x: 1, y: 6 }, 'merc-4': { x: 2, y: 6 } });
+    const c = combatOf(s);
+    const aldric = combatantById(c, 'merc-1');
+    const troll = combatantById(c, 'cave-troll-1');
+    expect(gap(aldric, troll)).toBe(1);
+    expect(attackTargets(c, aldric).map((t) => t.id)).toContain('cave-troll-1');
+    expect(attackTargets(c, troll).map((t) => t.id)).toEqual(['merc-1']);
+    expect(isEngaged(c, aldric)).toBe(true);
+  });
+
+  it('only moves where its whole body fits', () => {
+    const { state } = fight(trollRoom);
+    let s = place(state, { 'cave-troll-1': { x: 4, y: 2 } });
+    s = place(s, { 'merc-1': { x: 0, y: 6 }, 'merc-2': { x: 1, y: 6 }, 'merc-3': { x: 2, y: 6 }, 'merc-4': { x: 4, y: 5 } });
+    s = giveTurnTo(s, 'cave-troll-1');
+    const c = combatOf(s);
+    const troll = combatantById(c, 'cave-troll-1');
+    for (const k of reachableTiles(c, troll).keys()) {
+      const [x, y] = k.split(',').map(Number);
+      const at = { x: x!, y: y! };
+      expect(roomFor(c, troll, at)).toBe(true);
+      expect(at.x + 1).toBeLessThan(c.width);
+      expect(at.y + 1).toBeLessThan(c.height);
+    }
+    // Moving down one row would put its lower half on Maelis at 4,5.
+    expect(reachableTiles(c, troll).has('4,4')).toBe(false);
+  });
+
+  it('cannot be kicked back', () => {
+    const { state } = fight(trollRoom);
+    let s = place(state, { 'cave-troll-1': { x: 4, y: 2 }, 'merc-1': { x: 3, y: 2 } });
+    s = giveTurnTo(s, 'merc-1');
+    expect(kickTargets(combatOf(s), combatantById(combatOf(s), 'merc-1'))).toEqual([]);
+  });
+
+  it('measures the range penalty to its nearest square', () => {
+    const { state } = fight(trollRoom);
+    const s = place(state, { 'cave-troll-1': { x: 4, y: 2 }, 'merc-3': { x: 0, y: 2 } });
+    const c = combatOf(s);
+    // Sylwen at 0,2; the troll's nearest square is 4,2: four squares, -2.
+    expect(rangePenaltyBetween('ranged', combatantById(c, 'merc-3'), combatantById(c, 'cave-troll-1'))).toBe(2);
+  });
+
+  it('a 3×3 golem never outgrows a corridor fight', () => {
+    const corridor: DungeonDefinition = { ...arena(6, 4, [{ monsterId: 'stone-golem', count: 1 }]), rooms: [] };
+    const c = combatOf(fight(corridor).state);
+    const golem = combatantById(c, 'stone-golem-1');
+    expect(sizeOf(golem)).toBeLessThan(c.height);
+    for (const p of footprint(golem, golem.pos)) {
+      expect(p.x).toBeLessThan(c.width);
+      expect(p.y).toBeLessThan(c.height);
+    }
+  });
+});
+
+describe('boss fights', () => {
+  const vault = arena(9, 6, [{ monsterId: 'bandit-captain', count: 1 }]);
+
+  /** The captain on the given HP with Aldric next to him and the first turn, retried over seeds until Aldric's blow lands. */
+  function captainHitAt(hp: number): CombatState {
+    for (let seed = 1; seed < 200; seed++) {
+      const { state } = fight(vault, FOUR, seed);
+      let s = place(state, { 'bandit-captain-1': { x: 4, y: 2 }, 'merc-1': { x: 3, y: 2 } });
+      const c = combatOf(s);
+      s = { ...s, encounter: { ...s.encounter!, combat: { ...c, combatants: c.combatants.map((x) => (x.id === 'bandit-captain-1' ? { ...x, hp } : x)) } } };
+      s = giveTurnTo({ ...s, rngSeed: seed }, 'merc-1');
+      const after = combatOf(attack(s, 'bandit-captain-1'));
+      const blow = after.events.find((e) => e.kind === 'attack');
+      if (blow?.amount && combatantById(after, 'bandit-captain-1').hp > 0) return after;
+    }
+    throw new Error('No seed landed a blow that left the captain standing.');
+  }
+
+  it('is a boss from the start, with his reinforcements held back', () => {
+    const c = combatOf(fight(vault).state);
+    const captain = combatantById(c, 'bandit-captain-1');
+    expect(captain.boss?.reached).toBe(0);
+    expect(captain.boss?.phases).toHaveLength(2);
+    expect(c.reserves).toHaveLength(2);
+    expect(c.combatants.some((x) => x.id.includes('-p2-'))).toBe(false);
+  });
+
+  it('enters his second phase at half health: buffed, and two bandits join next to him', () => {
+    const before = combatOf(fight(vault).state).xp;
+    const c = captainHitAt(16);
+    const captain = combatantById(c, 'bandit-captain-1');
+    expect(captain.boss?.reached).toBe(1);
+    expect(captain.buffs.some((b) => b.source === 'Phase 2')).toBe(true);
+    const arrivals = c.combatants.filter((x) => x.id.includes('-p2-'));
+    expect(arrivals).toHaveLength(2);
+    for (const a of arrivals) {
+      expect(a.side).toBe('enemy');
+      expect(a.pos.x).toBeGreaterThanOrEqual(0);
+      expect(c.order).toContain(a.id);
+    }
+    // They act right after the captain.
+    const at = c.order.indexOf('bandit-captain-1');
+    expect(c.order.slice(at + 1, at + 3).sort()).toEqual(arrivals.map((a) => a.id).sort());
+    expect(c.reserves ?? []).toHaveLength(0);
+    expect(c.xp).toBe(before + 2 * 25);
+    expect(c.history!.some((e) => e.phase && /roars for his men/.test(e.text))).toBe(true);
+  });
+
+  it('runs through every threshold one blow crosses', () => {
+    const c = captainHitAt(8);
+    const captain = combatantById(c, 'bandit-captain-1');
+    expect(captain.boss?.reached).toBe(2);
+    expect(c.history!.filter((e) => e.phase)).toHaveLength(2);
+  });
+
+  it('cannot be kicked, stunned or knocked about', () => {
+    const { state } = fight(vault);
+    let s = place(state, { 'bandit-captain-1': { x: 4, y: 2 }, 'merc-1': { x: 3, y: 2 } });
+    s = giveTurnTo(s, 'merc-1');
+    expect(kickTargets(combatOf(s), combatantById(combatOf(s), 'merc-1'))).toEqual([]);
+    expect(BOSS_IMMUNE).toEqual(expect.arrayContaining(['stunned', 'frozen', 'feared', 'prone']));
   });
 });

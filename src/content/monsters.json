@@ -179,7 +179,39 @@
     "abilityIds": [
       "rally"
     ],
-    "xp": 120
+    "xp": 120,
+    "boss": {
+      "title": "Master of the Watchtower",
+      "phases": [
+        {
+          "atHpPercent": 50,
+          "text": "roars for his men, and two more bandits come running!",
+          "effects": [
+            {
+              "type": "damage",
+              "amount": 2
+            }
+          ],
+          "summon": [
+            {
+              "monsterId": "bandit-thug",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "atHpPercent": 25,
+          "text": "fights like a cornered wolf.",
+          "effects": [
+            {
+              "type": "defense",
+              "amount": 2
+            }
+          ],
+          "heal": 6
+        }
+      ]
+    }
   },
   {
     "id": "imp",
@@ -328,5 +360,115 @@
     },
     "abilityIds": [],
     "xp": 0
+  },
+  {
+    "id": "cave-troll",
+    "movement": 3,
+    "name": "Cave Troll",
+    "portrait": "monsters/mobs/troll-01",
+    "archetype": "brawler",
+    "level": 4,
+    "stats": {
+      "strength": 17,
+      "agility": 9,
+      "toughness": 16,
+      "intellect": 6,
+      "spirit": 8,
+      "charisma": 6
+    },
+    "hp": 46,
+    "defense": 12,
+    "armour": {
+      "physical": 3,
+      "magic": 1
+    },
+    "attack": {
+      "name": "Club",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "4",
+        "hit": "8"
+      },
+      "animation": "animations/earth/asearth-04-tremor"
+    },
+    "abilityIds": [
+      "savage-bite"
+    ],
+    "xp": 160,
+    "size": 2
+  },
+  {
+    "id": "cyclops",
+    "movement": 3,
+    "name": "Cyclops",
+    "portrait": "monsters/mobs/cyclop-01",
+    "archetype": "savage",
+    "level": 5,
+    "stats": {
+      "strength": 18,
+      "agility": 10,
+      "toughness": 15,
+      "intellect": 7,
+      "spirit": 8,
+      "charisma": 6
+    },
+    "hp": 52,
+    "defense": 12,
+    "armour": {
+      "physical": 2,
+      "magic": 0
+    },
+    "attack": {
+      "name": "Great Club",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "5",
+        "hit": "10"
+      },
+      "animation": "animations/earth/asearth-04-tremor"
+    },
+    "abilityIds": [],
+    "xp": 200,
+    "size": 2
+  },
+  {
+    "id": "stone-golem",
+    "movement": 2,
+    "name": "Stone Golem",
+    "portrait": "monsters/mobs/golem-01",
+    "archetype": "tank",
+    "level": 6,
+    "stats": {
+      "strength": 18,
+      "agility": 6,
+      "toughness": 18,
+      "intellect": 4,
+      "spirit": 10,
+      "charisma": 4
+    },
+    "hp": 70,
+    "defense": 13,
+    "armour": {
+      "physical": 6,
+      "magic": 2
+    },
+    "attack": {
+      "name": "Stone Fist",
+      "range": 0,
+      "profile": {
+        "kind": "melee",
+        "damageType": "physical",
+        "graze": "5",
+        "hit": "9"
+      },
+      "animation": "animations/earth/asearth-04-tremor"
+    },
+    "abilityIds": [],
+    "xp": 260,
+    "size": 3
   }
 ]

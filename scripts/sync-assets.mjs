@@ -82,8 +82,8 @@ const RULES = [
   ...[1, 6, 9].map((n) => ({ root: 'local', category: `spells/page-${n}`, pack: 'Spellbook Megapack', dir: `AbilityIcons/SpellBookPage0${n}`, size: 128, deep: true })),
   { root: 'local', category: 'classes', pack: 'Class icons', dir: 'Classes', size: 192 },
   { root: 'local', category: 'races', pack: 'Race icons', dir: 'RaceIcons', size: 192 },
-  { root: 'local', category: 'obstacles/containers', pack: 'Containers', dir: 'Obstacles/Containers', size: 128 },
-  { root: 'local', category: 'obstacles/dungeon', pack: 'Isometric Dungeon Designer', dir: 'Obstacles/Dungeon', size: 128 },
+  { root: 'local', category: 'obstacles/containers', pack: 'Containers', dir: 'Obstacles/Containers', size: 128, trim: true },
+  { root: 'local', category: 'obstacles/dungeon', pack: 'Isometric Dungeon Designer', dir: 'Obstacles/Dungeon', size: 128, trim: true },
   // Top-down floor textures for painting rooms, made from Assets/Tiles by `npm run floors`.
   { root: 'local', category: 'floors', pack: 'Isometric Dungeon Designer floors', dir: 'Floors', size: 1024, pattern: /\.jpe?g$/i },
   // Dialogue scene art, one folder per adventure: scenes/<adventure id>/<image key>.
@@ -293,7 +293,9 @@ async function convert(source, target, rule) {
   } else if (rule.animation) {
     await sharp(source).png({ compressionLevel: 9 }).toFile(target);
   } else {
-    await sharp(source).resize(rule.size, rule.size, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 86 }).toFile(target);
+    // `trim` cuts away empty transparent margins first, so props fill the square they are drawn in.
+    const image = rule.trim ? sharp(await sharp(source).trim({ threshold: 1 }).toBuffer()) : sharp(source);
+    await image.resize(rule.size, rule.size, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 86 }).toFile(target);
   }
   return true;
 }

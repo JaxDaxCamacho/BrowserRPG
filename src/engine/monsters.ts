@@ -186,4 +186,29 @@ export interface MonsterDefinition {
   mana?: number;
   /** Walking dead: holy magic hurts it more and can turn it away. */
   undead?: boolean;
+  /** Squares it covers along each side in a fight: 2 for a 2×2 creature, 3 for 3×3. Missing means 1. */
+  size?: number;
+  /** Makes it a boss: a banner with its health over the battlefield, phases as it weakens, and no stuns or shoves. */
+  boss?: BossDefinition;
+}
+
+/** What happens when a boss is worn down to a share of its health. */
+export interface BossPhase {
+  /** Starts when the boss's HP falls to this percentage of its maximum or below. */
+  atHpPercent: number;
+  /** Announced in the log after the boss's name, e.g. "roars for his men!" */
+  text: string;
+  /** Lasting changes for the rest of the fight, such as more damage or Defense. */
+  effects?: ItemEffect[];
+  /** Hit points it gets back when the phase starts. */
+  heal?: number;
+  /** Reinforcements that join the fight on its side. */
+  summon?: { monsterId: string; count: number }[];
+}
+
+export interface BossDefinition {
+  /** Shown on the banner under the name, e.g. "Master of the Watchtower". */
+  title?: string;
+  /** In order, from the first to strike (highest percentage) to the last. */
+  phases: BossPhase[];
 }

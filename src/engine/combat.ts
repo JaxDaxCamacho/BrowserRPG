@@ -8,7 +8,7 @@ import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import { awardXp } from './levels';
 import { weaponAttack, type AmmoItem, type DamageStyle, type ItemEffect, type ItemLookup } from './items';
 import type { Merc as MercType, MercSheet } from './merc';
-import { isSpell, type AbilityDefinition, type BonusCondition, type EnemyArchetype, type MonsterDefinition, type Resource, type StatusKind, type StatusSpec } from './monsters';
+import { isSpell, type AbilityDefinition, type BonusCondition, type BossPhase, type EnemyArchetype, type MonsterDefinition, type Resource, type StatusKind, type StatusSpec } from './monsters';
 import { getLeader } from './party';
 import { raceCritThreshold, raceDeathSaveDifficulty, raceXpMultiplier, type RaceDefinition, type WeaponType } from './race';
 import { applyStatChanges, statModifier, type StatChanges, type StatName, type Stats } from './stats';
@@ -119,6 +119,10 @@ export interface Combatant {
   undead: boolean;
   /** Called up by an ability: fights for its side on its own, and fades after a number of its turns. */
   summoned?: { ownerId: string; rounds: number };
+  /** Squares it covers along each side (2 is a 2×2 creature); `pos` is its top-left square. Missing means 1. */
+  size?: number;
+  /** A boss: its phases, and how many it has reached. */
+  boss?: { title?: string; phases: BossPhase[]; reached: number };
 }
 
 /** Summoned allies and every enemy act on their own; only the party's mercs wait for the player. */
@@ -168,6 +172,8 @@ export interface CombatLogEntry {
   attack?: AttackLogDetail;
   /** Set when someone goes down or dies. */
   down?: boolean;
+  /** Set when a boss enters a new phase. */
+  phase?: boolean;
 }
 
 export interface AttackLogDetail {
@@ -252,7 +258,22 @@ export interface CombatState {
   obstacles: Obstacle[];
   /** The party caught the enemies unawares: every enemy loses its turn in round 1. */
   surprise?: boolean;
+  /** A boss's reinforcements, waiting off the battlefield for the phase that calls them in. */
+  reserves?: Reserve[];
 }
+
+/** A combatant held back until a boss reaches a phase. */
+export interface Reserve {
+  bossId: string;
+  /** Index of the boss phase that brings it in. */
+  phase: number;
+  combatant: Combatant;
+  /** Experience it adds to the fight once it arrives. */
+  xp: number;
+}
+
+/** Conditions a boss is never put under by its enemies. */
+export const BOSS_IMMUNE: StatusKind[] = ['stunned', 'frozen', 'feared', 'prone'];
 
 export interface CombatContext {
   getMonster: (id: string) => MonsterDefinition;
@@ -381,6 +402,58 @@ export const opposite = (side: Side): Side => (side === 'party' ? 'enemy' : 'par
 /** Tiles between two points when moving in any of eight directions. */
 export const distance = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
+/** Anything on the battlefield with a position and, for large creatures, a size. */
+type Placed = { pos: Pos; size?: number };
+
+/** Squares a combatant covers along each side: 1, or 2–3 for large creatures. */
+export const sizeOf = (x: { size?: number }): number => x.size ?? 1;
+
+/** The squares something covers with its top-left square at `at`. */
+export function footprint(x: { size?: number }, at: Pos): Pos[] {
+  const n = sizeOf(x);
+  const out: Pos[] = [];
+  for (let dy = 0; dy < n; dy++) for (let dx = 0; dx < n; dx++) out.push({ x: at.x + dx, y: at.y + dy });
+  return out;
+}
+
+/** True when something with its top-left square at `at` covers `p`. */
+export function covers(x: { size?: number }, at: Pos, p: Pos): boolean {
+  const n = sizeOf(x);
+  return p.x >= at.x && p.x < at.x + n && p.y >= at.y && p.y < at.y + n;
+}
+
+/** Squares between two square areas: 0 when they overlap, 1 when they touch. */
+function areaGap(a: Pos, as: number, b: Pos, bs: number): number {
+  const dx = Math.max(0, a.x - (b.x + bs - 1), b.x - (a.x + as - 1));
+  const dy = Math.max(0, a.y - (b.y + bs - 1), b.y - (a.y + as - 1));
+  return Math.max(dx, dy);
+}
+
+/** Squares between two combatants (or a combatant and an obstacle), counting every square a large one covers. */
+export function gap(a: Placed, b: Placed): number {
+  return areaGap(a.pos, sizeOf(a), b.pos, sizeOf(b));
+}
+
+/** The gap from `a` standing at `aPos` to `b`. */
+export function gapAt(a: { size?: number }, aPos: Pos, b: Placed): number {
+  return areaGap(aPos, sizeOf(a), b.pos, sizeOf(b));
+}
+
+/** The square of `x` nearest a point. */
+export function nearestSquare(x: Placed, p: { x: number; y: number }): Pos {
+  const n = sizeOf(x);
+  return { x: Math.round(Math.max(x.pos.x, Math.min(x.pos.x + n - 1, p.x))), y: Math.round(Math.max(x.pos.y, Math.min(x.pos.y + n - 1, p.y))) };
+}
+
+/** The middle of something on the battlefield, in squares (a 2×2 creature's is between its four squares). */
+export function centreOf(x: Placed): { x: number; y: number } {
+  const half = (sizeOf(x) - 1) / 2;
+  return { x: x.pos.x + half, y: x.pos.y + half };
+}
+
+/** Large creatures and bosses cannot be kicked or knocked about. */
+export const immovable = (x: Combatant) => sizeOf(x) > 1 || !!x.boss;
+
 /** Every this many squares between a ranged attacker and the target costs 1 on the attack roll. */
 export const RANGE_PENALTY_STEP = 2;
 
@@ -388,11 +461,25 @@ export const RANGE_PENALTY_STEP = 2;
 export function rangePenalty(kind: AttackKind, from: Pos, to: Pos): number {
   return kind === 'melee' ? 0 : Math.floor(distance(from, to) / RANGE_PENALTY_STEP);
 }
+
+/** The range penalty between two combatants, measured to the nearest square of each. */
+export function rangePenaltyBetween(kind: AttackKind, attacker: Placed, target: Placed): number {
+  return kind === 'melee' ? 0 : Math.floor(gap(attacker, target) / RANGE_PENALTY_STEP);
+}
 const key = (p: Pos) => `${p.x},${p.y}`;
 
 /** Someone standing on this tile, if anyone. Those who are down lie where they fell but do not block. */
 export function occupant(c: CombatState, p: Pos): Combatant | undefined {
-  return c.combatants.find((x) => isStanding(x) && x.pos.x === p.x && x.pos.y === p.y);
+  return c.combatants.find((x) => isStanding(x) && covers(x, x.pos, p));
+}
+
+/** True when `mover` could stand with its top-left square at `at`: every square it would cover is on the grid and clear. */
+export function roomFor(c: CombatState, mover: Combatant, at: Pos): boolean {
+  return footprint(mover, at).every((p) => {
+    if (p.x < 0 || p.y < 0 || p.x >= c.width || p.y >= c.height || blockedBy(c, p)) return false;
+    const who = occupant(c, p);
+    return !who || who.id === mover.id;
+  });
 }
 
 /** True when nobody and nothing can stand or pass through this tile. */
@@ -402,7 +489,7 @@ export function tileBlocked(c: CombatState, p: Pos): boolean {
 
 /** True while a standing enemy is next to this combatant. */
 export function isEngaged(c: CombatState, x: Combatant): boolean {
-  return standing(c, opposite(x.side)).some((e) => distance(e.pos, x.pos) <= 1);
+  return standing(c, opposite(x.side)).some((e) => gap(e, x) <= 1);
 }
 
 // ---------- statuses and resources ----------
@@ -430,7 +517,7 @@ export function visibleFoes(c: CombatState, x: Combatant): Combatant[] {
 
 /** True when the target stands next to one of the attacker's allies: it is flanked. */
 export function isFlanked(c: CombatState, attacker: Combatant, target: Combatant): boolean {
-  return standing(c, attacker.side).some((a) => a.id !== attacker.id && distance(a.pos, target.pos) <= 1);
+  return standing(c, attacker.side).some((a) => a.id !== attacker.id && gap(a, target) <= 1);
 }
 
 export function conditionHolds(c: CombatState, when: BonusCondition, attacker: Combatant, target: Combatant): boolean {
@@ -547,16 +634,25 @@ export function reach(c: CombatState, range: number, from: Pos, to: Pos, engaged
   return { ok: true, mode: engaged ? 'disadvantage' : 'normal' };
 }
 
+/**
+ * `reach` between two things on the battlefield, measured between their
+ * nearest squares, so a large creature can be hit on any square it covers.
+ */
+export function reachOf(c: CombatState, range: number, from: Placed, to: Placed, engaged: boolean): { ok: boolean; mode: RollMode } {
+  const target = nearestSquare(to, centreOf(from));
+  return reach(c, range, nearestSquare(from, target), target, engaged);
+}
+
 /** Targets the actor's basic attack can reach right now. */
 export function attackTargets(c: CombatState, actor: Combatant): Combatant[] {
   if (ammoLeft(c, actor) === 0) return [];
-  return visibleFoes(c, actor).filter((t) => reach(c, actor.attack.range, actor.pos, t.pos, false).ok);
+  return visibleFoes(c, actor).filter((t) => reachOf(c, actor.attack.range, actor, t, false).ok);
 }
 
 /** Destructible obstacles the actor's basic attack can reach right now. */
 export function obstacleTargets(c: CombatState, actor: Combatant): Obstacle[] {
   if (ammoLeft(c, actor) === 0) return [];
-  return c.obstacles.filter((o) => o.hp !== null && reach(c, actor.attack.range, actor.pos, o.pos, false).ok);
+  return c.obstacles.filter((o) => o.hp !== null && reachOf(c, actor.attack.range, actor, o, false).ok);
 }
 
 /** Targets an ability can be aimed at right now. Area-wide abilities return everyone they would affect. */
@@ -569,11 +665,11 @@ export function abilityTargets(c: CombatState, actor: Combatant, ability: Abilit
   const foes = visibleFoes(c, actor);
   const friends = standing(c, actor.side);
   const range = abilityRange(actor, ability);
-  const within = (t: Combatant) => range === 0 || distance(actor.pos, t.pos) <= range;
-  const allyReach = (t: Combatant) => distance(actor.pos, t.pos) <= Math.max(1, range);
-  const foeReach = (t: Combatant) => reach(c, range, actor.pos, t.pos, false).ok;
+  const within = (t: Combatant) => range === 0 || gap(actor, t) <= range;
+  const allyReach = (t: Combatant) => gap(actor, t) <= Math.max(1, range);
+  const foeReach = (t: Combatant) => reachOf(c, range, actor, t, false).ok;
   // Granting an attack only helps an ally who has an enemy next to them.
-  const engagedFriend = (t: Combatant) => !ability.grantAttack || visibleFoes(c, t).some((e) => distance(e.pos, t.pos) <= 1);
+  const engagedFriend = (t: Combatant) => !ability.grantAttack || visibleFoes(c, t).some((e) => gap(e, t) <= 1);
   if (ability.revive) {
     return c.combatants.filter((t) => t.side === actor.side && t.hp === 0 && !t.dead && !t.summoned && allyReach(t));
   }
@@ -630,8 +726,8 @@ export function reachableTiles(c: CombatState, actor: Combatant, budget = c.move
         for (let dx = -1; dx <= 1; dx++) {
           if (!dx && !dy) continue;
           const q = { x: p.x + dx, y: p.y + dy };
-          if (q.x < 0 || q.y < 0 || q.x >= c.width || q.y >= c.height) continue;
-          if (paths.has(key(q)) || tileBlocked(c, q)) continue;
+          // A large creature moves its whole body: every square it would cover must be clear.
+          if (paths.has(key(q)) || !roomFor(c, actor, q)) continue;
           paths.set(key(q), [...paths.get(key(p))!, q]);
           next.push(q);
         }
@@ -707,23 +803,33 @@ function lineUp(count: number, width: number, row: number, inward: 1 | -1, taken
   return out;
 }
 
+/** A combatant with its size as it fits this battlefield. */
+function withSize(x: Combatant, size: number): Combatant {
+  const { size: _old, ...rest } = x;
+  return size > 1 ? { ...rest, size } : rest;
+}
+
 /** A map offset within a room, scaled onto a battlefield axis (rooms can be bigger than the battlefield). */
 function scaleAxis(offset: number, roomSize: number, gridSize: number): number {
   const inside = Math.max(0, Math.min(roomSize - 1, offset));
   return roomSize <= 1 ? 0 : Math.round((inside * (gridSize - 1)) / (roomSize - 1));
 }
 
-/** The free tile nearest `anchor`, preferring tiles further from `away` so a side bunches up rather than flanking. */
-function nearestFree(anchor: Pos, away: Pos, width: number, height: number, taken: Set<string>): Pos | null {
+/**
+ * The free spot nearest `anchor` for something `size` squares across (its
+ * top-left square), preferring spots further from `away` so a side bunches up
+ * rather than flanking.
+ */
+function nearestFree(anchor: Pos, away: Pos, width: number, height: number, taken: Set<string>, size = 1): Pos | null {
   let best: Pos | null = null;
   let bestNear = Infinity;
   let bestFar = -Infinity;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
+  for (let y = 0; y + size <= height; y++) {
+    for (let x = 0; x + size <= width; x++) {
       const p = { x, y };
-      if (taken.has(key(p))) continue;
-      const near = distance(p, anchor);
-      const far = distance(p, away);
+      if (footprint({ size }, p).some((q) => taken.has(key(q)))) continue;
+      const near = areaGap(p, size, anchor, 1);
+      const far = areaGap(p, size, away, 1);
       if (near < bestNear || (near === bestNear && far > bestFar)) {
         best = p;
         bestNear = near;
@@ -745,7 +851,7 @@ function placeFromMap(
   room: RoomDefinition,
   feature: Pos,
   mercIds: string[],
-  enemyCount: number,
+  enemySizes: number[],
   width: number,
   height: number,
   taken: Set<string>,
@@ -765,14 +871,16 @@ function placeFromMap(
     party.push(p);
   }
   const centre = party[0] ?? foe;
-  const enemies: Pos[] = [];
-  for (let i = 0; i < enemyCount; i++) {
-    const p = nearestFree(foe, centre, width, height, used);
+  // The biggest find their room first; each enemy keeps its place in the list.
+  const enemies: Pos[] = new Array(enemySizes.length);
+  const bySize = enemySizes.map((size, i) => ({ size, i })).sort((a, b) => b.size - a.size);
+  for (const { size, i } of bySize) {
+    const p = nearestFree(foe, centre, width, height, used, size);
     if (!p) return null;
-    used.add(key(p));
-    enemies.push(p);
+    for (const q of footprint({ size }, p)) used.add(key(q));
+    enemies[i] = p;
   }
-  for (const p of [...party, ...enemies]) taken.add(key(p));
+  for (const p of used) taken.add(p);
   return { party, enemies };
 }
 
@@ -873,6 +981,8 @@ function monsterCombatant(
     dead: false,
     statuses: [],
     resources: monster.mana ? { mana: { current: monster.mana, max: monster.mana } } : {},
+    ...(monster.size && monster.size > 1 ? { size: monster.size } : {}),
+    ...(monster.boss ? { boss: { ...(monster.boss.title ? { title: monster.boss.title } : {}), phases: monster.boss.phases, reached: 0 } } : {}),
     damageBonus: 0,
     retaliate: 0,
     twoHanded: false,
@@ -926,13 +1036,15 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   const monsters = feature.monsters.flatMap((group) =>
     Array.from({ length: group.count }, (_, n) => ({ monster: ctx.getMonster(group.monsterId), n: n + 1, count: group.count })),
   );
+  // A large creature always leaves a row free for the party, and never outgrows the battlefield.
+  const sizes = monsters.map(({ monster }) => Math.max(1, Math.min(monster.size ?? 1, height - 1, width)));
   const surprise = !!encounter.surprise && !ambush;
 
   // In a room, both sides start where they stood on the map, scaled onto the battlefield: a group
   // that spots the party from across the hall starts across the hall. An ambush surrounds the
   // party instead, and a corridor fight lines both sides up on its strip.
   const room = roomAt(def, feature);
-  const placed = room && !ambush ? placeFromMap(state, room, feature, living.map((m) => m.id), monsters.length, width, height, taken) : null;
+  const placed = room && !ambush ? placeFromMap(state, room, feature, living.map((m) => m.id), sizes, width, height, taken) : null;
   const partyRow = ambush ? Math.floor(height / 2) : height - 1;
   const partySpots = placed?.party ?? lineUp(living.length, width, partyRow, -1, taken);
 
@@ -943,19 +1055,56 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   if (placed) {
     placed.enemies.forEach((p, i) => enemySpots.set(i, p));
   } else {
-    const top = monsters.filter((_, i) => !ambush || i % 2 === 0);
-    const bottom = monsters.filter((_, i) => ambush && i % 2 === 1);
-    lineUp(top.length, width, 0, 1, taken).forEach((p, i) => enemySpots.set(monsters.indexOf(top[i]!), p));
-    lineUp(bottom.length, width, height - 1, -1, taken).forEach((p, i) => enemySpots.set(monsters.indexOf(bottom[i]!), p));
+    // Large creatures first, as near the middle of their edge as they fit; then everyone else lines up.
+    const edgeOf = (i: number) => (ambush && i % 2 === 1 ? 'bottom' : 'top');
+    const middle = Math.floor((width - 1) / 2);
+    monsters.forEach((_, i) => {
+      const size = sizes[i]!;
+      if (size === 1) return;
+      const anchor = edgeOf(i) === 'top' ? { x: middle, y: 0 } : { x: middle, y: height - 1 };
+      const away = edgeOf(i) === 'top' ? { x: middle, y: height - 1 } : { x: middle, y: 0 };
+      const spot = nearestFree(anchor, away, width, height, taken, size);
+      // No room for its bulk: it squeezes in as an ordinary-sized foe.
+      if (!spot) {
+        sizes[i] = 1;
+        return;
+      }
+      for (const q of footprint({ size }, spot)) taken.add(key(q));
+      enemySpots.set(i, spot);
+    });
+    const small = (edge: 'top' | 'bottom') => monsters.map((_, i) => i).filter((i) => !enemySpots.has(i) && edgeOf(i) === edge);
+    const top = small('top');
+    const bottom = small('bottom');
+    lineUp(top.length, width, 0, 1, taken).forEach((p, k) => enemySpots.set(top[k]!, p));
+    lineUp(bottom.length, width, height - 1, -1, taken).forEach((p, k) => enemySpots.set(bottom[k]!, p));
   }
 
   let xp = 0;
   monsters.forEach(({ monster, n, count }, i) => {
     xp += monster.xp;
     combatants.push(
-      monsterCombatant(monster, `${monster.id}-${n}`, count > 1 ? `${monster.name} ${n}` : monster.name, 'enemy', enemySpots.get(i)!, roll(monster.stats.agility), ctx),
+      withSize(
+        monsterCombatant(monster, `${monster.id}-${n}`, count > 1 ? `${monster.name} ${n}` : monster.name, 'enemy', enemySpots.get(i)!, roll(monster.stats.agility), ctx),
+        sizes[i]!,
+      ),
     );
   });
+
+  // Bosses' reinforcements wait off the battlefield until their phase calls them in.
+  const reserves: Reserve[] = [];
+  for (const boss of combatants.filter((x) => x.boss)) {
+    boss.boss!.phases.forEach((phase, p) =>
+      (phase.summon ?? []).forEach((group) => {
+        const monster = ctx.getMonster(group.monsterId);
+        for (let k = 1; k <= group.count; k++) {
+          const id = `${boss.id}-p${p + 2}-${monster.id}-${k}`;
+          const name = group.count > 1 ? `${monster.name} (${k})` : monster.name;
+          const combatant = withSize(monsterCombatant(monster, id, name, 'enemy', { x: -1, y: -1 }, roll(monster.stats.agility), ctx), Math.min(monster.size ?? 1, height - 1, width));
+          reserves.push({ bossId: boss.id, phase: p, combatant, xp: monster.xp });
+        }
+      }),
+    );
+  }
 
   // Highest initiative first; the party wins ties.
   const order = [...combatants]
@@ -987,6 +1136,7 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     xp,
     obstacles,
     ...(surprise ? { surprise: true } : {}),
+    ...(reserves.length ? { reserves } : {}),
   };
   const first = skipDownedTurn(combat, seed);
   combat = checkOutcome(first.combat);
@@ -1214,7 +1364,7 @@ function applyDamage(c: CombatState, seed: number, targetId: string, amount: num
   const hp = Math.max(0, target.hp - amount);
   next = updateCombatant(next, targetId, (x) => changeResource({ ...x, hp }, 'adrenaline', 1));
   let nextSeed = seed;
-  if (hp > 0) return { combat: next, seed: nextSeed };
+  if (hp > 0) return { combat: bossPhases(next, targetId), seed: nextSeed };
 
   const merc = target.mercId ? next.mercs.find((m) => m.id === target.mercId) : undefined;
   if (merc) {
@@ -1240,6 +1390,58 @@ function applyDamage(c: CombatState, seed: number, targetId: string, amount: num
   return { combat: next, seed: nextSeed };
 }
 
+/**
+ * A boss worn down past a phase's threshold enters it: the phase is
+ * announced, the boss gets its lasting changes and any healing, and the
+ * reinforcements held back for it join the fight next to the boss. Several
+ * thresholds crossed by one blow all happen, in order.
+ */
+function bossPhases(c: CombatState, bossId: string): CombatState {
+  let next = c;
+  for (;;) {
+    const boss = combatantById(next, bossId);
+    const plan = boss.boss;
+    if (!plan || !isStanding(boss) || plan.reached >= plan.phases.length) return next;
+    const phase = plan.phases[plan.reached]!;
+    if (boss.hp * 100 > boss.maxHp * phase.atHpPercent) return next;
+    const index = plan.reached;
+    next = updateCombatant(next, bossId, (x) => ({
+      ...x,
+      hp: Math.min(x.maxHp, x.hp + (phase.heal ?? 0)),
+      buffs: phase.effects?.length ? [...x.buffs, { source: `Phase ${index + 2}`, effects: phase.effects, roundsLeft: null }] : x.buffs,
+      boss: { ...plan, reached: index + 1 },
+    }));
+    next = withEntries(next, [{ round: next.round, text: `${boss.name} ${phase.text}`, phase: true }]);
+    next = {
+      ...next,
+      events: [...next.events, { kind: 'status', actorId: bossId, targetId: bossId, label: `Phase ${index + 2}!` }],
+    };
+    if (phase.heal) next = withLog(next, `${boss.name} recovers ${phase.heal} HP.`);
+    // Reinforcements arrive beside the boss and act right after it.
+    const arriving = (next.reserves ?? []).filter((r) => r.bossId === bossId && r.phase === index);
+    for (const r of arriving) {
+      const spot = openSpotNear(next, combatantById(next, bossId), sizeOf(r.combatant));
+      if (!spot) {
+        next = withLog(next, `There is no room for ${r.combatant.name} to join the fight.`);
+        continue;
+      }
+      const at = next.order.indexOf(bossId);
+      const order = [...next.order.slice(0, at + 1), r.combatant.id, ...next.order.slice(at + 1)];
+      const turn = at < next.turn ? next.turn + 1 : next.turn;
+      next = {
+        ...next,
+        combatants: [...next.combatants, { ...r.combatant, pos: spot }],
+        order,
+        turn,
+        xp: next.xp + r.xp,
+        events: [...next.events, { kind: 'buff', actorId: bossId, targetId: r.combatant.id, animation: ANIMATIONS.buff }],
+      };
+      next = withLog(next, `${r.combatant.name} joins the fight!`);
+    }
+    next = { ...next, reserves: (next.reserves ?? []).filter((r) => !(r.bossId === bossId && r.phase === index)) };
+  }
+}
+
 /** Rolls one attack and applies its damage. A blinded attacker rolls with disadvantage. */
 function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState; seed: number; outcome: AttackOutcome } {
   const attacker = combatantById(c, s.attacker.id);
@@ -1253,7 +1455,7 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
   // Mage hunters hit casters harder with their weapons.
   const burn = s.weapon && s.target.caster ? attacker.manaBurn : 0;
   // Shots and spells lose accuracy with distance.
-  const farPenalty = rangePenalty(s.profile.kind, attacker.pos, combatantById(c, s.target.id).pos);
+  const farPenalty = rangePenaltyBetween(s.profile.kind, attacker, combatantById(c, s.target.id));
   const rollBonus = (s.rollBonus ?? 0) - farPenalty;
   const result = resolveAttack(seed, {
     profile: s.profile,
@@ -1473,7 +1675,7 @@ export function attack(state: GameState, targetId: string): GameState {
   const obstacle = obstacleById(c, targetId);
   if (obstacle) {
     if (!obstacleTargets(c, actor).some((o) => o.id === targetId)) throw new Error(`${actor.name} cannot reach that.`);
-    const { mode: obMode } = reach(c, actor.attack.range, actor.pos, obstacle.pos, isEngaged(c, actor));
+    const { mode: obMode } = reachOf(c, actor.attack.range, actor, obstacle, isEngaged(c, actor));
     const obHit = strikeObstacle(spendShot(c, actor), state.rngSeed, {
       attacker: actor,
       obstacle,
@@ -1487,7 +1689,7 @@ export function attack(state: GameState, targetId: string): GameState {
   }
   const target = combatantById(c, targetId);
   if (!attackTargets(c, actor).some((t) => t.id === targetId)) throw new Error(`${actor.name} cannot reach ${target.name}.`);
-  const { mode } = reach(c, actor.attack.range, actor.pos, target.pos, isEngaged(c, actor));
+  const { mode } = reachOf(c, actor.attack.range, actor, target, isEngaged(c, actor));
   // Striking from hiding comes with advantage, and gives the attacker away.
   const hidden = hasStatus(actor, 'invisible');
   const hit = strike(spendShot(c, actor), state.rngSeed, {
@@ -1509,7 +1711,7 @@ export function attack(state: GameState, targetId: string): GameState {
   const off = actor.offHand;
   const stillThere = combatantById(after, target.id);
   const me = combatantById(after, actor.id);
-  if (off && isStanding(stillThere) && isStanding(me) && reach(after, off.attack.range, me.pos, stillThere.pos, false).ok) {
+  if (off && isStanding(stillThere) && isStanding(me) && reachOf(after, off.attack.range, me, stillThere, false).ok) {
     const second = strike(after, seed, {
       attacker: me,
       target: stillThere,
@@ -1544,6 +1746,10 @@ function applyStatuses(c: CombatState, actor: Combatant, target: Combatant, spec
     if (spec.if && !conditionHolds(before, spec.if, actor, combatantById(before, target.id))) continue;
     const victim = combatantById(next, target.id);
     if (!isStanding(victim)) continue;
+    if (victim.boss && victim.side !== actor.side && BOSS_IMMUNE.includes(spec.status)) {
+      next = withLog(next, `${target.name} is unstoppable and shrugs off being ${spec.status}.`);
+      continue;
+    }
     // Hard heads shrug off hostile conditions sooner, or entirely.
     const rounds = victim.side !== actor.side ? spec.rounds - victim.statusResist : spec.rounds;
     if (rounds <= 0) {
@@ -1567,19 +1773,8 @@ function summonMonster(
   spec: { monsterId: string; rounds: number },
   ctx: Pick<CombatContext, 'getAbility' | 'getMonster'>,
 ): CombatState {
-  const spot = [
-    [0, -1],
-    [1, 0],
-    [0, 1],
-    [-1, 0],
-    [1, -1],
-    [1, 1],
-    [-1, 1],
-    [-1, -1],
-  ]
-    .map(([dx, dy]) => ({ x: summoner.pos.x + dx!, y: summoner.pos.y + dy! }))
-    .find((p) => p.x >= 0 && p.y >= 0 && p.x < c.width && p.y < c.height && !tileBlocked(c, p));
   const monster = ctx.getMonster(spec.monsterId);
+  const spot = openSpotNear(c, summoner, 1);
   if (!spot) return withLog(c, `There is no room for the ${monster.name.toLowerCase()} to appear.`);
   const n = c.combatants.filter((x) => x.summoned).length + 1;
   const summon: Combatant = {
@@ -1596,6 +1791,27 @@ function summonMonster(
   );
 }
 
+/**
+ * The free spot nearest someone for a newcomer `size` squares across (its
+ * top-left square): next to them if possible, further out if not.
+ */
+function openSpotNear(c: CombatState, near: Placed, size: number): Pos | null {
+  let best: Pos | null = null;
+  let bestGap = Infinity;
+  for (let y = 0; y + size <= c.height; y++) {
+    for (let x = 0; x + size <= c.width; x++) {
+      const p = { x, y };
+      if (footprint({ size }, p).some((q) => tileBlocked(c, q))) continue;
+      const g = areaGap(p, size, near.pos, sizeOf(near));
+      if (g >= 1 && g < bestGap) {
+        best = p;
+        bestGap = g;
+      }
+    }
+  }
+  return best;
+}
+
 /** Damage for slamming into a wall, an obstacle or someone else when knocked back. */
 export const COLLISION_DAMAGE = '1d6';
 
@@ -1605,6 +1821,7 @@ export const COLLISION_DAMAGE = '1d6';
  * hurts: the target takes collision damage (and so does anyone it slams into).
  */
 function knockBack(c: CombatState, seed: number, attacker: Combatant, target: Combatant, tiles: number): { combat: CombatState; seed: number } {
+  if (immovable(target)) return { combat: withLog(c, `${target.name} is too massive to be moved.`), seed };
   const dx = Math.sign(target.pos.x - attacker.pos.x);
   const dy = Math.sign(target.pos.y - attacker.pos.y);
   if (!dx && !dy) return { combat: c, seed };
@@ -1645,14 +1862,14 @@ function knockBack(c: CombatState, seed: number, attacker: Combatant, target: Co
 
 /** An ally makes a free weapon attack on the weakest enemy next to them, without using their own turn. */
 function grantedAttack(c: CombatState, seed: number, ally: Combatant): { combat: CombatState; seed: number } {
-  const foe = [...visibleFoes(c, ally)].filter((e) => distance(e.pos, ally.pos) <= 1).sort((a, b) => a.hp - b.hp)[0];
+  const foe = [...visibleFoes(c, ally)].filter((e) => gap(e, ally) <= 1).sort((a, b) => a.hp - b.hp)[0];
   if (!foe || ammoLeft(c, ally) === 0) return { combat: c, seed };
   const r = strike(spendShot(c, ally), seed, {
     attacker: ally,
     target: foe,
     profile: ally.attack.profile,
     label: ally.attack.name,
-    mode: reach(c, ally.attack.range, ally.pos, foe.pos, true).mode,
+    mode: reachOf(c, ally.attack.range, ally, foe, true).mode,
     critThreshold: ally.critThreshold,
     animation: ally.attack.animation,
     bonusDamage: weaponDamageBonus(ally),
@@ -1721,7 +1938,7 @@ export function castAbility(
   } else if (ability.target === 'area') {
     // The chosen enemy and every enemy next to them.
     const chosen = options.find((t) => t.id === targetId) ?? options[0]!;
-    targets = visibleFoes(c, actor).filter((t) => distance(t.pos, chosen.pos) <= 1);
+    targets = visibleFoes(c, actor).filter((t) => gap(t, chosen) <= 1);
   } else {
     targets = options;
   }
@@ -1770,7 +1987,7 @@ export function castAbility(
         target,
         profile,
         label: ability.name,
-        mode: combineModes(reach(c, range, actor.pos, target.pos, engaged).mode, hidden ? 'advantage' : 'normal'),
+        mode: combineModes(reachOf(c, range, actor, target, engaged).mode, hidden ? 'advantage' : 'normal'),
         critThreshold: ability.weaponAttack ? user.critThreshold : (ability.attack?.critThreshold ?? DEFAULT_CRIT_THRESHOLD),
         animation: ability.animation ?? (ability.weaponAttack ? user.attack.animation : defaultAttackAnimation(profile)),
         bonusDamage: bonus,
@@ -1867,7 +2084,8 @@ export function drinkPotion(state: GameState, itemId: string, ctx: Pick<CombatCo
 
 /** Enemies the active combatant can kick: those right next to them. */
 export function kickTargets(c: CombatState, actor: Combatant): Combatant[] {
-  return visibleFoes(c, actor).filter((t) => distance(t.pos, actor.pos) <= 1);
+  // Large creatures and bosses stand their ground: there is no kicking them back.
+  return visibleFoes(c, actor).filter((t) => gap(t, actor) <= 1 && !immovable(t));
 }
 
 /**
@@ -1992,7 +2210,7 @@ export function moveTo(state: GameState, to: Pos): GameState {
   let at = actor.pos;
   const struck = new Set<string>();
   // Only enemies the mover is engaged with when the move starts (standing next to them) get a free swing.
-  const engagedAtStart = new Set(standing(c, opposite(actor.side)).filter((e) => distance(e.pos, actor.pos) <= 1).map((e) => e.id));
+  const engagedAtStart = new Set(standing(c, opposite(actor.side)).filter((e) => gap(e, actor) <= 1).map((e) => e.id));
   let walked = 0;
   for (const step of path) {
     // The evasive and the unseen slip away without giving anyone a free swing; the stunned cannot swing.
@@ -2007,8 +2225,8 @@ export function moveTo(state: GameState, to: Pos): GameState {
             !hasStatus(e, 'stunned') &&
             !hasStatus(e, 'frozen') &&
             !struck.has(e.id) &&
-            distance(e.pos, at) <= 1 &&
-            distance(e.pos, step) > 1,
+            gapAt(mover, at, e) <= 1 &&
+            gapAt(mover, step, e) > 1,
         );
     for (const punisher of leavingFrom) {
       struck.add(punisher.id);

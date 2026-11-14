@@ -82,7 +82,7 @@ function LogItem({ entry, roundHeader }: { entry: CombatLogEntry; roundHeader: n
   return (
     <>
       {roundHeader !== null && <li className="log-round">Round {roundHeader}</li>}
-      {entry.attack ? <AttackLine a={entry.attack} /> : <li className={entry.down ? 'log-down' : 'log-note'}>{entry.text}</li>}
+      {entry.attack ? <AttackLine a={entry.attack} /> : <li className={entry.down ? 'log-down' : entry.phase ? 'log-phase' : 'log-note'}>{entry.text}</li>}
     </>
   );
 }

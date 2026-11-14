@@ -332,6 +332,21 @@ export const monsterSchema = z.strictObject({
   xp: z.number().int().min(0),
   mana: z.number().int().min(1).max(50).optional(),
   undead: z.boolean().optional(),
+  size: z.number().int().min(1).max(3).optional(),
+  boss: z
+    .strictObject({
+      title: z.string().min(1).optional(),
+      phases: z.array(
+        z.strictObject({
+          atHpPercent: z.number().int().min(1).max(99),
+          text: z.string().min(1),
+          effects: z.array(itemEffectSchema).optional(),
+          heal: z.number().int().min(1).optional(),
+          summon: z.array(z.strictObject({ monsterId: id, count: z.number().int().min(1).max(6) })).optional(),
+        }),
+      ),
+    })
+    .optional(),
 });
 
 // ---------- dialogue and adventures ----------

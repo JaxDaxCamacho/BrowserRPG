@@ -12,8 +12,11 @@ import {
   kickTargets,
   isEngaged,
   obstacleTargets,
-  rangePenalty,
-  reach,
+  rangePenaltyBetween,
+  reachOf,
+  centreOf,
+  covers,
+  sizeOf,
   reachableTiles,
   rescuersExist,
   shareXp,
@@ -37,6 +40,7 @@ import { CombatantDetails } from './CombatantDetails';
 import { CombatLog, STAT_SHORT } from './CombatLog';
 import { STATUS_FLAIR } from './combatFlair';
 import { ImpactFX, type ImpactKind } from './ImpactFX';
+import { BossBanner } from './BossBanner';
 import { CombatantPanel } from './CombatantPanel';
 import { TurnOrder } from './TurnOrder';
 import { PartyWindow } from './PartyWindow';
@@ -92,7 +96,7 @@ function impactOf(outcome: AttackOutcome | undefined, damage: number): ImpactKin
 }
 
 function flashesFrom(combat: CombatState, seq: number): Flash[] {
-  const at = (id: string) => combat.combatants.find((x) => x.id === id)?.pos ?? combat.obstacles.find((o) => o.id === id)?.pos;
+  const at = (id: string) => centreOn(combat, id);
   return combat.events.flatMap((e, i): Flash[] => {
     const key = `${seq}-${i}`;
     if (e.kind === 'attack' && e.targetId) {
@@ -141,11 +145,17 @@ interface ProjectileSpec {
 function projectilesFrom(combat: CombatState, seq: number): ProjectileSpec[] {
   return combat.events.flatMap((e, i): ProjectileSpec[] => {
     if (e.kind !== 'attack' || !e.roll?.ranged || !e.targetId) return [];
-    const from = combat.combatants.find((x) => x.id === e.actorId)?.pos;
-    const to = combat.combatants.find((x) => x.id === e.targetId)?.pos ?? combat.obstacles.find((o) => o.id === e.targetId)?.pos;
+    const from = centreOn(combat, e.actorId);
+    const to = centreOn(combat, e.targetId);
     if (!from || !to) return [];
     return [{ key: `${seq}-${i}`, from, to, hit: e.outcome !== 'miss', kind: e.roll.stat === 'intellect' ? 'magic' : 'ranged' }];
   });
+}
+
+/** The middle of a combatant or obstacle, in squares (between the squares of a large creature). */
+function centreOn(combat: CombatState, id: string): Pos | undefined {
+  const x = combat.combatants.find((k) => k.id === id) ?? combat.obstacles.find((o) => o.id === id);
+  return x ? centreOf(x) : undefined;
 }
 
 /** Position as a percentage of the battlefield stage, centred on the tile. */
@@ -180,7 +190,7 @@ function ObstacleToken({ o, targetable, flashes, onPick }: { o: Obstacle; target
       title={`${o.name}${destructible ? ` (${o.hp}/${o.maxHp} HP)` : ''}`}
       aria-label={o.name}
     >
-      <AssetImage id={o.icon} fallback={o.emoji} size={56} className="obstacle-icon" />
+      <AssetImage id={o.icon} fallback={o.emoji} className="obstacle-icon" />
       {destructible && o.hp !== null && o.maxHp !== null && (
         <span className="obstacle-hp">
           <span style={{ width: `${(o.hp / o.maxHp) * 100}%` }} />
@@ -315,14 +325,14 @@ function hitChance(c: CombatState, actor: Combatant, target: Combatant, targetin
   }
   const need = hitOn(actor, target, kind);
   const pct = Math.round(((21 - need) / 20) * 100);
-  const far = !reach(c, range, actor.pos, target.pos, false).ok;
+  const far = !reachOf(c, range, actor, target, false).ok;
   const dis = range > 0 && isEngaged(c, actor) ? ', disadvantage' : '';
   return `${name}: hit on ${need}+ (${pct}%${dis}), graze otherwise${far ? ' · out of reach' : ''}`;
 }
 
 /** The natural roll the actor needs to hit (not graze) this target, for the targeting hint. Distance counts against ranged attacks. */
 function hitOn(actor: Combatant, target: Combatant, kind: keyof typeof ATTACK_STAT): number {
-  const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]) - rangePenalty(kind, actor.pos, target.pos);
+  const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]) - rangePenaltyBetween(kind, actor, target);
   return Math.min(20, Math.max(2, effectiveDefense(target) - modifier + 1));
 }
 
@@ -571,7 +581,7 @@ export function CombatScreen() {
   // Who is attacking whom, shown while the dice are out.
   const aim = { attackers: new Set<string>(), targets: new Set<string>(), lines: [] as { key: string; from: Pos; to: Pos }[] };
   if (revealing) {
-    const at = (id: string) => combat.combatants.find((x) => x.id === id)?.pos ?? combat.obstacles.find((o) => o.id === id)?.pos;
+    const at = (id: string) => centreOn(combat, id);
     live.events.forEach((e, i) => {
       const aimed = e.kind === 'attack' || (e.kind === 'status' && (e.label === 'Kicked' || e.label === 'Shrugged off'));
       if (!aimed || !e.targetId) return;
@@ -605,7 +615,8 @@ export function CombatScreen() {
     if (x.summoned) return 'Summoned';
     const merc = x.mercId ? live.mercs.find((m) => m.id === x.mercId) : undefined;
     if (merc) return `Level ${merc.level} ${getClass(merc.classId).name}`;
-    return x.side === 'enemy' ? 'Enemy' : 'Ally';
+    const kind = x.boss ? `Boss${x.boss.title ? `, ${x.boss.title}` : ''}` : x.side === 'enemy' ? 'Enemy' : 'Ally';
+    return sizeOf(x) > 1 ? `${kind} · Large` : kind;
   };
   const chance = targetShown && yourTurn && actor ? hitChance(live, actor, targetShown, targeting) : null;
 
@@ -708,6 +719,7 @@ export function CombatScreen() {
             ` · ${game.otherEncounters!.length} other fight${game.otherEncounters!.length === 1 ? '' : 's'} going on`}
         </span>
         <MuteButton />
+        <BossBanner combat={combat} />
         <TurnOrder combat={combat} hoverId={hoverId} onHover={setHoverId} />
       </header>
 
@@ -726,8 +738,8 @@ export function CombatScreen() {
               {cells.flat().map((p) => {
                 // Someone standing here, or failing that someone lying here.
                 const here =
-                  combat.combatants.find((x) => x.hp > 0 && x.pos.x === p.x && x.pos.y === p.y) ??
-                  combat.combatants.find((x) => x.pos.x === p.x && x.pos.y === p.y);
+                  combat.combatants.find((x) => x.hp > 0 && covers(x, x.pos, p)) ??
+                  combat.combatants.find((x) => covers(x, x.pos, p));
                 const obstacle = combat.obstacles.find((o) => o.pos.x === p.x && o.pos.y === p.y);
                 const canWalk = reachable.has(`${p.x},${p.y}`);
                 return (
@@ -754,7 +766,11 @@ export function CombatScreen() {
             </div>
             <div className="token-layer">
               {combat.combatants.filter((x) => !(x.summoned && x.hp === 0)).map((x) => (
-                <div key={x.id} className="token-slot" style={pctStyle(x.pos, combat.width, combat.height)}>
+                <div
+                  key={x.id}
+                  className={`token-slot${sizeOf(x) > 1 ? ' large' : ''}${x.boss ? ' boss' : ''}`}
+                  style={{ ...pctStyle(centreOf(x), combat.width, combat.height), ['--size' as string]: sizeOf(x) }}
+                >
                   <CombatToken
                     x={x}
                     active={actor?.id === x.id}

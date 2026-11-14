@@ -101,8 +101,9 @@ For how to run, build and package the game, see the [README](../README.md).
   check by the leader).
 - **Action bar** with 84 abilities across the classes and monsters, paid for with class resources
   (mana, adrenaline or souls).
-- **9 monsters:** Bandit Thug, Bandit Archer, Bandit Captain, Hedge Mage, War Hound, Imp, Wolf, Hawk
-  and Bear. Monster AI acts on its own.
+- **12 monsters:** Bandit Thug, Bandit Archer, Bandit Captain (a boss), Hedge Mage, War Hound,
+  Imp, Wolf, Hawk and Bear, plus the large Cave Troll and Cyclops (2×2) and Stone Golem (3×3).
+  Monster AI acts on its own.
 - Every attack, by mercs and enemies alike, plays the same sequence: aim, dice, result, then
   damage. Animations, sound effects, "Down!" / "Slain!" callouts, and HP and resource bars on the
   character sheet and enemy details.
@@ -164,9 +165,12 @@ For how to run, build and package the game, see the [README](../README.md).
   one with an icon.
 
 ### Monsters
-- [ ] **Large monsters** that take up more than one square. This affects pathfinding, reach,
-  targeting and placement.
-- [ ] **Boss fights.** These build on large monsters.
+- [x] **Large monsters** (2×2 and 3×3): Cave Troll, Cyclops, Stone Golem. Reach, movement,
+  engagement, area effects and the range penalty all count every square they cover; they cannot be
+  kicked or knocked back.
+- [x] **Boss fights.** A boss banner with phase notches; phases at HP thresholds bring lasting
+  buffs, healing and reinforcements; bosses cannot be stunned, frozen, feared or knocked down. The
+  Bandit Captain is the watchtower's boss.
 
 ### Map and party
 - [ ] **Split-party movement.** While the party is split, every merc moves 3 + Agility modifier

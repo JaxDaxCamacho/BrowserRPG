@@ -9,6 +9,8 @@
   combatantById,
   defend,
   distance,
+  gap,
+  gapAt,
   effectiveMovement,
   isAiControlled,
   effectiveDefense,
@@ -56,8 +58,8 @@ function taunter(c: CombatState, actor: Combatant): Combatant | undefined {
   return taunt?.sourceId ? foesOf(c, actor).find((f) => f.id === taunt.sourceId) : undefined;
 }
 
-function nearest(from: Pos, among: Combatant[]): Combatant | undefined {
-  return [...among].sort((a, b) => distance(from, a.pos) - distance(from, b.pos))[0];
+function nearest(from: Combatant, among: Combatant[]): Combatant | undefined {
+  return [...among].sort((a, b) => gap(from, a) - gap(from, b))[0];
 }
 
 function weakest(targets: Combatant[]): Combatant | undefined {
@@ -114,7 +116,7 @@ function chooseAction(c: CombatState, actor: Combatant, ctx: Pick<CombatContext,
 
   // Abilities that help the whole side (a rally) are used when mercs are close.
   const rally = abilities.find((a) => !a.attack && (a.target === 'allAllies' || a.target === 'self') && a.effects.some((e) => e.type !== 'heal'));
-  if (rally && foesOf(c, actor).some((p) => distance(p.pos, actor.pos) <= 3)) {
+  if (rally && foesOf(c, actor).some((p) => gap(p, actor) <= 3)) {
     return { kind: 'ability', abilityId: rally.id, targetId: null };
   }
 
@@ -152,7 +154,8 @@ function chooseMove(c: CombatState, actor: Combatant, ctx: Pick<CombatContext, '
     return { x: x!, y: y! };
   });
   if (tiles.length === 0) return null;
-  const closest = (p: Pos) => Math.min(...foes.map((f) => distance(p, f.pos)));
+  // Measured from every square the actor would cover there, so large creatures judge their reach right.
+  const closest = (p: Pos) => Math.min(...foes.map((f) => gapAt(actor, p, f)));
 
   if (RANGED.has(arch)) {
     // Stay out of reach: the tile furthest from mercs that still has a shot, closing in only if nothing does.
@@ -169,13 +172,13 @@ function chooseMove(c: CombatState, actor: Combatant, ctx: Pick<CombatContext, '
   // Melee types: already next to a fitting target means stay; otherwise get next to it, or as close as possible.
   // A taunted enemy goes for the taunter, whatever its habits.
   const goad = taunter(c, actor);
-  const quarry = goad ?? (arch === 'assassin' ? softest(foes) : nearest(actor.pos, foes));
+  const quarry = goad ?? (arch === 'assassin' ? softest(foes) : nearest(actor, foes));
   if (!quarry) return null;
-  if (distance(actor.pos, quarry.pos) <= 1) return null;
+  if (gap(actor, quarry) <= 1) return null;
   if (!goad && arch !== 'assassin' && attackTargets(c, actor).length > 0) return null;
-  const adjacent = tiles.filter((t) => distance(t, quarry.pos) <= 1);
+  const adjacent = tiles.filter((t) => gapAt(actor, t, quarry) <= 1);
   if (adjacent.length > 0) return adjacent.sort((a, b) => distance(actor.pos, a) - distance(actor.pos, b))[0]!;
-  return tiles.sort((a, b) => distance(a, quarry.pos) - distance(b, quarry.pos))[0]!;
+  return tiles.sort((a, b) => gapAt(actor, a, quarry) - gapAt(actor, b, quarry))[0]!;
 }
 
 /** The reachable tile furthest from a threat, or null when standing still is as far as it gets. */
@@ -184,8 +187,9 @@ function fleeFrom(c: CombatState, actor: Combatant, threat: Pos): Pos | null {
     const [x, y] = k.split(',').map(Number);
     return { x: x!, y: y! };
   });
-  const best = tiles.sort((a, b) => distance(b, threat) - distance(a, threat))[0];
-  return best && distance(best, threat) > distance(actor.pos, threat) ? best : null;
+  const away = (p: Pos) => gapAt(actor, p, { pos: threat });
+  const best = tiles.sort((a, b) => away(b) - away(a))[0];
+  return best && away(best) > away(actor.pos) ? best : null;
 }
 
 function act(state: GameState, plan: Plan, ctx: Pick<CombatContext, 'getAbility'> & Partial<Pick<CombatContext, 'getMonster'>>): GameState {
