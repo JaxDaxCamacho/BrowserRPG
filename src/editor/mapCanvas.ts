@@ -23,7 +23,12 @@ export interface Overlay {
   preview?: { a: Pos; b: Pos; colour: string };
   /** Tile under the pointer. */
   hover?: Pos | null;
+  /** A painted floor's picture once it has loaded, or null while it loads (or has none). */
+  floorImage?: (id: string) => HTMLImageElement | null;
 }
+
+/** A floor texture repeats every this many tiles, as in the game. */
+const FLOOR_REPEAT_TILES = 6;
 
 function marker(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, fill: string, label: string) {
   ctx.beginPath();
@@ -45,12 +50,33 @@ export function drawMap(ctx: CanvasRenderingContext2D, d: DungeonDefinition, siz
   const h = d.height * size;
   ctx.clearRect(0, 0, w, h);
 
+  // One pattern per painted floor, scaled so it repeats as it does in the game.
+  const patterns = new Map<string, CanvasPattern | null>();
+  const patternFor = (id: string | undefined): CanvasPattern | null => {
+    if (!id || !overlay.floorImage) return null;
+    if (!patterns.has(id)) {
+      const img = overlay.floorImage(id);
+      const pattern = img ? ctx.createPattern(img, 'repeat') : null;
+      pattern?.setTransform(new DOMMatrix().scale((FLOOR_REPEAT_TILES * size) / (img?.width || 1)));
+      patterns.set(id, pattern);
+    }
+    return patterns.get(id) ?? null;
+  };
+  const floorOf = (x: number, y: number) =>
+    d.rooms.find((r) => x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height)?.floor ?? d.floor;
+
   for (let y = 0; y < d.height; y++) {
     const row = d.tiles[y] ?? '';
     for (let x = 0; x < d.width; x++) {
       const ch = (row[x] ?? '#') as TileChar;
-      ctx.fillStyle = TILE_CHARS[ch] ? tileColour(ch) : '#ff00ff';
+      const type = TILE_CHARS[ch];
+      const pattern = type && type !== 'wall' && type !== 'door' && type !== 'lockedDoor' && type !== 'stairs' ? patternFor(floorOf(x, y)) : null;
+      ctx.fillStyle = pattern ?? (type ? tileColour(ch) : '#ff00ff');
       ctx.fillRect(x * size, y * size, size, size);
+      if (pattern) {
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.fillRect(x * size, y * size, size, size);
+      }
       if (ch === '+' || ch === 'L') {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(x * size + size * 0.3, y * size + size * 0.3, size * 0.4, size * 0.4);

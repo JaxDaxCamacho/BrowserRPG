@@ -248,6 +248,9 @@ describe('enemy groups', () => {
     state = walk(state, tiny, { x: 9, y: 3 });
     expect(state.screen).toBe('combat');
     expect(state.encounter?.featureId).toBe('dogs');
+    // The dogs never spotted the party (stealth always succeeds here), so the party has the jump on them.
+    expect(state.encounter?.surprise).toBe(true);
+    expect(state.dungeon!.log.at(-1)).toMatch(/You catch War Hound ×2 off guard!/);
 
     const fled = resolveEncounter(state, 'retreat');
     expect(fled.screen).toBe('dungeon');
@@ -256,6 +259,21 @@ describe('enemy groups', () => {
     const won = resolveEncounter(state, 'victory');
     expect(won.dungeon!.resolved).toContain('dogs');
     expect(walk(won, tiny, { x: 10, y: 3 }).screen).toBe('dungeon');
+  });
+});
+
+describe('surprise', () => {
+  it('is never the party\'s when the group lies in ambush', () => {
+    const lurking: DungeonDefinition = {
+      ...tiny,
+      features: tiny.features.map((f) => (f.type === 'encounter' ? { ...f, ambush: true } : f)),
+    };
+    let state = enterDungeon(party(), lurking);
+    state = { ...state, dungeon: { ...state.dungeon!, seen: '1'.repeat(60), resolved: ['wire'] } };
+    state = walk(state, lurking, { x: 9, y: 3 });
+    state = walk(state, lurking, { x: 9, y: 3 });
+    expect(state.screen).toBe('combat');
+    expect(state.encounter?.surprise).toBeUndefined();
   });
 });
 

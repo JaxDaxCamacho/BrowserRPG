@@ -16,11 +16,13 @@ export function TurnOrder({ combat, hoverId, onHover }: { combat: CombatState; h
   const item = ({ id, i, x }: (typeof shown)[number], upcoming: boolean) => {
     const pct = x.maxHp > 0 ? Math.max(0, (x.hp / x.maxHp) * 100) : 0;
     const current = i === combat.turn && !upcoming;
+    // In a surprise round the enemies' first turns are skipped.
+    const surprised = !!combat.surprise && combat.round === 1 && !upcoming && x.side === 'enemy';
     return (
       <li
         key={`${upcoming ? 'next' : 'now'}-${id}`}
-        className={`turn-entry side-${x.side}${current ? ' current' : ''}${x.hp === 0 ? ' down' : ''}${hoverId === id ? ' hovered' : ''}${upcoming ? ' upcoming' : ''}`}
-        title={`${x.name}${x.hp === 0 ? ' (down)' : ` · ${x.hp} / ${x.maxHp} HP`} · initiative ${x.initiative}`}
+        className={`turn-entry side-${x.side}${current ? ' current' : ''}${x.hp === 0 ? ' down' : ''}${hoverId === id ? ' hovered' : ''}${upcoming ? ' upcoming' : ''}${surprised ? ' surprised' : ''}`}
+        title={`${x.name}${x.hp === 0 ? ' (down)' : ` · ${x.hp} / ${x.maxHp} HP`} · initiative ${x.initiative}${surprised ? ' · caught off guard: loses this turn' : ''}`}
         onMouseEnter={() => onHover(id)}
         onMouseLeave={() => onHover(null)}
       >

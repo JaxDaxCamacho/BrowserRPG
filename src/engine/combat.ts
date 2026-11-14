@@ -1,7 +1,7 @@
 ﻿import { ATTACK_STAT, DEFAULT_CRIT_THRESHOLD, resolveAttack, type Armour, type AttackKind, type AttackOutcome, type AttackProfile } from './attack';
 import { makeCheck } from './checks';
 import { rollD20, rollDice, type RollMode } from './dice';
-import { featureById, groupsOf, roomAt, setGroups, type DungeonDefinition, type Pos } from './dungeon';
+import { featureById, groupsOf, roomAt, setGroups, type DungeonDefinition, type Pos, type RoomDefinition } from './dungeon';
 import type { ObstacleDefinition } from './obstacles';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
@@ -250,6 +250,8 @@ export interface CombatState {
   dormant?: boolean;
   /** Barrels, chests, barricades and pillars dressing the battlefield. */
   obstacles: Obstacle[];
+  /** The party caught the enemies unawares: every enemy loses its turn in round 1. */
+  surprise?: boolean;
 }
 
 export interface CombatContext {
@@ -705,6 +707,75 @@ function lineUp(count: number, width: number, row: number, inward: 1 | -1, taken
   return out;
 }
 
+/** A map offset within a room, scaled onto a battlefield axis (rooms can be bigger than the battlefield). */
+function scaleAxis(offset: number, roomSize: number, gridSize: number): number {
+  const inside = Math.max(0, Math.min(roomSize - 1, offset));
+  return roomSize <= 1 ? 0 : Math.round((inside * (gridSize - 1)) / (roomSize - 1));
+}
+
+/** The free tile nearest `anchor`, preferring tiles further from `away` so a side bunches up rather than flanking. */
+function nearestFree(anchor: Pos, away: Pos, width: number, height: number, taken: Set<string>): Pos | null {
+  let best: Pos | null = null;
+  let bestNear = Infinity;
+  let bestFar = -Infinity;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const p = { x, y };
+      if (taken.has(key(p))) continue;
+      const near = distance(p, anchor);
+      const far = distance(p, away);
+      if (near < bestNear || (near === bestNear && far > bestFar)) {
+        best = p;
+        bestNear = near;
+        bestFar = far;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Starting tiles from where everyone stood on the map. Each merc starts by
+ * their own group's token (a party token stands for the whole group); a token
+ * still outside the room (in a doorway or corridor) starts at the nearest edge.
+ * The enemies gather round their group's spot.
+ */
+function placeFromMap(
+  state: GameState,
+  room: RoomDefinition,
+  feature: Pos,
+  mercIds: string[],
+  enemyCount: number,
+  width: number,
+  height: number,
+  taken: Set<string>,
+): { party: Pos[]; enemies: Pos[] } | null {
+  if (!state.dungeon) return null;
+  const toGrid = (p: Pos): Pos => ({ x: scaleAxis(p.x - room.x, room.width, width), y: scaleAxis(p.y - room.y, room.height, height) });
+  const groups = groupsOf(state);
+  const foe = toGrid(feature);
+  const anchorOf = (mercId: string) => toGrid(groups.find((g) => g.mercIds.includes(mercId))?.pos ?? state.dungeon!.pos);
+  // Work on a copy: if the room is too crowded, nothing is claimed and the caller lines everyone up instead.
+  const used = new Set(taken);
+  const party: Pos[] = [];
+  for (const id of mercIds) {
+    const p = nearestFree(anchorOf(id), foe, width, height, used);
+    if (!p) return null;
+    used.add(key(p));
+    party.push(p);
+  }
+  const centre = party[0] ?? foe;
+  const enemies: Pos[] = [];
+  for (let i = 0; i < enemyCount; i++) {
+    const p = nearestFree(foe, centre, width, height, used);
+    if (!p) return null;
+    used.add(key(p));
+    enemies.push(p);
+  }
+  for (const p of [...party, ...enemies]) taken.add(key(p));
+  return { party, enemies };
+}
+
 /** Battlefield size: the room's own size within limits, or a corridor strip. */
 function gridFor(def: DungeonDefinition, at: Pos): { width: number; height: number } {
   const room = def.rooms.find((r) => at.x >= r.x && at.x < r.x + r.width && at.y >= r.y && at.y < r.y + r.height);
@@ -852,20 +923,31 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
   const taken = new Set<string>(obstacles.map((o) => key(o.pos)));
   // Only the mercs in this fight: with the party split, the rest are elsewhere.
   const living = state.party.filter((m) => !m.dead && (!encounter.mercIds || encounter.mercIds.includes(m.id)));
-  const partyRow = ambush ? Math.floor(height / 2) : height - 1;
-  const partySpots = lineUp(living.length, width, partyRow, -1, taken);
-
-  const combatants: Combatant[] = living.map((merc, i) => mercCombatant(merc, partySpots[i]!, roll, ctx));
-
   const monsters = feature.monsters.flatMap((group) =>
     Array.from({ length: group.count }, (_, n) => ({ monster: ctx.getMonster(group.monsterId), n: n + 1, count: group.count })),
   );
-  // Enemies start on the far edge; in an ambush they split between both edges.
-  const top = monsters.filter((_, i) => !ambush || i % 2 === 0);
-  const bottom = monsters.filter((_, i) => ambush && i % 2 === 1);
+  const surprise = !!encounter.surprise && !ambush;
+
+  // In a room, both sides start where they stood on the map, scaled onto the battlefield: a group
+  // that spots the party from across the hall starts across the hall. An ambush surrounds the
+  // party instead, and a corridor fight lines both sides up on its strip.
+  const room = roomAt(def, feature);
+  const placed = room && !ambush ? placeFromMap(state, room, feature, living.map((m) => m.id), monsters.length, width, height, taken) : null;
+  const partyRow = ambush ? Math.floor(height / 2) : height - 1;
+  const partySpots = placed?.party ?? lineUp(living.length, width, partyRow, -1, taken);
+
+  const combatants: Combatant[] = living.map((merc, i) => mercCombatant(merc, partySpots[i]!, roll, ctx));
+
+  // Otherwise enemies start on the far edge; in an ambush they split between both edges.
   const enemySpots = new Map<number, Pos>();
-  lineUp(top.length, width, 0, 1, taken).forEach((p, i) => enemySpots.set(monsters.indexOf(top[i]!), p));
-  lineUp(bottom.length, width, height - 1, -1, taken).forEach((p, i) => enemySpots.set(monsters.indexOf(bottom[i]!), p));
+  if (placed) {
+    placed.enemies.forEach((p, i) => enemySpots.set(i, p));
+  } else {
+    const top = monsters.filter((_, i) => !ambush || i % 2 === 0);
+    const bottom = monsters.filter((_, i) => ambush && i % 2 === 1);
+    lineUp(top.length, width, 0, 1, taken).forEach((p, i) => enemySpots.set(monsters.indexOf(top[i]!), p));
+    lineUp(bottom.length, width, height - 1, -1, taken).forEach((p, i) => enemySpots.set(monsters.indexOf(bottom[i]!), p));
+  }
 
   let xp = 0;
   monsters.forEach(({ monster, n, count }, i) => {
@@ -880,6 +962,11 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     .sort((a, b) => b.initiative - a.initiative || (a.side === b.side ? 0 : a.side === 'party' ? -1 : 1))
     .map((x) => x.id);
 
+  const opening = ambush
+    ? `Ambush! ${feature.name} close in from both sides.`
+    : surprise
+      ? `Surprise! ${feature.name} are caught off guard and lose their first turn.`
+      : `${feature.name} attack!`;
   let combat: CombatState = {
     featureId: feature.id,
     width,
@@ -892,13 +979,14 @@ export function startCombat(state: GameState, ctx: CombatContext): GameState {
     moveLeft: 0,
     acted: false,
     outcome: null,
-    log: [ambush ? `Ambush! ${feature.name} close in from both sides.` : `${feature.name} attack!`],
-    history: [{ round: 1, text: ambush ? `Ambush! ${feature.name} close in from both sides.` : `${feature.name} attack!` }],
+    log: [opening],
+    history: [{ round: 1, text: opening }],
     events: [],
     seq: 0,
     mercs: living.map((m) => structuredClone(m)),
     xp,
     obstacles,
+    ...(surprise ? { surprise: true } : {}),
   };
   const first = skipDownedTurn(combat, seed);
   combat = checkOutcome(first.combat);
@@ -983,6 +1071,11 @@ function skipDownedTurn(c: CombatState, seed: number): { combat: CombatState; se
     if (next.outcome) break;
     if (!isStanding(activeCombatant(next))) {
       next = advance(next);
+      continue;
+    }
+    // Caught off guard: the enemies lose their whole first round.
+    if (next.surprise && next.round === 1 && activeCombatant(next).side === 'enemy') {
+      next = withLog(advance(next), `${activeCombatant(next).name} is caught off guard and loses the turn.`);
       continue;
     }
     const begun = beginTurn(next, seed);

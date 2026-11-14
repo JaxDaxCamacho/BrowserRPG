@@ -19,3 +19,5 @@ Thumbs.db
 /Assets/Music/
 /Assets/Loot&Equipment/
 /Assets/_unpacked/
+# Raw isometric floor art (very large); `npm run floors` makes the committed Assets/Floors from it.
+/Assets/Tiles/

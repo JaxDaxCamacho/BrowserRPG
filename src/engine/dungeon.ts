@@ -40,6 +40,8 @@ export interface RoomDefinition {
   height: number;
   /** Combat rows for fights in this room, 2 to 5. */
   rows: number;
+  /** Floor texture for this room on the map and the battlefield (an asset id under floors/). */
+  floor?: string;
 }
 
 interface FeatureBase {
@@ -111,6 +113,8 @@ export interface DungeonDefinition {
   start: Pos;
   rooms: RoomDefinition[];
   features: FeatureDefinition[];
+  /** Floor texture for corridors and for rooms without one of their own. */
+  floor?: string;
 }
 
 export interface DungeonState {
@@ -183,6 +187,8 @@ export interface EncounterState {
   combat?: CombatState;
   /** The mercs in this fight. Without it, every living merc is. */
   mercIds?: string[];
+  /** The party reached the group unseen: the enemies lose their first round. */
+  surprise?: boolean;
 }
 
 const LOG_LIMIT = 30;
@@ -258,6 +264,11 @@ export function isWalkable(def: DungeonDefinition, x: number, y: number): boolea
 
 export function indexOf(def: DungeonDefinition, p: Pos): number {
   return p.y * def.width + p.x;
+}
+
+/** The floor texture painted at a spot: its room's, or the map's own. */
+export function floorAt(def: DungeonDefinition, p: Pos): string | undefined {
+  return roomAt(def, p)?.floor ?? def.floor;
 }
 
 export function roomAt(def: DungeonDefinition, p: Pos): RoomDefinition | null {
@@ -581,9 +592,15 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
   const foes = def.features.find(
     (f): f is EncounterFeature => f.type === 'encounter' && !dungeon.resolved.includes(f.id) && !ongoing.has(f.id) && chebyshev(f, next) <= 1,
   );
+  // Getting this close means the group never spotted the party (a failed stealth check starts the
+  // fight sooner), so the party strikes first, unless the group is the one lying in ambush.
   if (foes) {
-    halt({ noticed: [...new Set([...dungeon.noticed, foes.id])] }, `${describeGroup(foes, ctx)} attack!`);
-    return beginEncounter(game, def, foes, dungeon.previous);
+    const surprise = !foes.ambush;
+    halt(
+      { noticed: [...new Set([...dungeon.noticed, foes.id])] },
+      surprise ? `You catch ${describeGroup(foes, ctx)} off guard!` : `${describeGroup(foes, ctx)} attack!`,
+    );
+    return beginEncounter(game, def, foes, dungeon.previous, surprise);
   }
 
   // 2b. Sneaking: inside a group's detection range and in its sight, every step needs a stealth check.
@@ -680,8 +697,8 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
  * An enemy group attacks. With the party whole, everyone fights. Split up, the
  * fight takes the active group plus any other group standing in the same room.
  */
-function beginEncounter(state: GameState, def: DungeonDefinition, foes: EncounterFeature, returnTo: Pos): GameState {
-  const encounter: EncounterState = { featureId: foes.id, returnTo };
+function beginEncounter(state: GameState, def: DungeonDefinition, foes: EncounterFeature, returnTo: Pos, surprise = false): GameState {
+  const encounter: EncounterState = { featureId: foes.id, returnTo, ...(surprise ? { surprise: true } : {}) };
   if (!isSplit(state)) return { ...state, screen: 'combat', encounter };
   const room = roomAt(def, foes);
   const mercIds = [...activeMercIds(state)];

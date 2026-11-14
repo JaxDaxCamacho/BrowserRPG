@@ -57,7 +57,7 @@
     },
     "attack": {
       "name": "Shortbow",
-      "range": 8,
+      "range": 6,
       "profile": {
         "kind": "ranged",
         "damageType": "physical",

@@ -13,7 +13,8 @@
     "assets:sync": "node scripts/sync-assets.mjs",
     "assets:unpack": "python3 scripts/unpack-assets.py",
     "build:app": "vite build && node scripts/bundle-assets.mjs",
-    "icons": "node scripts/make-icons.mjs"
+    "icons": "node scripts/make-icons.mjs",
+    "floors": "node scripts/make-floors.mjs"
   },
   "dependencies": {
     "peerjs": "^1.5.5",

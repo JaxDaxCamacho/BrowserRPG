@@ -83,6 +83,9 @@ const RULES = [
   { root: 'local', category: 'classes', pack: 'Class icons', dir: 'Classes', size: 192 },
   { root: 'local', category: 'races', pack: 'Race icons', dir: 'RaceIcons', size: 192 },
   { root: 'local', category: 'obstacles/containers', pack: 'Containers', dir: 'Obstacles/Containers', size: 128 },
+  { root: 'local', category: 'obstacles/dungeon', pack: 'Isometric Dungeon Designer', dir: 'Obstacles/Dungeon', size: 128 },
+  // Top-down floor textures for painting rooms, made from Assets/Tiles by `npm run floors`.
+  { root: 'local', category: 'floors', pack: 'Isometric Dungeon Designer floors', dir: 'Floors', size: 1024, pattern: /\.jpe?g$/i },
   // Dialogue scene art, one folder per adventure: scenes/<adventure id>/<image key>.
   { root: 'local', category: 'scenes/greywater-ford', pack: 'The Toll at Greywater Ford', dir: 'TollGreywaterFord', size: 1344 },
   // Portraits and monster tokens (the Avatars Megapack): the same ids as the original packs.
@@ -315,7 +318,7 @@ async function main() {
       missing.push(rule.dir);
       continue;
     }
-    const files = listImages(dir, rule.deep, rule.audio ? AUDIO : IMAGE).filter((f) => {
+    const files = listImages(dir, rule.deep, rule.pattern ?? (rule.audio ? AUDIO : IMAGE)).filter((f) => {
       const rel = relative(dir, f);
       if (rule.only && !rule.only.test(rel)) return false;
       if (rule.include && !rule.include.test(rel)) return false;

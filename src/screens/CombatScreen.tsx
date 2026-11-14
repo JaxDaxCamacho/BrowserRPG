@@ -7,6 +7,7 @@ import {
   ATTACK_STAT,
   effectiveDefense,
   featureById,
+  floorAt,
   isAiControlled,
   kickTargets,
   isEngaged,
@@ -30,7 +31,7 @@ import {
 import { combatContext } from '../state/context';
 import { useControl } from '../state/net';
 import { useGameStore } from '../state/store';
-import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
+import { AnimationPreview, AssetImage, assetUrl, useAssetIndex } from './assets';
 import { ActionBar, needsPick, slotsFor } from './ActionBar';
 import { CombatantDetails } from './CombatantDetails';
 import { CombatLog, STAT_SHORT } from './CombatLog';
@@ -584,6 +585,8 @@ export function CombatScreen() {
 
   const def = getDungeon(game.dungeon.dungeonId);
   const feature = featureById(def, live.featureId);
+  // The floor painted where the fight is: the room's own, or the map's.
+  const floor = floorAt(def, feature);
   // Your turn: a merc you play is acting. In co-op, other players' mercs act on their own screens.
   const yourTurn = !!actor && !isAiControlled(actor) && controls(actor.mercId);
   // The bar shows the selected merc, or else whoever is acting; only the acting merc's bar can be used.
@@ -699,6 +702,7 @@ export function CombatScreen() {
         <span className="dim">
           Round {combat.round}
           {combat.ambush ? ' · ambush' : ''}
+          {combat.surprise && combat.round === 1 ? ' · surprise round: the enemies are caught off guard' : ''}
           {game.dungeon.world && ` · world round ${game.dungeon.world.round}`}
           {(game.otherEncounters?.length ?? 0) > 0 &&
             ` · ${game.otherEncounters!.length} other fight${game.otherEncounters!.length === 1 ? '' : 's'} going on`}
@@ -712,8 +716,12 @@ export function CombatScreen() {
         <section ref={fieldRef} className="battlefield" aria-label="Battlefield">
           <div className="battlefield-stage" style={cellPx ? ({ '--cell': `${cellPx}px` } as CSSProperties) : undefined}>
             <div
-              className="combat-grid"
-              style={{ gridTemplateColumns: `repeat(${combat.width}, var(--cell))`, gridTemplateRows: `repeat(${combat.height}, var(--cell))` }}
+              className={`combat-grid${floor ? ' painted' : ''}`}
+              style={{
+                gridTemplateColumns: `repeat(${combat.width}, var(--cell))`,
+                gridTemplateRows: `repeat(${combat.height}, var(--cell))`,
+                ...(floor ? { backgroundImage: `linear-gradient(rgb(0 0 0 / 28%), rgb(0 0 0 / 28%)), url(${assetUrl(floor)})` } : {}),
+              }}
             >
               {cells.flat().map((p) => {
                 // Someone standing here, or failing that someone lying here.

@@ -154,13 +154,14 @@ For how to run, build and package the game, see the [README](../README.md).
   floating above the footer.
 
 ### Battlefield rules
-- [ ] **Rebalance weapon ranges.** Today: shortbow 8, crossbow, wand, staff and focus 6, melee
-  adjacent. A first step is in: -1 to hit per 2 squares for ranged and magic attacks.
-- [ ] **Starting positions from the approach.** Place the party according to how far each merc was
-  from the enemy when combat started.
-- [ ] **Ambush.** If the party reaches a square next to an enemy token without being detected, the
-  party gets a free turn.
-- [ ] **More obstacle types**, and icons for the existing ones that lack them (pillar and boulder).
+- [x] **Rebalance weapon ranges.** Shortbow 6, light crossbow 5, oak staff 5, wand and focus 4,
+  bandit archer 6; plus -1 to hit per 2 squares for ranged and magic attacks.
+- [x] **Starting positions from the approach.** In a room, both sides start where they stood on the
+  map (scaled to the battlefield); a party in a doorway starts at the nearest edge.
+- [x] **Ambush.** Reaching a group unseen gives a surprise round: the enemies lose their first turn.
+  Groups that lie in ambush themselves still surround the party.
+- [x] **More obstacle types**: 33 in all (dungeon furniture, caves, snow and ice, volcanic), every
+  one with an icon.
 
 ### Monsters
 - [ ] **Large monsters** that take up more than one square. This affects pathfinding, reach,
@@ -170,7 +171,8 @@ For how to run, build and package the game, see the [README](../README.md).
 ### Map and party
 - [ ] **Split-party movement.** While the party is split, every merc moves 3 + Agility modifier
   tiles per exploration turn on the map.
-- [ ] **Better map graphics.**
+- [ ] **Better map graphics.** Started: rooms and corridors can be painted with floor textures
+  (dungeon maker), shown on the map and the battlefield.
 - [ ] **Co-op: vote for the leader.**
 
 ### Big reworks (agree a design first)

@@ -162,7 +162,7 @@
     "weaponType": "bow",
     "style": "pierce",
     "hands": 2,
-    "range": 8,
+    "range": 6,
     "ammo": "arrow",
     "attack": {
       "kind": "ranged",
@@ -182,7 +182,7 @@
     "weaponType": "crossbow",
     "style": "pierce",
     "hands": 2,
-    "range": 6,
+    "range": 5,
     "ammo": "bolt",
     "attack": {
       "kind": "ranged",
@@ -202,7 +202,7 @@
     "weaponType": "wand",
     "style": "arcane",
     "hands": 1,
-    "range": 6,
+    "range": 4,
     "attack": {
       "kind": "magic",
       "damageType": "magic",
@@ -221,7 +221,7 @@
     "weaponType": "staff",
     "style": "arcane",
     "hands": 2,
-    "range": 6,
+    "range": 5,
     "attack": {
       "kind": "magic",
       "damageType": "magic",
@@ -241,7 +241,7 @@
     "weaponType": "focus",
     "style": "arcane",
     "hands": 1,
-    "range": 6,
+    "range": 4,
     "attack": {
       "kind": "spiritual",
       "damageType": "spiritual",

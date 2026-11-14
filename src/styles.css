@@ -4148,3 +4148,25 @@ button.portrait-choice:hover {
     min-height: 0;
   }
 }
+
+/* Enemies caught off guard lose their first turn. */
+.turn-entry.surprised {
+  opacity: 0.45;
+}
+
+.turn-entry.surprised .turn-portrait {
+  border-style: dashed;
+}
+
+/* A painted floor under the battlefield: one texture repeat spans six squares, darkened a
+   little so tokens and lit tiles stand out. The cells keep only their thin grid lines. */
+.combat-grid.painted {
+  background-size: auto, calc(var(--cell) * 6) calc(var(--cell) * 6);
+  background-repeat: repeat;
+  background-position: 6px 6px;
+}
+
+.combat-grid.painted .combat-cell:not(.walkable) {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 30%);
+}

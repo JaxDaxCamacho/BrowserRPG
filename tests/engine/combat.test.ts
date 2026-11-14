@@ -100,11 +100,77 @@ function place(s: GameState, spots: Record<string, Pos>): GameState {
 const room = arena(8, 6, [{ monsterId: 'bandit-thug', count: 1 }]);
 
 describe('setting up a fight', () => {
-  it('uses the room size for the grid, party along the near edge and enemies along the far one', () => {
+  it('uses the room size for the grid', () => {
     const c = combatOf(fight(arena(8, 6, [{ monsterId: 'bandit-thug', count: 2 }])).state);
     expect([c.width, c.height]).toEqual([8, 6]);
-    expect(standing(c, 'party').every((x) => x.pos.y === 5)).toBe(true);
-    expect(standing(c, 'enemy').every((x) => x.pos.y === 0)).toBe(true);
+  });
+
+  it('starts each side where it stood on the map, keeping the distance between them', () => {
+    // The party stands at the room's top-left corner, the enemies at its top-right.
+    const c = combatOf(fight(arena(10, 6, [{ monsterId: 'bandit-thug', count: 2 }])).state);
+    const party = standing(c, 'party');
+    const enemies = standing(c, 'enemy');
+    expect(party.every((x) => x.pos.x <= 2)).toBe(true);
+    expect(enemies.every((x) => x.pos.x >= 8)).toBe(true);
+    const gap = Math.min(...party.flatMap((p) => enemies.map((e) => distance(p.pos, e.pos))));
+    expect(gap).toBeGreaterThanOrEqual(6);
+  });
+
+  it('starts closer when the party was closer on the map', () => {
+    const def = arena(10, 6, [{ monsterId: 'bandit-thug', count: 1 }]);
+    const ctx = ctxFor(def);
+    let near = enterDungeon(partyOf(FOUR), def);
+    near = { ...near, screen: 'combat', dungeon: { ...near.dungeon!, pos: { x: 8, y: 1 } }, encounter: { featureId: 'foes', returnTo: def.start } };
+    const c = combatOf(startCombat(near, ctx));
+    const thug = standing(c, 'enemy')[0]!;
+    expect(Math.min(...standing(c, 'party').map((p) => distance(p.pos, thug.pos)))).toBeLessThanOrEqual(2);
+  });
+
+  it('starts a party still in the doorway at the nearest edge of the room', () => {
+    const def = arena(10, 6, [{ monsterId: 'bandit-thug', count: 1 }]);
+    const ctx = ctxFor(def);
+    let s = enterDungeon(partyOf(FOUR), def);
+    // Outside the room, to its left, level with the third row.
+    s = { ...s, screen: 'combat', dungeon: { ...s.dungeon!, pos: { x: 0, y: 3 } }, encounter: { featureId: 'foes', returnTo: def.start } };
+    const c = combatOf(startCombat(s, ctx));
+    expect(standing(c, 'party').every((x) => x.pos.x <= 1)).toBe(true);
+  });
+
+  it('a surprised group loses its whole first round', () => {
+    const def = arena(8, 6, [{ monsterId: 'bandit-thug', count: 2 }]);
+    const ctx = ctxFor(def);
+    let s = enterDungeon(partyOf(FOUR), def);
+    s = { ...s, screen: 'combat', encounter: { featureId: 'foes', returnTo: def.start, surprise: true } };
+    let state = startCombat(s, ctx);
+    const c = combatOf(state);
+    expect(c.surprise).toBe(true);
+    expect(c.log[0]).toMatch(/Surprise!/);
+    // Round 1 is the party's alone.
+    for (let i = 0; i < 10 && combatOf(state).round === 1; i++) {
+      expect(activeCombatant(combatOf(state)).side).toBe('party');
+      state = endTurn(state);
+    }
+    const after = combatOf(state);
+    expect(after.round).toBe(2);
+    expect(after.log.filter((l) => /caught off guard and loses the turn/.test(l))).toHaveLength(2);
+    // From round 2 the enemies act as usual.
+    const seen = new Set<string>();
+    for (let i = 0; i < 10 && combatOf(state).round === 2; i++) {
+      seen.add(activeCombatant(combatOf(state)).side);
+      const actor = activeCombatant(combatOf(state));
+      state = actor.side === 'enemy' ? runEnemyTurn(state, ctx) : endTurn(state);
+    }
+    expect(seen.has('enemy')).toBe(true);
+  });
+
+  it('gives no surprise round in an ambush', () => {
+    const def = arena(8, 6, [{ monsterId: 'bandit-thug', count: 2 }], true);
+    const ctx = ctxFor(def);
+    let s = enterDungeon(partyOf(FOUR), def);
+    s = { ...s, screen: 'combat', encounter: { featureId: 'foes', returnTo: def.start, surprise: true } };
+    const c = combatOf(startCombat(s, ctx));
+    expect(c.ambush).toBe(true);
+    expect(c.surprise).toBeUndefined();
   });
 
   it('keeps the grid within its limits', () => {
@@ -265,7 +331,7 @@ describe('enemy tactics', () => {
 
   it('an archer steps away from a merc next to it', () => {
     const { state, ctx } = fight(arena(8, 6, [{ monsterId: 'bandit-archer', count: 1 }]));
-    const s = place(giveTurnTo(state, 'bandit-archer-1'), { 'bandit-archer-1': { x: 3, y: 4 } });
+    const s = place(giveTurnTo(state, 'bandit-archer-1'), { 'bandit-archer-1': { x: 3, y: 4 }, 'merc-1': { x: 3, y: 5 } });
     const plan = planEnemyTurn(s, ctx);
     expect(plan.move).not.toBeNull();
     expect(Math.min(...standing(combatOf(s), 'party').map((p) => distance(plan.move!, p.pos)))).toBeGreaterThanOrEqual(2);

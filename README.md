@@ -44,6 +44,10 @@ Then run:
 npm run assets:sync
 ```
 
+Floor textures for painting rooms are made from the isometric floor art in the git-ignored
+`Assets/Tiles/` by `npm run floors`, which writes the committed `Assets/Floors/` (run it before the
+sync if the tiles change).
+
 This resizes the images (and compresses the sounds) into `asset-library/` (git-ignored), served at
 `/asset-library/` by the dev server and the preview, and writes `asset-library/index.json`. Content refers to assets by id, such as
 `weapons/swords/sv-t-01`; anything missing shows a placeholder, so the game still runs

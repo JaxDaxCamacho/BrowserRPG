@@ -1,5 +1,6 @@
-import { Application, Assets, BlurFilter, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
+import { Application, Assets, BlurFilter, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Text, Texture, TilingSprite } from 'pixi.js';
 import {
+  floorAt,
   roomsLitFrom,
   SIGHT_RADIUS,
   tileAt,
@@ -13,6 +14,8 @@ import {
 
 /** Size of one map tile in world pixels. */
 export const TILE = 40;
+/** A floor texture repeats every this many tiles. */
+const FLOOR_REPEAT_TILES = 6;
 
 const TILE_COLOURS: Record<TileType, number> = {
   wall: 0x2e2822,
@@ -65,6 +68,11 @@ export class DungeonView {
   private app = new Application();
   private world = new Container();
   private tiles = new Graphics();
+  /** Painted floors under the tiles: one texture for the map, one per painted room, clipped to tiles seen. */
+  private floors = new Container();
+  private floorMask = new Graphics();
+  /** What the floor sprites were last built from, so they are only rebuilt when that changes. */
+  private floorKey = '';
   /** Darkness over the map, blurred so the edges of sight are soft. */
   private fog = new Graphics();
   private pathLayer = new Graphics();
@@ -104,7 +112,8 @@ export class DungeonView {
 
     this.fog.filters = [new BlurFilter({ strength: TILE * 0.35, quality: 4 })];
     // Markers sit above the fog so the goal can be seen from the start; only seen markers are drawn otherwise.
-    this.world.addChild(this.tiles, this.fog, this.pathLayer, this.markers, this.otherTokens, this.token);
+    this.floors.mask = this.floorMask;
+    this.world.addChild(this.floorMask, this.floors, this.tiles, this.fog, this.pathLayer, this.markers, this.otherTokens, this.token);
     this.app.stage.addChild(this.world);
     this.app.stage.eventMode = 'static';
     this.app.stage.hitArea = new Rectangle(-1e6, -1e6, 2e6, 2e6);
@@ -173,6 +182,7 @@ export class DungeonView {
   private redraw(): void {
     const s = this.state!;
     // Tiles are redrawn every time: what is lit changes whenever the party moves.
+    this.drawFloors(s);
     this.drawTiles(s);
     this.drawPath(s);
     this.drawMarkers(s);
@@ -186,6 +196,42 @@ export class DungeonView {
       this.tokenTarget = { x: this.token.x, y: this.token.y };
       this.hasCentred = true;
     }
+  }
+
+  /** Builds the floor sprites when the map or its loaded textures change, and clips them to the tiles seen. */
+  private drawFloors({ def, dungeon }: ViewState): void {
+    const pieces = [
+      { x: 0, y: 0, width: def.width, height: def.height, floor: def.floor },
+      ...def.rooms.map((r) => ({ x: r.x, y: r.y, width: r.width, height: r.height, floor: r.floor ?? def.floor })),
+    ].filter((p): p is typeof p & { floor: string } => !!p.floor);
+    const loaded = pieces.map((p) => this.texture(p.floor));
+    const key = `${def.id}|${pieces.map((p, i) => `${p.floor}:${loaded[i] ? 1 : 0}`).join(',')}|${def.rooms.map((r) => `${r.x},${r.y},${r.width},${r.height}`).join(';')}`;
+    if (key !== this.floorKey) {
+      this.floorKey = key;
+      for (const child of this.floors.removeChildren()) child.destroy();
+      pieces.forEach((p, i) => {
+        const texture = loaded[i];
+        if (!texture) return;
+        const sprite = new TilingSprite({ texture, width: p.width * TILE, height: p.height * TILE });
+        sprite.position.set(p.x * TILE, p.y * TILE);
+        sprite.tileScale.set((FLOOR_REPEAT_TILES * TILE) / texture.width);
+        // Line the pattern up across the whole map, so a room's floor continues the corridor's.
+        sprite.tilePosition.set(-p.x * TILE, -p.y * TILE);
+        this.floors.addChild(sprite);
+      });
+    }
+    const m = this.floorMask.clear();
+    for (let y = 0; y < def.height; y++) {
+      for (let x = 0; x < def.width; x++) {
+        if (dungeon.seen[y * def.width + x] === '1' && tileAt(def, x, y) !== 'wall') m.rect(x * TILE, y * TILE, TILE, TILE).fill(0xffffff);
+      }
+    }
+  }
+
+  /** True when a painted floor has loaded for this tile. */
+  private painted(def: DungeonDefinition, x: number, y: number): boolean {
+    const floor = floorAt(def, { x, y });
+    return !!floor && !!this.texture(floor);
   }
 
   private drawTiles({ def, dungeon }: ViewState): void {
@@ -209,7 +255,12 @@ export class DungeonView {
           if (walkable(x - 1, y)) g.moveTo(px + 1.5, py).lineTo(px + 1.5, py + TILE).stroke(edge);
           continue;
         }
-        g.rect(px, py, TILE, TILE).fill(TILE_COLOURS[type]);
+        // Painted floors show through, with only a faint grid; doors and stairs keep their colour.
+        if (this.painted(def, x, y) && type !== 'door' && type !== 'lockedDoor' && type !== 'stairs') {
+          g.rect(px, py, TILE, TILE).fill({ color: 0x000000, alpha: 0.12 });
+        } else {
+          g.rect(px, py, TILE, TILE).fill(TILE_COLOURS[type]);
+        }
         g.rect(px + 0.5, py + 0.5, TILE - 1, TILE - 1).stroke({ width: 1, color: 0x000000, alpha: 0.18 });
         if (type === 'door' || type === 'lockedDoor') {
           g.rect(px + TILE * 0.3, py + TILE * 0.3, TILE * 0.4, TILE * 0.4).fill({ color: 0x000000, alpha: 0.25 });

@@ -32,6 +32,8 @@ import {
   type FeatureType,
 } from './dungeonEdit';
 import type { JsonObject, JsonSchema } from './jsonSchema';
+import { assetUrl } from '../screens/assets';
+import { AssetField } from './AssetPicker';
 import { drawMap, tileColour, type Selection } from './mapCanvas';
 import { SchemaForm, type RefOption } from './SchemaForm';
 
@@ -252,6 +254,25 @@ function DungeonEditor({ initial, isNew: startsNew, onClose }: EditorProps) {
 
   // ---------- drawing ----------
 
+  // Painted floors load once; each one that arrives redraws the map.
+  const floorImages = useRef(new Map<string, HTMLImageElement>());
+  const [floorsLoaded, setFloorsLoaded] = useState(0);
+  const floorImage = useCallback(
+    (id: string): HTMLImageElement | null => {
+      let img = floorImages.current.get(id);
+      if (!img) {
+        img = new Image();
+        img.onload = () => setFloorsLoaded((n) => n + 1);
+        img.src = assetUrl(id);
+        floorImages.current.set(id, img);
+      }
+      return img.complete && img.naturalWidth > 0 ? img : null;
+    },
+    // A new function once more floors have loaded, so the map redraws with them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [floorsLoaded],
+  );
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -263,8 +284,8 @@ function DungeonEditor({ initial, isNew: startsNew, onClose }: EditorProps) {
     canvas.style.height = `${dungeon.height * size}px`;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     const colour = tool === 'room' ? tileColour(tile === '_' ? '_' : ',') : tileColour(tile);
-    drawMap(ctx, dungeon, size, { selection, hover, ...(preview ? { preview: { ...preview, colour } } : {}) });
-  }, [dungeon, size, selection, hover, preview, tool, tile]);
+    drawMap(ctx, dungeon, size, { selection, hover, floorImage, ...(preview ? { preview: { ...preview, colour } } : {}) });
+  }, [dungeon, size, selection, hover, preview, tool, tile, floorImage]);
 
   // ---------- pointer input ----------
 
@@ -572,7 +593,7 @@ function DungeonEditor({ initial, isNew: startsNew, onClose }: EditorProps) {
               key={`room:${dungeon.rooms.indexOf(selectedRoom)}`}
               root={roomSchema}
               refsFor={() => null}
-              assetCategoryFor={() => null}
+              assetCategoryFor={(f) => (f === 'floor' ? 'floors' : null)}
               value={selectedRoom as unknown as JsonObject}
               onChange={updateRoom}
             />
@@ -638,6 +659,20 @@ function DungeonEditor({ initial, isNew: startsNew, onClose }: EditorProps) {
             <span>Name</span>
             <input type="text" value={dungeon.name} onChange={(e) => change((d) => ({ ...d, name: e.target.value }))} />
           </label>
+          <div className="field">
+            <span>Floor (corridors, and rooms without their own)</span>
+            <AssetField
+              {...(dungeon.floor ? { value: dungeon.floor } : {})}
+              category="floors"
+              allowClear
+              onChange={(floor) =>
+                change((d) => {
+                  const { floor: _old, ...rest } = d;
+                  return floor ? { ...rest, floor } : rest;
+                })
+              }
+            />
+          </div>
           {isNew && (
             <label className="field">
               <span>Id (file name; fixed once saved)</span>

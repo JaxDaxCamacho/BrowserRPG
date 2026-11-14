@@ -489,8 +489,10 @@ export const dungeonSchema = z
         width: z.number().int().min(1),
         height: z.number().int().min(1),
         rows: z.number().int().min(2).max(5),
+        floor: z.string().min(1).optional(),
       }),
     ),
+    floor: z.string().min(1).optional(),
     features: z.array(
       z.discriminatedUnion('type', [
         z.strictObject({

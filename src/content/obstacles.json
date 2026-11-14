@@ -36,7 +36,8 @@
     "description": "Solid stone. Blocks movement and line of sight, and does not break.",
     "blocksMove": true,
     "blocksLoS": true,
-    "hp": null
+    "hp": null,
+    "icon": "obstacles/dungeon/pillar"
   },
   {
     "id": "crate",
@@ -55,6 +56,277 @@
     "description": "A great rock. Blocks movement and line of sight, and does not break.",
     "blocksMove": true,
     "blocksLoS": true,
+    "hp": null,
+    "icon": "obstacles/dungeon/rock2"
+  },
+  {
+    "id": "statue",
+    "name": "Statue",
+    "icon": "obstacles/dungeon/statue",
+    "emoji": "🗽",
+    "description": "A stone figure on a plinth. Blocks movement and line of sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": true,
     "hp": null
+  },
+  {
+    "id": "stone-block",
+    "name": "Stone Block",
+    "icon": "obstacles/dungeon/stone-block",
+    "emoji": "🧱",
+    "description": "A squared block of masonry: waist-high cover you can shoot over, and it does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "table",
+    "name": "Table",
+    "icon": "obstacles/dungeon/table",
+    "emoji": "🪑",
+    "description": "A heavy wooden table. Gets in the way, but arrows fly over it, and a few blows break it.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 6
+  },
+  {
+    "id": "bookshelf",
+    "name": "Bookshelf",
+    "icon": "obstacles/dungeon/bookshelf",
+    "emoji": "📚",
+    "description": "A tall shelf of books: blocks arrows and spells until it is smashed apart.",
+    "blocksMove": true,
+    "blocksLoS": true,
+    "hp": 10
+  },
+  {
+    "id": "well",
+    "name": "Well",
+    "icon": "obstacles/dungeon/well",
+    "emoji": "🪣",
+    "description": "A stone well. Blocks movement but not sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "standing-torch",
+    "name": "Standing Torch",
+    "icon": "obstacles/dungeon/standing-torch",
+    "emoji": "🔥",
+    "description": "An iron torch stand. Thin enough to see past; knocked over with a single blow.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 3
+  },
+  {
+    "id": "coffin",
+    "name": "Coffin",
+    "icon": "obstacles/dungeon/coffin",
+    "emoji": "⚰️",
+    "description": "A wooden coffin, lid nailed shut. Low cover that takes a few blows to break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 8
+  },
+  {
+    "id": "skull-pile",
+    "name": "Skull Pile",
+    "icon": "obstacles/dungeon/skull-pile",
+    "emoji": "💀",
+    "description": "A heap of old bones. In the way, but it scatters with a kick or two.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 4
+  },
+  {
+    "id": "altar",
+    "name": "Altar",
+    "icon": "obstacles/dungeon/altar",
+    "emoji": "🕯️",
+    "description": "A carved stone altar. Blocks movement but not sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "campfire",
+    "name": "Campfire",
+    "icon": "obstacles/dungeon/campfire",
+    "emoji": "🔥",
+    "description": "A cookfire with a pot over it. Nobody walks through it, but you can see across it.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "rock",
+    "name": "Rock",
+    "icon": "obstacles/dungeon/rock3",
+    "emoji": "🪨",
+    "description": "A knee-high rock: in the way, but you can see and shoot over it. It does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "rubble",
+    "name": "Rubble",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-rubble3",
+    "emoji": "🧱",
+    "description": "A heap of fallen stone. Nobody walks through it, but it hides nothing.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "stalagmite",
+    "name": "Stalagmite",
+    "icon": "obstacles/dungeon/stalagmite2",
+    "emoji": "🗻",
+    "description": "A spire of dripstone. Thin enough to see past; it takes a while to break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 12
+  },
+  {
+    "id": "lantern-post",
+    "name": "Lantern Post",
+    "icon": "obstacles/dungeon/cavetorch3",
+    "emoji": "🏮",
+    "description": "A crooked post with a lantern on it. One blow knocks it down.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 3
+  },
+  {
+    "id": "pit",
+    "name": "Pit",
+    "icon": "obstacles/dungeon/pit-m",
+    "emoji": "🕳️",
+    "description": "A dark hole in the floor. Nobody walks over it, but you can see and shoot across.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "lava-pool",
+    "name": "Lava Pool",
+    "icon": "obstacles/dungeon/lavapit1",
+    "emoji": "🌋",
+    "description": "Molten rock. Impassable, but it hides nothing.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "snowdrift",
+    "name": "Snowdrift",
+    "icon": "obstacles/dungeon/snowpile3",
+    "emoji": "❄️",
+    "description": "A bank of packed snow: in the way until someone digs through it.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 6
+  },
+  {
+    "id": "ice-spike",
+    "name": "Ice Spike",
+    "icon": "obstacles/dungeon/snowbit3",
+    "emoji": "🧊",
+    "description": "A jagged spike of ice. Brittle: a few blows shatter it.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 6
+  },
+  {
+    "id": "lava-rock",
+    "name": "Lava Rock",
+    "icon": "obstacles/dungeon/volcanicbit4",
+    "emoji": "🔥",
+    "description": "A smouldering lump of volcanic rock. Impassable, and it does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "forge",
+    "name": "Forge",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-forge",
+    "emoji": "⚒️",
+    "description": "A smith's forge, still warm. Blocks movement but not sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "anvil",
+    "name": "Anvil",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-anvil",
+    "emoji": "⚒️",
+    "description": "A heavy iron anvil: low cover that will not move or break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "throne",
+    "name": "Throne",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-throne",
+    "emoji": "👑",
+    "description": "A high-backed throne. Blocks movement but not sight, and does not break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "cabinet",
+    "name": "Cabinet",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-cabinet",
+    "emoji": "🗄️",
+    "description": "A tall wooden cabinet: blocks arrows and spells until it is smashed.",
+    "blocksMove": true,
+    "blocksLoS": true,
+    "hp": 8
+  },
+  {
+    "id": "candelabra",
+    "name": "Candelabra",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-candleabra",
+    "emoji": "🕯️",
+    "description": "A tall iron candle stand. Easy to see past, and to knock over.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 3
+  },
+  {
+    "id": "pew",
+    "name": "Pew",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-pew1",
+    "emoji": "🪑",
+    "description": "A long wooden bench: low cover that a few blows break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 6
+  },
+  {
+    "id": "broken-statue",
+    "name": "Broken Statue",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-statuebroken",
+    "emoji": "🗿",
+    "description": "What is left of a statue: too low to hide behind, too heavy to break.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": null
+  },
+  {
+    "id": "weapon-rack",
+    "name": "Weapon Rack",
+    "icon": "obstacles/dungeon/galefirerpg-dungeon-doodads-armory",
+    "emoji": "🗡️",
+    "description": "A rack of old weapons. In the way, and breaks with a few blows.",
+    "blocksMove": true,
+    "blocksLoS": false,
+    "hp": 8
   }
 ]
