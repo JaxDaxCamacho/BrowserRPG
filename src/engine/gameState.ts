@@ -33,6 +33,8 @@ export interface GameState {
   party: Merc[];
   /** The merc who speaks for the party and is its token on the map. */
   leaderId: string | null;
+  /** Co-op, while the leader is being chosen: each player's pick, by player id. */
+  leaderVotes?: Record<string, string>;
   /** Counter for handing out merc ids that are unique within this game. */
   nextMercId: number;
   /** Story facts set by choices, read by later conditions. */

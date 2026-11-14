@@ -147,3 +147,56 @@ describe('making the party together', () => {
     expect(runCommand(fresh(), { type: 'addMerc', draft: draft() }).party[0]!.talents).toEqual({ 't-backstab': 1 });
   });
 });
+
+describe('voting for the leader', () => {
+  const choosing = (): GameState => ({ ...party(), leaderId: null, screen: 'leaderSelect' });
+  const voting = (voterId: string) => ({ voterId, voters: votersFor(session(), choosing()) });
+  const vote = (g: GameState, voterId: string, mercId: string) => runCommand(g, { type: 'voteLeader', mercId }, voting(voterId));
+
+  it('gives every player with a merc a vote', () => {
+    expect(votersFor(session(), choosing()).sort()).toEqual(['ana', 'bo', HOST_ID].sort());
+  });
+
+  it('waits for everyone, then the most votes lead', () => {
+    let g = vote(choosing(), 'ana', 'merc-3');
+    g = vote(g, 'bo', 'merc-3');
+    expect(g.leaderId).toBeNull();
+    g = vote(g, HOST_ID, 'merc-1');
+    expect(g.leaderId).toBe('merc-3');
+  });
+
+  it('lets the host break a tie', () => {
+    const s: SessionInfo = { ...session(), seats: { 'merc-2': 'ana' } };
+    const v = (voterId: string) => ({ voterId, voters: votersFor(s, choosing()) });
+    let g = runCommand(choosing(), { type: 'voteLeader', mercId: 'merc-2' }, v('ana'));
+    g = runCommand(g, { type: 'voteLeader', mercId: 'merc-4' }, v(HOST_ID));
+    expect(g.leaderId).toBe('merc-4');
+  });
+
+  it('follows a changed vote until the leader is confirmed, then forgets the votes', () => {
+    let g = vote(choosing(), 'ana', 'merc-2');
+    g = vote(g, 'bo', 'merc-2');
+    g = vote(g, HOST_ID, 'merc-1');
+    expect(g.leaderId).toBe('merc-2');
+    g = vote(g, 'bo', 'merc-1');
+    g = vote(g, 'ana', 'merc-1');
+    expect(g.leaderId).toBe('merc-1');
+    g = runCommand(g, { type: 'confirmLeader' });
+    expect(g.screen).toBe('adventureSelect');
+    expect(g.leaderVotes).toBeUndefined();
+  });
+
+  it('alone, a vote simply picks the leader', () => {
+    expect(runCommand(choosing(), { type: 'voteLeader', mercId: 'merc-4' }).leaderId).toBe('merc-4');
+  });
+
+  it('only players with a merc may vote, and only while the leader is being chosen', () => {
+    const controlsNone = () => false;
+    const controlsPip = (id: string) => id === 'merc-2';
+    expect(commandBlocker(choosing(), { type: 'voteLeader', mercId: 'merc-1' }, false, controlsPip)).toBeNull();
+    expect(commandBlocker(choosing(), { type: 'voteLeader', mercId: 'merc-1' }, false, controlsNone)).toMatch(/no merc/);
+    expect(commandBlocker({ ...choosing(), screen: 'adventureSelect' }, { type: 'voteLeader', mercId: 'merc-1' }, false, controlsPip)).toMatch(/once the party is made/);
+    // Choosing a leader outright stays the host's.
+    expect(commandBlocker(choosing(), { type: 'setLeader', mercId: 'merc-1' }, false, controlsPip)).toMatch(/Only the host/);
+  });
+});

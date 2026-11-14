@@ -10,6 +10,8 @@ import {
   endExploreTurn,
   endTurn,
   enterDungeon,
+  EXPLORE_BASE_MOVEMENT,
+  exploreMovement,
   findPath,
   finishCombat,
   groupMovement,
@@ -23,6 +25,7 @@ import {
   settle,
   splitOff,
   startNewGame,
+  statModifier,
   stepParty,
   type CombatContext,
   type DungeonDefinition,
@@ -78,6 +81,26 @@ function walk(s: GameState, to: Pos): GameState {
 
 const slot = (s: GameState) => s.dungeon!.world?.current;
 const posOf = (s: GameState, groupId: string) => groupsOf(s).find((g) => g.id === groupId)!.pos;
+
+describe('exploration movement while split', () => {
+  it('is 3 + Agility modifier for every merc, whatever their race', () => {
+    // A dwarf (2 in a fight), an elf (4), a goliath and a human.
+    let s: GameState = { ...startNewGame(4), adventureId: 'greywater-ford' };
+    for (const id of ['dagna-ironbrow', 'sylwen-ashbow', 'korg-the-unbowed', 'aldric-vane']) s = addMerc(s, premadeToDraft(PREMADES.find((p) => p.id === id)!));
+    for (const merc of s.party) {
+      const agility = ctx.sheetOf(merc).stats.agility;
+      expect(exploreMovement(merc, ctx)).toBe(Math.max(1, EXPLORE_BASE_MOVEMENT + statModifier(agility)));
+    }
+  });
+
+  it('moves a group as far as its slowest member', () => {
+    const s = run(party(), (g) => splitOff(g, 'merc-2'));
+    const main = groupsOf(s)[0]!;
+    const slowest = Math.min(...main.mercIds.map((id) => exploreMovement(s.party.find((m) => m.id === id)!, ctx)));
+    expect(groupMovement(s, main, ctx)).toBe(slowest);
+    expect(s.dungeon!.world!.movesLeft).toBe(slowest);
+  });
+});
 
 describe('splitting the party', () => {
   it('gives the merc their own token and starts taking turns', () => {

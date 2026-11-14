@@ -14,8 +14,8 @@ export function ScreenRouter() {
   const screen = useGameStore((s) => s.game.screen);
   const isClient = useGameStore((s) => s.net?.role === 'client');
 
-  // Joined players wait while the host is on the menus; during party creation they make their own merc.
-  if (isClient && (screen === 'menu' || screen === 'leaderSelect' || screen === 'adventureSelect')) {
+  // Joined players wait while the host is on the menus; they make their own merc and vote for the leader.
+  if (isClient && (screen === 'menu' || screen === 'adventureSelect')) {
     return <WaitingRoom />;
   }
 

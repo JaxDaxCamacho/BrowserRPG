@@ -173,11 +173,12 @@ For how to run, build and package the game, see the [README](../README.md).
   Bandit Captain is the watchtower's boss.
 
 ### Map and party
-- [ ] **Split-party movement.** While the party is split, every merc moves 3 + Agility modifier
-  tiles per exploration turn on the map.
+- [x] **Split-party movement.** While the party is split, every merc moves 3 + Agility modifier
+  tiles per exploration turn on the map, whatever their race or gear; a group moves at its slowest.
 - [ ] **Better map graphics.** Started: rooms and corridors can be painted with floor textures
   (dungeon maker), shown on the map and the battlefield.
-- [ ] **Co-op: vote for the leader.**
+- [x] **Co-op: vote for the leader.** Every player with a merc votes; most votes lead, the host
+  breaks ties, and votes can change until the host confirms.
 
 ### Big reworks (agree a design first)
 - [ ] **Expand and rework items and gear.**

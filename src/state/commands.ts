@@ -40,6 +40,7 @@ import {
   runEnemyStep,
   setDestination,
   setLeader,
+  voteForLeader,
   spendStatPoints,
   spendTalentPoints,
   splitOff,
@@ -55,6 +56,7 @@ import {
   type Pos,
   type StatName,
 } from '../engine';
+import { HOST_ID } from '../net/protocol';
 import { combatContext, dialogueContext, dungeonContext } from './context';
 
 /**
@@ -68,6 +70,8 @@ export type GameCommand =
   | { type: 'removeMerc'; mercId: string }
   | { type: 'confirmParty' }
   | { type: 'setLeader'; mercId: string }
+  /** Co-op: a player's vote for the leader (alone, it just picks the leader). */
+  | { type: 'voteLeader'; mercId: string }
   | { type: 'confirmLeader' }
   | { type: 'goToScreen'; screen: 'partyCreation' | 'leaderSelect' }
   | { type: 'startAdventure'; adventureId: string }
@@ -151,6 +155,9 @@ export function runCommand(g: GameState, cmd: GameCommand, voting?: Voting): Gam
       return confirmParty(g);
     case 'setLeader':
       return setLeader(g, cmd.mercId);
+    case 'voteLeader':
+      // The host's vote breaks a tie: there is no leader yet to do it.
+      return voting ? voteForLeader(g, voting.voterId, cmd.mercId, voting.voters, HOST_ID) : setLeader(g, cmd.mercId);
     case 'confirmLeader':
       return confirmLeader(g);
     case 'goToScreen':
@@ -312,6 +319,10 @@ export function commandBlocker(g: GameState, cmd: GameCommand, isHost: boolean, 
   }
   if (MAP_MOVES.has(cmd.type)) {
     return activeMercIds(g).some(controls) ? null : 'None of your mercs is in the group that is moving.';
+  }
+  if (cmd.type === 'voteLeader') {
+    if (g.screen !== 'leaderSelect') return 'The leader is chosen once the party is made.';
+    return g.party.some((m) => controls(m.id)) ? null : 'You have no merc in the party, so no vote.';
   }
   if (cmd.type === 'vote' || cmd.type === 'continueDialogue') {
     const present = g.dialogue?.mercIds ?? g.party.filter((m) => !m.dead).map((m) => m.id);

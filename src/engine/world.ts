@@ -131,16 +131,19 @@ export function endExploreTurn(state: GameState): GameState {
 
 // ---------- the world round ----------
 
+/** Tiles every merc walks in an exploration turn on the map, before their Agility modifier, whatever their race or gear. */
+export const EXPLORE_BASE_MOVEMENT = 3;
+
+/** Tiles one merc can walk in an exploration turn while the party is split: 3 + Agility modifier, at least 1. */
+export function exploreMovement(merc: Merc, ctx: Pick<CombatContext, 'sheetOf'>): number {
+  return Math.max(1, EXPLORE_BASE_MOVEMENT + statModifier(ctx.sheetOf(merc).stats.agility));
+}
+
 /** Tiles a group can walk in one exploration turn: as far as its slowest member. */
 export function groupMovement(state: GameState, group: GroupState, ctx: CombatContext): number {
   const mercs = group.mercIds.map((id) => state.party.find((m) => m.id === id)).filter((m): m is Merc => !!m && !m.dead);
   if (mercs.length === 0) return 0;
-  return Math.min(
-    ...mercs.map((m) => {
-      const sheet = ctx.sheetOf(m);
-      return Math.max(1, (ctx.raceOf(m).movement ?? 3) + statModifier(sheet.stats.agility) + sheet.movementBonus);
-    }),
-  );
+  return Math.min(...mercs.map((m) => exploreMovement(m, ctx)));
 }
 
 function withWorld(state: GameState, world: WorldState | undefined): GameState {
