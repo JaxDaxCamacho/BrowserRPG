@@ -182,7 +182,16 @@ For how to run, build and package the game, see the [README](../README.md).
 
 ### Big reworks (agree a design first)
 - [ ] **Expand and rework items and gear.**
-- [ ] **Expand and rework each class's abilities.**
+- [ ] **Expand and rework each class's abilities.** In progress, one class at a time.
+  - [x] **Knight** (rebuilt):
+    - *Templar*: Two-Handed Mastery (to hit, crits on 19), Crushing Blow, Divinity Channeled,
+      Execution, Fanatic Zeal, Righteous Vigour, Judgement (melee at 4 squares with spiritual
+      damage), Avatar of Wrath (2×2 for 4 rounds, then 1 HP).
+    - *Guardian*: Bulwark (shield ×1.5–2.5), Taunt, Stalwart, Shield Bash, Retribution
+      (counterstrikes), Thunderous Charge, Shield Wall, Shield Throw, Heroic Intervention.
+    - *Captain*: Forward!, Hold Fast, Inspiring Presence and Steady Ranks (auras), Opening!,
+      Company Banner (+1 to every roll nearby), Coordinated Assault, Lead by Example.
+  - [ ] Barbarian, Ranger, Wizard, Warlock, Rogue.
 
 ### Done
 - [x] Rule decision: spiritual damage ignores both physical and magic armour.

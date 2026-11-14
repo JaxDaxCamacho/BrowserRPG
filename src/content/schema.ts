@@ -109,8 +109,18 @@ export const itemEffectSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ability'), abilityId: id }),
   z.strictObject({ type: z.literal('heal'), amount: z.number().int().positive() }),
   z.strictObject({ type: z.literal('movement'), amount: z.number().int() }),
-  z.strictObject({ type: z.literal('damage'), amount: z.number().int(), twoHandedOnly: z.boolean().optional() }),
-  z.strictObject({ type: z.literal('critRange'), amount: z.number().int().min(1).max(5) }),
+  z.strictObject({ type: z.literal('damage'), amount: z.number().int(), twoHandedOnly: z.boolean().optional(), meleeOnly: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('critRange'), amount: z.number().int().min(1).max(5), twoHandedOnly: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('attackBonus'), amount: z.number().int(), twoHandedOnly: z.boolean().optional(), meleeOnly: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('critHeal'), percent: z.number().int().min(1).max(100) }),
+  z.strictObject({ type: z.literal('healedDefense'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('shieldBoost'), amount: z.number().positive().max(5) }),
+  z.strictObject({ type: z.literal('ignoreArmourPenalty') }),
+  z.strictObject({ type: z.literal('riposte'), level: z.number().int().min(1).max(3) }),
+  z.strictObject({ type: z.literal('intervene'), level: z.number().int().min(1).max(3) }),
+  z.strictObject({ type: z.literal('aura'), bonus: z.enum(['attack', 'defense']), amount: z.number().int().positive(), radius: z.number().int().min(1).max(8) }),
+  z.strictObject({ type: z.literal('leadDamage'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('extraDamage'), damageType: z.enum(['physical', 'magic', 'spiritual']), dice, meleeOnly: z.boolean().optional() }),
   z.strictObject({ type: z.literal('retaliate'), amount: z.number().int().positive() }),
   z.strictObject({ type: z.literal('bloodrage'), amount: z.number().int().positive() }),
   z.strictObject({ type: z.literal('statusResist'), amount: z.number().int().positive() }),
@@ -251,8 +261,20 @@ export const abilitySchema = z.strictObject({
   effects,
   duration: z.number().int().min(1).optional(),
   cost: z.strictObject({ resource: z.enum(RESOURCES), amount: z.number().int().positive() }).optional(),
-  weaponAttack: z.strictObject({ bonus: z.number().int().optional() }).optional(),
+  weaponAttack: z
+    .strictObject({
+      bonus: z.number().int().optional(),
+      reach: z.number().int().min(1).max(12).optional(),
+      extra: z.strictObject({ damageType: z.enum(['physical', 'magic', 'spiritual']), dice }).optional(),
+    })
+    .optional(),
   requiresTwoHanded: z.boolean().optional(),
+  requiresShield: z.boolean().optional(),
+  grow: z.number().int().min(2).max(3).optional(),
+  exhausts: z.boolean().optional(),
+  charge: z.boolean().optional(),
+  throwShield: z.enum(['on', 'adjacent', 'return']).optional(),
+  banner: z.strictObject({ radius: z.number().int().min(1).max(6), bonus: z.number().int().min(1).max(5) }).optional(),
   bonuses: z.array(z.strictObject({ when: z.enum(BONUS_CONDITIONS), damage: dice })).optional(),
   statuses: z
     .array(
@@ -285,9 +307,12 @@ const talentSchema = z
     maxRanks: z.number().int().min(1).max(5),
     abilityId: id.optional(),
     effects: effects.optional(),
+    ranks: z.array(effects).optional(),
   })
   .refine((t) => !t.abilityId || t.maxRanks === 1, { message: 'a talent that teaches an ability has one rank' })
-  .refine((t) => t.abilityId || (t.effects?.length ?? 0) > 0, { message: 'a talent needs an ability or effects' });
+  .refine((t) => t.abilityId || (t.effects?.length ?? 0) > 0 || (t.ranks?.length ?? 0) > 0, { message: 'a talent needs an ability or effects' })
+  .refine((t) => !t.ranks || t.ranks.length === t.maxRanks, { message: '"ranks" needs one entry per rank' })
+  .refine((t) => !(t.ranks && t.effects), { message: 'a talent uses "effects" or "ranks", not both' });
 
 export const talentTreeSchema = z
   .strictObject({

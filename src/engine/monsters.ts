@@ -1,4 +1,4 @@
-import type { Armour, AttackProfile } from './attack';
+import type { Armour, AttackProfile, DamageType } from './attack';
 import type { ItemEffect } from './items';
 import type { StatName, Stats } from './stats';
 
@@ -115,10 +115,25 @@ export interface AbilityDefinition {
   duration?: number;
   /** What using it costs. */
   cost?: { resource: Resource; amount: number };
-  /** Strike with the user's own weapon, with its reach and ammunition, plus `bonus` damage. */
-  weaponAttack?: { bonus?: number };
+  /**
+   * Strike with the user's own weapon, with its reach and ammunition, plus `bonus` damage.
+   * `reach` lets a melee blow land that many squares away; `extra` adds damage dice of another type.
+   */
+  weaponAttack?: { bonus?: number; reach?: number; extra?: { damageType: DamageType; dice: string } };
   /** Needs a two-handed weapon in hand. */
   requiresTwoHanded?: boolean;
+  /** Needs a shield in hand (and not lying on the floor after a throw). */
+  requiresShield?: boolean;
+  /** The user grows to this size (2 is 2×2) for as long as the ability's effects last. */
+  grow?: number;
+  /** When the ability's effects wear off, the user drops to 1 HP. */
+  exhausts?: boolean;
+  /** The user first charges in a straight line, up to `range` squares, to the target. */
+  charge?: boolean;
+  /** The shield is thrown: afterwards it lies by the target until picked up by standing on it ('on'), next to it ('adjacent'), or flies straight back ('return'). */
+  throwShield?: 'on' | 'adjacent' | 'return';
+  /** Plants a banner on the user's square: allies within `radius` squares of it add `bonus` to every d20 roll. */
+  banner?: { radius: number; bonus: number };
   /** Extra damage dice when a condition holds. */
   bonuses?: { when: BonusCondition; damage: string }[];
   /** Conditions put on each target. */

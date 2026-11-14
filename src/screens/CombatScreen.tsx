@@ -13,6 +13,11 @@ import {
   isEngaged,
   obstacleTargets,
   rangePenaltyBetween,
+  abilityRange,
+  attackBonusFor,
+  bannerBonus,
+  chargePath,
+  defenseIn,
   reachOf,
   centreOf,
   covers,
@@ -287,6 +292,7 @@ function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
             <p className="roll-sum">
               {roll.natural} {signed(roll.modifier)} {STAT_SHORT[roll.stat]}
               {roll.rollBonus ? ` ${signed(roll.rollBonus)} off hand` : ''}
+              {roll.attackBonus ? ` ${signed(roll.attackBonus)} bonus` : ''}
               {roll.rangePenalty ? ` ${signed(-roll.rangePenalty)} range` : ''} = <strong>{roll.total}</strong> vs Defense {roll.defense}
               {roll.mode !== 'normal' && <span className="dim"> · {roll.mode} (rolled {roll.dice.join(' and ')})</span>}
               {roll.critThreshold < 20 && <span className="dim"> · crits on {roll.critThreshold}+</span>}
@@ -315,25 +321,27 @@ function hitChance(c: CombatState, actor: Combatant, target: Combatant, targetin
     if (!k) return null;
     kind = k;
     name = ability.name;
-    range = ability.weaponAttack ? actor.attack.range : ability.range;
+    range = abilityRange(actor, ability);
   } else if (targeting?.kind === 'kick') {
-    return `Kick: push on ${Math.min(20, Math.max(2, effectiveDefense(target) + 1))}+`;
+    return `Kick: push on ${Math.min(20, Math.max(2, defenseIn(c, target) - bannerBonus(c, actor) + 1))}+`;
   } else {
     kind = actor.attack.profile.kind;
     name = actor.attack.name;
     range = actor.attack.range;
   }
-  const need = hitOn(actor, target, kind);
+  const weapon = targeting?.kind !== 'ability' || !!targeting.ability.weaponAttack;
+  const need = hitOn(c, actor, target, kind, weapon);
   const pct = Math.round(((21 - need) / 20) * 100);
-  const far = !reachOf(c, range, actor, target, false).ok;
-  const dis = range > 0 && isEngaged(c, actor) ? ', disadvantage' : '';
+  const charging = targeting?.kind === 'ability' && targeting.ability.charge;
+  const far = charging ? chargePath(c, actor, target, range) === null : !reachOf(c, range, actor, target, false).ok;
+  const dis = range > 0 && kind !== 'melee' && isEngaged(c, actor) ? ', disadvantage' : '';
   return `${name}: hit on ${need}+ (${pct}%${dis}), graze otherwise${far ? ' · out of reach' : ''}`;
 }
 
 /** The natural roll the actor needs to hit (not graze) this target, for the targeting hint. Distance counts against ranged attacks. */
-function hitOn(actor: Combatant, target: Combatant, kind: keyof typeof ATTACK_STAT): number {
-  const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]) - rangePenaltyBetween(kind, actor, target);
-  return Math.min(20, Math.max(2, effectiveDefense(target) - modifier + 1));
+function hitOn(c: CombatState, actor: Combatant, target: Combatant, kind: keyof typeof ATTACK_STAT, weapon = true): number {
+  const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]) - rangePenaltyBetween(kind, actor, target) + attackBonusFor(c, actor, weapon);
+  return Math.min(20, Math.max(2, defenseIn(c, target) - modifier + 1));
 }
 
 interface TokenProps {
@@ -638,7 +646,7 @@ export function CombatScreen() {
     if (targeting.kind === 'attack') {
       for (const t of attackTargets(live, actor)) {
         const dis = actor.attack.range > 0 && isEngaged(live, actor);
-        targets.set(t.id, `hit on ${hitOn(actor, t, actor.attack.profile.kind)}+${dis ? ', disadvantage' : ''}`);
+        targets.set(t.id, `hit on ${hitOn(live, actor, t, actor.attack.profile.kind)}+${dis ? ', disadvantage' : ''}`);
       }
       for (const o of obstacleTargets(live, actor)) targets.set(o.id, 'destroy');
     } else if (targeting.kind === 'kick') {
@@ -647,7 +655,7 @@ export function CombatScreen() {
       const ability = targeting.ability;
       const kind = ability.weaponAttack ? actor.attack.profile.kind : ability.attack?.kind;
       for (const t of abilityTargets(live, actor, ability)) {
-        targets.set(t.id, kind && t.side !== actor.side ? `hit on ${hitOn(actor, t, kind)}+` : t.side === actor.side ? 'ally' : '');
+        targets.set(t.id, kind && t.side !== actor.side ? `hit on ${hitOn(live, actor, t, kind, !!ability.weaponAttack)}+` : t.side === actor.side ? 'ally' : '');
       }
     }
   }
@@ -741,16 +749,23 @@ export function CombatScreen() {
                   combat.combatants.find((x) => x.hp > 0 && covers(x, x.pos, p)) ??
                   combat.combatants.find((x) => covers(x, x.pos, p));
                 const obstacle = combat.obstacles.find((o) => o.pos.x === p.x && o.pos.y === p.y);
+                // A thrown shield lying on this square, waiting to be picked up.
+                const dropped = combat.combatants.find((x) => x.shieldDropped && x.shieldDropped.pos.x === p.x && x.shieldDropped.pos.y === p.y);
                 const canWalk = reachable.has(`${p.x},${p.y}`);
                 return (
                   <div key={`${p.x},${p.y}`} className={`combat-cell${canWalk ? ' walkable' : ''}`}>
-                    {canWalk && !here && !obstacle && (
+                    {canWalk && !here && (!obstacle || !obstacle.blocksMove) && (
                       <button
                         type="button"
                         className="cell-move"
                         aria-label={`Move to column ${p.x + 1}, row ${p.y + 1}`}
                         onClick={() => dispatch({ type: 'move', to: p })}
                       />
+                    )}
+                    {dropped && (
+                      <span className="dropped-shield" title={`${dropped.name}'s shield: ${dropped.shieldDropped!.pickup === 'adjacent' ? 'step next to it' : 'stand on it'} to pick it up`}>
+                        <AssetImage id={dropped.perks?.shieldIcon} fallback="🛡" className="dropped-shield-icon" />
+                      </span>
                     )}
                     {obstacle && (
                       <ObstacleToken
@@ -817,7 +832,7 @@ export function CombatScreen() {
       <footer className="combat-footer">
         <div className="footer-side footer-left">
           {leftShown && (
-            <CombatantPanel x={leftShown} subtitle={describe(leftShown)} className="acting-panel">
+            <CombatantPanel x={leftShown} subtitle={describe(leftShown)} defense={defenseIn(combat, leftShown)} className="acting-panel">
               <p className="panel-line dim">
                 {usable ? (
                   <>
@@ -885,7 +900,7 @@ export function CombatScreen() {
         </div>
         <div className="footer-side footer-right">
           {targetShown ? (
-            <CombatantPanel x={targetShown} subtitle={describe(targetShown)} className="target-panel">
+            <CombatantPanel x={targetShown} subtitle={describe(targetShown)} defense={defenseIn(combat, targetShown)} className="target-panel">
               {chance && <p className="panel-line hit-chance">{chance}</p>}
             </CombatantPanel>
           ) : (

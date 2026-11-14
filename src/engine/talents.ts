@@ -25,6 +25,12 @@ export interface TalentDefinition {
   abilityId?: string;
   /** Passive effects, applied once per rank. */
   effects?: ItemEffect[];
+  /**
+   * Effects for each rank, in place of `effects`: entry 0 is everything rank 1
+   * gives, entry 1 everything rank 2 gives, and so on. Lets a rank change what
+   * a talent does (a new ability version, a crit at the last rank).
+   */
+  ranks?: ItemEffect[][];
 }
 
 export interface TalentBranch {
@@ -94,7 +100,8 @@ export function talentEffects(merc: Pick<Merc, 'talents'>, tree: TalentTree | un
       const rank = Math.min(merc.talents[talent.id] ?? 0, talent.maxRanks);
       if (rank <= 0) continue;
       if (talent.abilityId) out.push({ type: 'ability', abilityId: talent.abilityId });
-      for (let i = 0; i < rank; i++) out.push(...(talent.effects ?? []));
+      if (talent.ranks) out.push(...(talent.ranks[rank - 1] ?? []));
+      else for (let i = 0; i < rank; i++) out.push(...(talent.effects ?? []));
     }
   }
   return out;

@@ -108,7 +108,7 @@ describe('talent trees', () => {
     let s = party([{ premade: 'aldric-vane' }]);
     const m = () => s.party[0]!;
     expect(talentBlocker(m(), knight, 't-execution')).toMatch(/Needs 5 points in Templar/);
-    s = spendTalentPoints(s, 'merc-1', ['two-handed-mastery', 'two-handed-mastery', 'two-handed-mastery', 't-crushing-blow', 'heavy-swings'], knight);
+    s = spendTalentPoints(s, 'merc-1', ['two-handed-mastery', 'two-handed-mastery', 'two-handed-mastery', 't-crushing-blow', 'divinity-channeled'], knight);
     expect(talentBlocker(m(), knight, 't-execution')).toBeNull();
     expect(talentBlocker(m(), knight, 't-judgement')).toMatch(/Needs 10 points/);
     expect(talentBlocker(m(), knight, 'two-handed-mastery')).toBe('Fully learned');
@@ -121,13 +121,14 @@ describe('talent trees', () => {
     expect(() => spendTalentPoints({ ...s, screen: 'dungeon' }, 'merc-1', ['bulwark'], knight)).toThrow(/camp or back in town/);
   });
 
-  it('adds passive bonuses per rank and teaches abilities', () => {
-    // Aldric starts with Taunt: his starting talent point is already placed.
+  it('adds passive bonuses by rank and teaches abilities', () => {
+    // Aldric starts with Taunt: his starting talent point is already placed. He carries a round shield (+2) and chainmail (-4).
     const s = party([{ premade: 'aldric-vane', talents: ['bulwark', 'bulwark', 'stalwart'] }]);
     const before = sheetOf(party([{ premade: 'aldric-vane' }]).party[0]!);
     const after = sheetOf(s.party[0]!);
-    expect(after.defense).toBe(before.defense + 2);
-    expect(after.maxHp).toBe(before.maxHp + 4);
+    // Bulwark rank 2 doubles the shield (+2 more); Stalwart lifts the chainmail's -4.
+    expect(after.defense).toBe(before.defense + 2 + 4);
+    expect(after.shieldDefense).toBe(4);
     expect(after.abilityIds).toContain('taunt');
     expect(talentEffects(s.party[0]!, knight)).toContainEqual({ type: 'ability', abilityId: 'taunt' });
     expect(currentHp(s.party[0]!).max).toBe(after.maxHp);
@@ -164,7 +165,7 @@ describe('resources and the action bar rules', () => {
 
 describe('conditions', () => {
   const knight = () =>
-    fight(party([{ premade: 'aldric-vane', talents: ['two-handed-mastery', 'two-handed-mastery', 'two-handed-mastery', 't-crushing-blow', 'heavy-swings', 't-execution'], mainHand: 'greatsword' }]));
+    fight(party([{ premade: 'aldric-vane', talents: ['two-handed-mastery', 'two-handed-mastery', 'two-handed-mastery', 't-crushing-blow', 'divinity-channeled', 't-execution'], mainHand: 'greatsword' }]));
 
   it('a stunned enemy loses its turn, and Execution hits it much harder', () => {
     let s = setUp(knight(), 'merc-1', {
@@ -175,8 +176,9 @@ describe('conditions', () => {
     s = withSeed(s, (g) => combatOf(castAbility(g, 'execution', 'bandit-thug-1', ctx)).events.some((e) => e.roll && e.roll.natural > 1));
     const hit = castAbility(s, 'execution', 'bandit-thug-1', ctx);
     const roll = combatOf(hit).events.find((e) => e.kind === 'attack')!.roll!;
-    // 3 two-handed mastery + at least 2 from 2d8.
-    expect(roll.bonusDamage).toBeGreaterThanOrEqual(5);
+    // At least 2 from 2d8; Two-Handed Mastery adds +3 to hit, not damage.
+    expect(roll.bonusDamage).toBeGreaterThanOrEqual(2);
+    expect(roll.attackBonus).toBe(3);
 
     // The stunned thug's turn is skipped.
     const c = combatOf(s);
@@ -218,17 +220,30 @@ describe('conditions', () => {
     expect(who(after, 'merc-1').statuses.some((st) => st.kind === 'invisible')).toBe(false);
   });
 
-  it('retaliation hurts a melee attacker who lands a blow', () => {
-    let s = fight(party([{ premade: 'aldric-vane', talents: ['bulwark', 'bulwark', 'bulwark', 'stalwart', 'stalwart', 'retribution', 'retribution'] }]));
-    s = setUp(s, 'bandit-thug-1', { 'merc-1': { pos: at(3, 3), baseDefense: -50, hp: 100, maxHp: 100 }, 'bandit-thug-1': { pos: at(4, 3), hp: 50, maxHp: 50 } });
-    expect(who(s, 'merc-1').retaliate).toBe(4);
-    s = withSeed(s, (g) => combatOf(attack(g, 'merc-1')).events.some((e) => e.kind === 'attack' && e.outcome !== 'miss'));
-    const after = attack(s, 'merc-1');
-    expect(who(after, 'bandit-thug-1').hp).toBe(46);
+  it('Retribution answers a missed blow with a free counterstrike, and a landed one only from rank 3', () => {
+    const guardian = (ranks: number) =>
+      fight(party([{ premade: 'aldric-vane', talents: ['bulwark', 'bulwark', 'bulwark', 'stalwart', 'stalwart', ...Array(ranks).fill('retribution')] }]));
+    const thugAttacks = (g: GameState, defense: number) =>
+      setUp(g, 'bandit-thug-1', { 'merc-1': { pos: at(3, 3), baseDefense: defense, hp: 100, maxHp: 100 }, 'bandit-thug-1': { pos: at(4, 3), hp: 50, maxHp: 50, baseDefense: -50 } });
+    // Rank 1, a miss: the knight swings back.
+    let s = thugAttacks(guardian(1), 100);
+    s = withSeed(s, (g) => combatOf(attack(g, 'merc-1')).events.filter((e) => e.kind === 'attack').length === 2);
+    const answered = combatOf(attack(s, 'merc-1')).events.filter((e) => e.kind === 'attack');
+    expect(answered[0]).toMatchObject({ actorId: 'bandit-thug-1', outcome: 'miss' });
+    expect(answered[1]).toMatchObject({ actorId: 'merc-1', targetId: 'bandit-thug-1' });
+    expect(answered[1]!.roll!.free).toBe(true);
+    // Rank 1, a hit: no answer.
+    let t = thugAttacks(guardian(1), -50);
+    t = withSeed(t, (g) => combatOf(attack(g, 'merc-1')).events.some((e) => e.kind === 'attack' && e.outcome === 'hit'));
+    expect(combatOf(attack(t, 'merc-1')).events.filter((e) => e.kind === 'attack')).toHaveLength(1);
+    // Rank 3, a hit: answered.
+    let u = thugAttacks(guardian(3), -50);
+    u = withSeed(u, (g) => combatOf(attack(g, 'merc-1')).events.some((e) => e.kind === 'attack' && e.outcome === 'hit'));
+    expect(combatOf(attack(u, 'merc-1')).events.filter((e) => e.kind === 'attack')).toHaveLength(2);
   });
 
   it('Opening! lets an engaged ally make a free attack', () => {
-    let s = fight(party([{ premade: 'aldric-vane', talents: ['t-forward', 't-hold-fast', 'field-discipline', 'field-discipline', 'field-discipline', 't-opening'] }, { premade: 'korg-the-unbowed' }]));
+    let s = fight(party([{ premade: 'aldric-vane', talents: ['t-forward', 't-hold-fast', 'inspiring-presence', 'inspiring-presence', 'inspiring-presence', 't-opening'] }, { premade: 'korg-the-unbowed' }]));
     s = setUp(s, 'merc-1', { 'merc-1': { pos: at(1, 4), resources: pool(9) }, 'merc-2': { pos: at(4, 3) }, 'bandit-thug-1': { pos: at(5, 3) }, 'bandit-thug-2': { pos: at(7, 0) } });
     const after = castAbility(s, 'opening', 'merc-2', ctx);
     const free = combatOf(after).events.find((e) => e.kind === 'attack');

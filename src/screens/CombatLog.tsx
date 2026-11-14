@@ -24,7 +24,7 @@ function entriesOf(combat: CombatState): CombatLogEntry[] {
 function AttackLine({ a }: { a: AttackLogDetail }) {
   const r = a.roll;
   const dice = r.dice.length > 1 ? `${r.dice.join(' / ')} (${r.mode}, kept ${r.natural})` : `${r.natural}`;
-  const bonuses = `${plus(r.modifier)} ${STAT_SHORT[r.stat] ?? r.stat}${r.rollBonus ? ` ${plus(r.rollBonus)} off hand` : ''}${r.rangePenalty ? ` ${plus(-r.rangePenalty)} range` : ''}`;
+  const bonuses = `${plus(r.modifier)} ${STAT_SHORT[r.stat] ?? r.stat}${r.rollBonus ? ` ${plus(r.rollBonus)} off hand` : ''}${r.attackBonus ? ` ${plus(r.attackBonus)} bonus` : ''}${r.rangePenalty ? ` ${plus(-r.rangePenalty)} range` : ''}`;
   return (
     <li className={`log-attack outcome-${a.outcome}`}>
       <p className="log-who">

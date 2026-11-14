@@ -82,6 +82,18 @@ const MIGRATIONS: Record<number, (save: Loose) => Loose> = {
       })),
     };
   },
+  // v9 rebuilt the knight's talent tree: knights get every talent point back to spend again.
+  // A fight in progress restarts, so its mercs are built from the new tree.
+  8: (save) => {
+    const party = Array.isArray(save.party) ? (save.party as Loose[]) : [];
+    const encounter = save.encounter as Loose | null | undefined;
+    return {
+      ...save,
+      version: 9,
+      party: party.map((merc) => (merc.classId === 'knight' ? { ...merc, talents: {} } : merc)),
+      encounter: encounter ? { featureId: encounter.featureId, returnTo: encounter.returnTo, ...(encounter.surprise ? { surprise: true } : {}) } : null,
+    };
+  },
 };
 
 /**

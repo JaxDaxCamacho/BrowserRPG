@@ -53,10 +53,30 @@ export type ItemEffect =
   | { type: 'heal'; amount: number }
   /** Extra tiles of movement in a fight. */
   | { type: 'movement'; amount: number }
-  /** Flat damage added to every weapon attack that lands; with `twoHandedOnly`, only while wielding a two-handed weapon. */
-  | { type: 'damage'; amount: number; twoHandedOnly?: boolean }
-  /** Widens the weapon's critical range: 1 means it crits on one number lower. */
-  | { type: 'critRange'; amount: number }
+  /** Flat damage added to every weapon attack that lands; with `twoHandedOnly`, only while wielding a two-handed weapon; with `meleeOnly`, only in melee. */
+  | { type: 'damage'; amount: number; twoHandedOnly?: boolean; meleeOnly?: boolean }
+  /** Widens the weapon's critical range: 1 means it crits on one number lower. With `twoHandedOnly`, only with a two-handed weapon. */
+  | { type: 'critRange'; amount: number; twoHandedOnly?: boolean }
+  /** Added to weapon attack rolls (not damage); with `twoHandedOnly` or `meleeOnly`, only then. */
+  | { type: 'attackBonus'; amount: number; twoHandedOnly?: boolean; meleeOnly?: boolean }
+  /** A critical hit heals the attacker by this percentage of the damage it dealt, rounded up. */
+  | { type: 'critHeal'; percent: number }
+  /** Healed by an ability or talent: +this much Defense for 2 rounds (refreshed, never stacked). */
+  | { type: 'healedDefense'; amount: number }
+  /** The shield's Defense is multiplied by 1 + this (0.5 is ×1.5), rounded up. */
+  | { type: 'shieldBoost'; amount: number }
+  /** Heavy body armour no longer lowers Defense. */
+  | { type: 'ignoreArmourPenalty' }
+  /** A free melee attack on an adjacent attacker whose attack misses (level 1), or grazes (2), or does not crit (3). */
+  | { type: 'riposte'; level: number }
+  /** Takes attacks meant for an adjacent merc: level 2 adds +2 Defense against them, level 3 also +2 armour. */
+  | { type: 'intervene'; level: number }
+  /** Allies (and the bearer) within `radius` squares get `amount` to attack rolls or Defense. */
+  | { type: 'aura'; bonus: 'attack' | 'defense'; amount: number; radius: number }
+  /** Each melee blow that lands gives allies within 3 squares this much damage on their next attack. */
+  | { type: 'leadDamage'; amount: number }
+  /** Extra damage of another type rolled on every weapon blow that lands (buffs, e.g. a burning blade). */
+  | { type: 'extraDamage'; damageType: DamageType; dice: string; meleeOnly?: boolean }
   /** Melee attackers that land a blow take this much damage back. */
   | { type: 'retaliate'; amount: number }
   /** For every quarter of max HP missing: +amount Strength and +amount movement. */
@@ -281,6 +301,21 @@ export interface GearTotals {
   statusResist: number;
   manaBurn: number;
   twinWeapons: number;
+  attackBonus: number;
+  twoHandedAttackBonus: number;
+  twoHandedCritRange: number;
+  critHeal: number;
+  healedDefense: number;
+  /** The shield's own Defense (already counted in `defense`), so talents can scale it. */
+  shieldDefense: number;
+  shieldBoost: number;
+  /** The Defense heavy body armour takes off (negative or 0; already counted in `defense`). */
+  heavyPenalty: number;
+  ignoreArmourPenalty: boolean;
+  riposte: number;
+  intervene: number;
+  auras: { bonus: 'attack' | 'defense'; amount: number; radius: number }[];
+  leadDamage: number;
 }
 
 export function emptyTotals(): GearTotals {
@@ -299,6 +334,19 @@ export function emptyTotals(): GearTotals {
     statusResist: 0,
     manaBurn: 0,
     twinWeapons: 0,
+    attackBonus: 0,
+    twoHandedAttackBonus: 0,
+    twoHandedCritRange: 0,
+    critHeal: 0,
+    healedDefense: 0,
+    shieldDefense: 0,
+    shieldBoost: 0,
+    heavyPenalty: 0,
+    ignoreArmourPenalty: false,
+    riposte: 0,
+    intervene: 0,
+    auras: [],
+    leadDamage: 0,
   };
 }
 
@@ -329,7 +377,38 @@ export function addEffects(totals: GearTotals, effects: ItemEffect[]) {
         else totals.damage += effect.amount;
         break;
       case 'critRange':
-        totals.critRange += effect.amount;
+        if (effect.twoHandedOnly) totals.twoHandedCritRange += effect.amount;
+        else totals.critRange += effect.amount;
+        break;
+      case 'attackBonus':
+        if (effect.twoHandedOnly) totals.twoHandedAttackBonus += effect.amount;
+        else totals.attackBonus += effect.amount;
+        break;
+      case 'critHeal':
+        totals.critHeal += effect.percent;
+        break;
+      case 'healedDefense':
+        totals.healedDefense = Math.max(totals.healedDefense, effect.amount);
+        break;
+      case 'shieldBoost':
+        totals.shieldBoost += effect.amount;
+        break;
+      case 'ignoreArmourPenalty':
+        totals.ignoreArmourPenalty = true;
+        break;
+      case 'riposte':
+        totals.riposte = Math.max(totals.riposte, effect.level);
+        break;
+      case 'intervene':
+        totals.intervene = Math.max(totals.intervene, effect.level);
+        break;
+      case 'aura':
+        totals.auras.push({ bonus: effect.bonus, amount: effect.amount, radius: effect.radius });
+        break;
+      case 'leadDamage':
+        totals.leadDamage += effect.amount;
+        break;
+      case 'extraDamage':
         break;
       case 'retaliate':
         totals.retaliate += effect.amount;
@@ -362,12 +441,14 @@ export function gearTotals(equipment: Equipment, getItem: ItemLookup): GearTotal
     switch (item.kind) {
       case 'armour':
         totals.defense += item.defense;
+        if (item.weight === 'heavy') totals.heavyPenalty += Math.min(0, item.defense);
         totals.armour.physical += item.physicalArmour;
         totals.armour.magic += item.magicArmour;
         addEffects(totals, item.effects);
         break;
       case 'shield':
         totals.defense += item.defense;
+        totals.shieldDefense += item.defense;
         addEffects(totals, item.effects);
         break;
       case 'weapon':

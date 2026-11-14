@@ -14,11 +14,14 @@ import { StatBar } from './StatBar';
 export function CombatantPanel({
   x,
   subtitle,
+  defense,
   className = '',
   children,
 }: {
   x: Combatant;
   subtitle?: string;
+  /** Defense in the fight, with allies' auras; the combatant's own when not given. */
+  defense?: number;
   className?: string;
   /** Extra lines under the name, such as moves left or the chance to hit. */
   children?: ReactNode;
@@ -41,7 +44,7 @@ export function CombatantPanel({
         </div>
         <p className="panel-chips">
           <span className="stat-chip" title="Attacks that roll above this hit; at or below, they graze">
-            <span className="dim">Def</span> {effectiveDefense(x)}
+            <span className="dim">Def</span> {defense ?? effectiveDefense(x)}
           </span>
           <span className="stat-chip" title="Taken off physical damage">
             <span className="dim">Armour</span> {armour.physical}
@@ -49,6 +52,11 @@ export function CombatantPanel({
           <span className="stat-chip" title="Taken off magic damage">
             <span className="dim">Magic</span> {armour.magic}
           </span>
+          {x.shieldDropped && (
+            <span className="stat-chip status-chip" title="The shield lies on the floor: no shield Defense until it is picked up">
+              🛡 Shield dropped
+            </span>
+          )}
           {x.defending && (
             <span className="stat-chip" title="Defending: +2 Defense until their next turn">
               🛡 Defending

@@ -157,6 +157,21 @@ export interface MercSheet {
   manaBurn: number;
   /** Taken off the off-hand weapon's attack penalty. */
   twinWeapons: number;
+  /** Added to weapon attack rolls; the two-handed part only counts with a two-handed weapon. */
+  attackBonus: number;
+  twoHandedAttackBonus: number;
+  /** Extra crit range with a two-handed weapon. */
+  twoHandedCritRange: number;
+  /** Percentage of a critical hit's damage healed back. */
+  critHeal: number;
+  /** Defense for 2 rounds after being healed by an ability or talent. */
+  healedDefense: number;
+  /** What the shield adds to Defense, after talents scale it (0 without a shield). */
+  shieldDefense: number;
+  riposte: number;
+  intervene: number;
+  auras: { bonus: 'attack' | 'defense'; amount: number; radius: number }[];
+  leadDamage: number;
 }
 
 type SheetSource = Pick<MercDraft, 'baseStats' | 'raceChoices'> & {
@@ -178,10 +193,13 @@ export function mercSheet(
   const gear = gearTotals(merc.equipment ?? merc.loadout ?? {}, getItem);
   addEffects(gear, talentEffects);
   const stats = applyStatChanges(finalStats(merc, race), gear.stats);
+  // Talents can scale the shield's Defense (rounded up) and lift heavy armour's penalty.
+  const shieldDefense = gear.shieldDefense > 0 ? Math.ceil(gear.shieldDefense * (1 + gear.shieldBoost)) : 0;
+  const gearDefense = gear.defense + (shieldDefense - gear.shieldDefense) - (gear.ignoreArmourPenalty ? gear.heavyPenalty : 0);
   return {
     stats,
     maxHp: maxHitPoints(cls, stats, merc.level ?? 1, raceBonusHp(race) + gear.maxHp),
-    defense: defenseOf(cls, stats, gear.defense),
+    defense: defenseOf(cls, stats, gearDefense),
     armour: {
       physical: raceBaseArmour(race, 'physical') + gear.armour.physical,
       magic: raceBaseArmour(race, 'magic') + gear.armour.magic,
@@ -196,5 +214,15 @@ export function mercSheet(
     statusResist: gear.statusResist,
     manaBurn: gear.manaBurn,
     twinWeapons: gear.twinWeapons,
+    attackBonus: gear.attackBonus,
+    twoHandedAttackBonus: gear.twoHandedAttackBonus,
+    twoHandedCritRange: gear.twoHandedCritRange,
+    critHeal: gear.critHeal,
+    healedDefense: gear.healedDefense,
+    shieldDefense,
+    riposte: gear.riposte,
+    intervene: gear.intervene,
+    auras: gear.auras,
+    leadDamage: gear.leadDamage,
   };
 }

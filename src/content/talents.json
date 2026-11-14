@@ -6,22 +6,43 @@
       {
         "id": "templar",
         "name": "Templar",
-        "description": "Holy wrath through a two-handed weapon: crushing blows, stuns, and executions of the stunned.",
+        "description": "Holy wrath through a two-handed weapon: sure strikes, stuns and executions, holy fire, and the Avatar of Wrath.",
         "talents": [
           {
             "id": "two-handed-mastery",
             "name": "Two-Handed Mastery",
-            "description": "+1 damage per rank with two-handed weapons.",
+            "icon": "skills/red/red-33",
+            "description": "+1 to hit per rank with two-handed weapons. At rank 3 they also crit on 19.",
             "tier": 1,
             "maxRanks": 3,
-            "effects": [
-              {
-                "type": "damage",
-                "amount": 1,
-                "twoHandedOnly": true
-              }
-            ],
-            "icon": "skills/red/red-33"
+            "ranks": [
+              [
+                {
+                  "type": "attackBonus",
+                  "amount": 1,
+                  "twoHandedOnly": true
+                }
+              ],
+              [
+                {
+                  "type": "attackBonus",
+                  "amount": 2,
+                  "twoHandedOnly": true
+                }
+              ],
+              [
+                {
+                  "type": "attackBonus",
+                  "amount": 3,
+                  "twoHandedOnly": true
+                },
+                {
+                  "type": "critRange",
+                  "amount": 1,
+                  "twoHandedOnly": true
+                }
+              ]
+            ]
           },
           {
             "id": "t-crushing-blow",
@@ -32,19 +53,18 @@
             "abilityId": "crushing-blow"
           },
           {
-            "id": "heavy-swings",
-            "name": "Heavy Swings",
-            "description": "+1 Strength per rank.",
+            "id": "divinity-channeled",
+            "name": "Divinity Channeled",
+            "icon": "skills/yellow/yellow-10",
+            "description": "A critical hit heals you for 10% of the damage it dealt, rounded up.",
             "tier": 1,
-            "maxRanks": 2,
+            "maxRanks": 1,
             "effects": [
               {
-                "type": "stat",
-                "stat": "strength",
-                "amount": 1
+                "type": "critHeal",
+                "percent": 10
               }
-            ],
-            "icon": "skills/yellow/yellow-10"
+            ]
           },
           {
             "id": "t-execution",
@@ -55,75 +75,106 @@
             "abilityId": "execution"
           },
           {
-            "id": "zeal",
-            "name": "Zeal",
-            "description": "Crit on one number lower per rank.",
+            "id": "t-fanatic-zeal",
+            "name": "Fanatic Zeal",
+            "icon": "skills/red/red-05",
+            "description": "Learn Fanatic Zeal: set yourself on fire for +1d6 fire damage on melee blows; +2 more per rank (1d6+2, 1d6+4).",
             "tier": 2,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "critRange",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/red/red-05"
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "fanatic-zeal"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "fanatic-zeal-2"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "fanatic-zeal-3"
+                }
+              ]
+            ]
           },
           {
             "id": "righteous-vigour",
             "name": "Righteous Vigour",
-            "description": "+4 max HP per rank.",
+            "icon": "skills/red/red-17",
+            "description": "When an ability or talent heals you, yours or an ally's: +2 Defense (+3 at rank 2) for 2 rounds. It does not stack; healing again restarts the 2 rounds.",
             "tier": 2,
             "maxRanks": 2,
-            "effects": [
-              {
-                "type": "maxHp",
-                "amount": 4
-              }
-            ],
-            "icon": "skills/red/red-17"
+            "ranks": [
+              [
+                {
+                  "type": "healedDefense",
+                  "amount": 2
+                }
+              ],
+              [
+                {
+                  "type": "healedDefense",
+                  "amount": 3
+                }
+              ]
+            ]
           },
           {
             "id": "t-judgement",
             "name": "Judgement",
-            "description": "Learn Judgement: a sweeping strike at a target and everyone next to it.",
+            "description": "Learn Judgement: a melee blow up to 4 squares away with +2d6 spiritual damage.",
             "tier": 3,
             "maxRanks": 1,
             "abilityId": "judgement"
           },
           {
-            "id": "avatar-of-wrath",
+            "id": "t-avatar-of-wrath",
             "name": "Avatar of Wrath",
-            "description": "+1 damage per rank with every weapon.",
+            "icon": "skills/red/red-23",
+            "description": "Learn Avatar of Wrath: grow to 2×2 for 4 rounds with +4 armour, to hit and melee damage, then drop to 1 HP.",
             "tier": 3,
-            "maxRanks": 3,
-            "effects": [
-              {
-                "type": "damage",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/red/red-23"
+            "maxRanks": 1,
+            "abilityId": "avatar-of-wrath"
           }
         ]
       },
       {
         "id": "guardian",
         "name": "Guardian",
-        "description": "A wall of steel: high Defense, taunting enemies onto the shield, and punishing those who strike.",
+        "description": "The shield: a wall of Defense, bashes, charges and throws, counterstrikes, and stepping in front of allies.",
         "talents": [
           {
             "id": "bulwark",
             "name": "Bulwark",
-            "description": "+1 Defense per rank.",
+            "icon": "skills/blue/blue-11",
+            "description": "Your shield's Defense ×1.5, ×2 and ×2.5 by rank (rounded up).",
             "tier": 1,
             "maxRanks": 3,
-            "effects": [
-              {
-                "type": "defense",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/blue/blue-11"
+            "ranks": [
+              [
+                {
+                  "type": "shieldBoost",
+                  "amount": 0.5
+                }
+              ],
+              [
+                {
+                  "type": "shieldBoost",
+                  "amount": 1
+                }
+              ],
+              [
+                {
+                  "type": "shieldBoost",
+                  "amount": 1.5
+                }
+              ]
+            ]
           },
           {
             "id": "t-taunt",
@@ -136,60 +187,121 @@
           {
             "id": "stalwart",
             "name": "Stalwart",
-            "description": "+4 max HP per rank.",
+            "icon": "skills/green/green-33",
+            "description": "Heavy armour no longer lowers your Defense. Ranks 2 and 3 add +1 and +2 magic armour.",
             "tier": 1,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "maxHp",
-                "amount": 4
-              }
-            ],
-            "icon": "skills/green/green-33"
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "ignoreArmourPenalty"
+                }
+              ],
+              [
+                {
+                  "type": "ignoreArmourPenalty"
+                },
+                {
+                  "type": "armour",
+                  "armour": "magic",
+                  "amount": 1
+                }
+              ],
+              [
+                {
+                  "type": "ignoreArmourPenalty"
+                },
+                {
+                  "type": "armour",
+                  "armour": "magic",
+                  "amount": 2
+                }
+              ]
+            ]
           },
           {
-            "id": "iron-skin",
-            "name": "Iron Skin",
-            "description": "+1 armour per rank.",
+            "id": "t-shield-bash",
+            "name": "Shield Bash",
+            "icon": "skills/yellow/yellow-24",
+            "description": "Learn Shield Bash (needs a shield): stun an adjacent enemy for 1 round; 2 rounds at rank 2; 2 rounds and knocked down at rank 3.",
             "tier": 2,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "armour",
-                "armour": "physical",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/yellow/yellow-24"
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "shield-bash"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "shield-bash-2"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "shield-bash-3"
+                }
+              ]
+            ]
           },
           {
             "id": "retribution",
             "name": "Retribution",
-            "description": "Melee attackers who land a blow take 2 damage per rank.",
+            "icon": "skills/red/red-15",
+            "description": "A free melee attack on an adjacent attacker who misses you; also when they graze at rank 2; whenever they fail to crit at rank 3.",
             "tier": 2,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "retaliate",
-                "amount": 2
-              }
-            ],
-            "icon": "skills/red/red-15"
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "riposte",
+                  "level": 1
+                }
+              ],
+              [
+                {
+                  "type": "riposte",
+                  "level": 2
+                }
+              ],
+              [
+                {
+                  "type": "riposte",
+                  "level": 3
+                }
+              ]
+            ]
           },
           {
-            "id": "spellguard",
-            "name": "Spellguard",
-            "description": "+1 magic armour per rank.",
+            "id": "t-thunderous-charge",
+            "name": "Thunderous Charge",
+            "icon": "skills/blue/blue-35",
+            "description": "Learn Thunderous Charge: charge 4 squares in a straight line, strike and taunt for 1 turn; 5 squares and 2 turns at rank 2; 6 squares and 3 turns at rank 3.",
             "tier": 2,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "armour",
-                "armour": "magic",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/blue/blue-35"
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "thunderous-charge"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "thunderous-charge-2"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "thunderous-charge-3"
+                }
+              ]
+            ]
           },
           {
             "id": "t-shield-wall",
@@ -200,26 +312,67 @@
             "abilityId": "shield-wall"
           },
           {
-            "id": "unbreakable",
-            "name": "Unbreakable",
-            "description": "+1 Toughness per rank.",
+            "id": "t-shield-throw",
+            "name": "Shield Throw",
+            "icon": "skills/red/red-18",
+            "description": "Learn Shield Throw (needs a shield): stun an enemy 4 squares away. Pick the shield up by standing on it; by stepping next to it at rank 2; it flies back by itself at rank 3.",
             "tier": 3,
             "maxRanks": 3,
-            "effects": [
-              {
-                "type": "stat",
-                "stat": "toughness",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/red/red-18"
+            "ranks": [
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "shield-throw"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "shield-throw-2"
+                }
+              ],
+              [
+                {
+                  "type": "ability",
+                  "abilityId": "shield-throw-3"
+                }
+              ]
+            ]
+          },
+          {
+            "id": "heroic-intervention",
+            "name": "Heroic Intervention",
+            "icon": "skills/red/red-34",
+            "description": "When an enemy attacks a merc next to you, you take the attack instead. Rank 2: +2 Defense against it. Rank 3: +2 Defense and +2 armour.",
+            "tier": 3,
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "intervene",
+                  "level": 1
+                }
+              ],
+              [
+                {
+                  "type": "intervene",
+                  "level": 2
+                }
+              ],
+              [
+                {
+                  "type": "intervene",
+                  "level": 3
+                }
+              ]
+            ]
           }
         ]
       },
       {
         "id": "captain",
         "name": "Captain",
-        "description": "Leads from the front: speed and Defense for allies, and openings for them to strike.",
+        "description": "Leads from the front: orders, auras that steady allies, the company banner, and openings to strike.",
         "talents": [
           {
             "id": "t-forward",
@@ -238,19 +391,38 @@
             "abilityId": "hold-fast"
           },
           {
-            "id": "field-discipline",
-            "name": "Field Discipline",
-            "description": "+1 Agility per rank.",
+            "id": "inspiring-presence",
+            "name": "Inspiring Presence",
+            "icon": "skills/blue/blue-01",
+            "description": "Aura: you and allies within 2 squares get +1 to hit; 3 squares at rank 2, 4 squares at rank 3.",
             "tier": 1,
             "maxRanks": 3,
-            "effects": [
-              {
-                "type": "stat",
-                "stat": "agility",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/blue/blue-01"
+            "ranks": [
+              [
+                {
+                  "type": "aura",
+                  "bonus": "attack",
+                  "amount": 1,
+                  "radius": 2
+                }
+              ],
+              [
+                {
+                  "type": "aura",
+                  "bonus": "attack",
+                  "amount": 1,
+                  "radius": 3
+                }
+              ],
+              [
+                {
+                  "type": "aura",
+                  "bonus": "attack",
+                  "amount": 1,
+                  "radius": 4
+                }
+              ]
+            ]
           },
           {
             "id": "t-opening",
@@ -261,32 +433,47 @@
             "abilityId": "opening"
           },
           {
-            "id": "veteran",
-            "name": "Veteran",
-            "description": "+4 max HP per rank.",
+            "id": "steady-ranks",
+            "name": "Steady Ranks",
+            "icon": "skills/yellow/yellow-44",
+            "description": "Aura: you and allies within 2 squares get +1 Defense; 3 squares at rank 2; +2 Defense within 3 squares at rank 3.",
             "tier": 2,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "maxHp",
-                "amount": 4
-              }
-            ],
-            "icon": "skills/red/red-34"
+            "maxRanks": 3,
+            "ranks": [
+              [
+                {
+                  "type": "aura",
+                  "bonus": "defense",
+                  "amount": 1,
+                  "radius": 2
+                }
+              ],
+              [
+                {
+                  "type": "aura",
+                  "bonus": "defense",
+                  "amount": 1,
+                  "radius": 3
+                }
+              ],
+              [
+                {
+                  "type": "aura",
+                  "bonus": "defense",
+                  "amount": 2,
+                  "radius": 3
+                }
+              ]
+            ]
           },
           {
-            "id": "commanding-presence",
-            "name": "Commanding Presence",
-            "description": "+1 Defense per rank.",
+            "id": "t-company-banner",
+            "name": "Company Banner",
+            "icon": "skills/yellow/yellow-15",
+            "description": "Learn Company Banner: plant a banner; every ally within 2 squares of it adds +1 to every roll.",
             "tier": 2,
-            "maxRanks": 2,
-            "effects": [
-              {
-                "type": "defense",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/yellow/yellow-44"
+            "maxRanks": 1,
+            "abilityId": "company-banner"
           },
           {
             "id": "t-coordinated-assault",
@@ -297,19 +484,32 @@
             "abilityId": "coordinated-assault"
           },
           {
-            "id": "warlord",
-            "name": "Warlord",
-            "description": "+1 Strength per rank.",
+            "id": "lead-by-example",
+            "name": "Lead by Example",
+            "icon": "skills/red/red-07",
+            "description": "Each melee blow you land gives allies within 3 squares +1 damage per rank on their next attack.",
             "tier": 3,
             "maxRanks": 3,
-            "effects": [
-              {
-                "type": "stat",
-                "stat": "strength",
-                "amount": 1
-              }
-            ],
-            "icon": "skills/red/red-07"
+            "ranks": [
+              [
+                {
+                  "type": "leadDamage",
+                  "amount": 1
+                }
+              ],
+              [
+                {
+                  "type": "leadDamage",
+                  "amount": 2
+                }
+              ],
+              [
+                {
+                  "type": "leadDamage",
+                  "amount": 3
+                }
+              ]
+            ]
           }
         ]
       }

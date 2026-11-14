@@ -16,14 +16,23 @@ import { AssetImage } from './assets';
 import { RESOURCE_LABEL } from './ActionBar';
 import { Tip, useTip } from './Tip';
 
+/** The ability a talent teaches: directly, or (for a ranked ability) the version its first rank teaches. */
+function taughtAbility(talent: TalentDefinition): string | undefined {
+  if (talent.abilityId) return talent.abilityId;
+  const effect = talent.ranks?.[0]?.find((e) => e.type === 'ability');
+  return effect?.type === 'ability' ? effect.abilityId : undefined;
+}
+
 /** A talent's icon: its own, or the icon of the ability it teaches. */
 function iconOf(talent: TalentDefinition): string | undefined {
-  return talent.icon ?? (talent.abilityId ? getAbility(talent.abilityId).icon : undefined);
+  const taught = taughtAbility(talent);
+  return talent.icon ?? (taught ? getAbility(taught).icon : undefined);
 }
 
 function abilityLine(talent: TalentDefinition): string | null {
-  if (!talent.abilityId) return null;
-  const a = getAbility(talent.abilityId);
+  const taught = taughtAbility(talent);
+  if (!taught) return null;
+  const a = getAbility(taught);
   const bits = [a.cost && `${a.cost.amount} ${RESOURCE_LABEL[a.cost.resource].name.toLowerCase()}`, a.cooldown && `cooldown ${a.cooldown}`].filter(Boolean);
   return `${a.name}: ${a.description}${bits.length ? ` (${bits.join(', ')})` : ''}`;
 }
@@ -159,7 +168,7 @@ function TalentButton({ talent: t, rank, pending, why, line, onAdd, onRemove }: 
       <span className="talent-rank">
         {rank}/{t.maxRanks}
       </span>
-      {t.abilityId && <span className="talent-active" title="Teaches an ability">✦</span>}
+      {taughtAbility(t) && <span className="talent-active" title="Teaches an ability">✦</span>}
       <Tip anchor={tip.anchor}>
         <strong>{t.name}</strong>
         <span>{t.description}</span>

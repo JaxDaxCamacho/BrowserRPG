@@ -140,19 +140,23 @@
     "name": "Judgement",
     "icon": "skills/yellow/yellow-18",
     "animation": "animations/light/aslight-04-ray",
-    "description": "A sweeping two-handed strike at an enemy and everyone next to them. +2 damage.",
+    "description": "A melee blow that reaches an enemy up to 4 squares away, adding 2d6 spiritual damage.",
     "activation": "action",
     "usableBy": "mercs",
-    "target": "area",
-    "range": 0,
-    "cooldown": 4,
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 3,
     "effects": [],
     "cost": {
       "resource": "adrenaline",
-      "amount": 6
+      "amount": 5
     },
     "weaponAttack": {
-      "bonus": 2
+      "reach": 4,
+      "extra": {
+        "damageType": "spiritual",
+        "dice": "2d6"
+      }
     },
     "requiresTwoHanded": true,
     "sound": "sfx/slash/evfx02-15-sweepblade"
@@ -2186,6 +2190,409 @@
     "cost": {
       "resource": "souls",
       "amount": 2
+    }
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [
+      {
+        "type": "extraDamage",
+        "damageType": "magic",
+        "dice": "1d6",
+        "meleeOnly": true
+      }
+    ],
+    "id": "fanatic-zeal",
+    "name": "Fanatic Zeal",
+    "icon": "skills/red/red-05",
+    "animation": "animations/thaumaturgy/ac3t007-cast04a",
+    "description": "Set yourself ablaze with holy fervour for 3 rounds: your melee blows deal +1d6 fire damage, but the flames burn you for 2 each turn.",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "duration": 3,
+    "statuses": [
+      {
+        "status": "burning",
+        "rounds": 3,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [
+      {
+        "type": "extraDamage",
+        "damageType": "magic",
+        "dice": "1d6+2",
+        "meleeOnly": true
+      }
+    ],
+    "id": "fanatic-zeal-2",
+    "name": "Fanatic Zeal",
+    "icon": "skills/red/red-05",
+    "animation": "animations/thaumaturgy/ac3t007-cast04a",
+    "description": "Set yourself ablaze with holy fervour for 3 rounds: your melee blows deal +1d6+2 fire damage, but the flames burn you for 2 each turn.",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "duration": 3,
+    "statuses": [
+      {
+        "status": "burning",
+        "rounds": 3,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [
+      {
+        "type": "extraDamage",
+        "damageType": "magic",
+        "dice": "1d6+4",
+        "meleeOnly": true
+      }
+    ],
+    "id": "fanatic-zeal-3",
+    "name": "Fanatic Zeal",
+    "icon": "skills/red/red-05",
+    "animation": "animations/thaumaturgy/ac3t007-cast04a",
+    "description": "Set yourself ablaze with holy fervour for 3 rounds: your melee blows deal +1d6+4 fire damage, but the flames burn you for 2 each turn.",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "duration": 3,
+    "statuses": [
+      {
+        "status": "burning",
+        "rounds": 3,
+        "amount": 2
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [
+      {
+        "type": "armour",
+        "armour": "physical",
+        "amount": 4
+      },
+      {
+        "type": "attackBonus",
+        "amount": 4,
+        "meleeOnly": true
+      },
+      {
+        "type": "damage",
+        "amount": 4,
+        "meleeOnly": true
+      }
+    ],
+    "id": "avatar-of-wrath",
+    "name": "Avatar of Wrath",
+    "icon": "skills/red/red-23",
+    "animation": "animations/light/aslight-03-glare",
+    "description": "Swell into a towering 2×2 avatar for 4 rounds: +4 armour, +4 to hit and +4 damage in melee. When it ends you drop to 1 HP. Once per fight.",
+    "target": "self",
+    "range": 0,
+    "cooldown": 99,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 6
+    },
+    "duration": 4,
+    "grow": 2,
+    "exhausts": true
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "shield-bash",
+    "name": "Shield Bash",
+    "icon": "skills/yellow/yellow-24",
+    "animation": "animations/earth/asearth-03-stone",
+    "description": "Slam an adjacent enemy with your shield: a weapon blow that stuns the target for 1 round. Needs a shield.",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "requiresShield": true,
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "shield-bash-2",
+    "name": "Shield Bash",
+    "icon": "skills/yellow/yellow-24",
+    "animation": "animations/earth/asearth-03-stone",
+    "description": "Slam an adjacent enemy with your shield: a weapon blow that stuns the target for 2 rounds. Needs a shield.",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "requiresShield": true,
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "shield-bash-3",
+    "name": "Shield Bash",
+    "icon": "skills/yellow/yellow-24",
+    "animation": "animations/earth/asearth-03-stone",
+    "description": "Slam an adjacent enemy with your shield: a weapon blow that stuns the target for 2 rounds and knocks it down. Needs a shield.",
+    "target": "enemy",
+    "range": 0,
+    "cooldown": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "requiresShield": true,
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 2
+      },
+      {
+        "status": "prone",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "thunderous-charge",
+    "name": "Thunderous Charge",
+    "icon": "skills/blue/blue-35",
+    "animation": "animations/earth/asearth-04-tremor",
+    "description": "Charge up to 4 squares in a straight line at an enemy, strike it, and taunt it for 1 turn. The path must be clear.",
+    "target": "enemy",
+    "range": 4,
+    "charge": true,
+    "cooldown": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "taunted",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "thunderous-charge-2",
+    "name": "Thunderous Charge",
+    "icon": "skills/blue/blue-35",
+    "animation": "animations/earth/asearth-04-tremor",
+    "description": "Charge up to 5 squares in a straight line at an enemy, strike it, and taunt it for 2 turns. The path must be clear.",
+    "target": "enemy",
+    "range": 5,
+    "charge": true,
+    "cooldown": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "taunted",
+        "rounds": 2
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "thunderous-charge-3",
+    "name": "Thunderous Charge",
+    "icon": "skills/blue/blue-35",
+    "animation": "animations/earth/asearth-04-tremor",
+    "description": "Charge up to 6 squares in a straight line at an enemy, strike it, and taunt it for 3 turns. The path must be clear.",
+    "target": "enemy",
+    "range": 6,
+    "charge": true,
+    "cooldown": 3,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "weaponAttack": {},
+    "statuses": [
+      {
+        "status": "taunted",
+        "rounds": 3
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "shield-throw",
+    "name": "Shield Throw",
+    "icon": "skills/red/red-18",
+    "animation": "animations/earth/asearth-03-stone",
+    "description": "Hurl your shield at an enemy up to 4 squares away, stunning it for 1 round. The shield lands by the target: stand on it to pick it up. Until then you lose its Defense and cannot throw it again. Needs a shield.",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "requiresShield": true,
+    "throwShield": "on",
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "1",
+      "hit": "1d6"
+    },
+    "attackStat": "strength",
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "shield-throw-2",
+    "name": "Shield Throw",
+    "icon": "skills/red/red-18",
+    "animation": "animations/earth/asearth-03-stone",
+    "description": "Hurl your shield at an enemy up to 4 squares away, stunning it for 1 round. The shield lands by the target: step next to it to pick it up. Until then you lose its Defense and cannot throw it again. Needs a shield.",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "requiresShield": true,
+    "throwShield": "adjacent",
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "1",
+      "hit": "1d6"
+    },
+    "attackStat": "strength",
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "shield-throw-3",
+    "name": "Shield Throw",
+    "icon": "skills/red/red-18",
+    "animation": "animations/earth/asearth-03-stone",
+    "description": "Hurl your shield at an enemy up to 4 squares away, stunning it for 1 round. The shield flies straight back to you. Until then you lose its Defense and cannot throw it again. Needs a shield.",
+    "target": "enemy",
+    "range": 4,
+    "cooldown": 2,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "requiresShield": true,
+    "throwShield": "return",
+    "attack": {
+      "kind": "ranged",
+      "damageType": "physical",
+      "graze": "1",
+      "hit": "1d6"
+    },
+    "attackStat": "strength",
+    "statuses": [
+      {
+        "status": "stunned",
+        "rounds": 1
+      }
+    ]
+  },
+  {
+    "activation": "action",
+    "usableBy": "mercs",
+    "effects": [],
+    "id": "company-banner",
+    "name": "Company Banner",
+    "icon": "skills/yellow/yellow-44",
+    "animation": "animations/light/aslight-03-glare",
+    "description": "Plant the company banner where you stand: every ally within 2 squares of it adds +1 to every roll. Planting it again moves it.",
+    "target": "self",
+    "range": 0,
+    "cooldown": 4,
+    "cost": {
+      "resource": "adrenaline",
+      "amount": 3
+    },
+    "banner": {
+      "radius": 2,
+      "bonus": 1
     }
   }
 ]
