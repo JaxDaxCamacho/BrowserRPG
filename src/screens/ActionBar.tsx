@@ -7,6 +7,7 @@ import {
   attackTargets,
   kickTargets,
   obstacleTargets,
+  OFF_HAND_PENALTY,
   RESOURCES,
   talentEffects,
   type AbilityDefinition,
@@ -98,10 +99,18 @@ function slotInfo(actor: Combatant, slot: Slot): { name: string; icon?: string; 
     case 'attack': {
       const a = actor.attack;
       return {
-        name: `Attack: ${a.name}`,
+        name: `Attack: ${a.name}${actor.offHand ? ` + ${actor.offHand.attack.name}` : ''}`,
         ...(a.icon ? { icon: a.icon } : {}),
         fallback: '⚔',
-        lines: [`A normal attack with your weapon · ${a.range === 0 ? 'melee' : `range ${a.range}`}`, `Graze ${a.profile.graze} · hit ${a.profile.hit}`],
+        lines: [
+          `A normal attack with your weapon · ${a.range === 0 ? 'melee' : `range ${a.range}`}`,
+          `Graze ${a.profile.graze} · hit ${a.profile.hit}`,
+          ...(actor.offHand
+            ? [
+                `Then the ${actor.offHand.attack.name} in your off hand strikes too, at ${Math.max(0, OFF_HAND_PENALTY - actor.twinWeapons) === 0 ? 'no penalty' : `-${Math.max(0, OFF_HAND_PENALTY - actor.twinWeapons)} to hit`}.`,
+              ]
+            : []),
+        ],
       };
     }
     case 'defend':

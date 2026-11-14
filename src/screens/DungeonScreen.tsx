@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getDungeon, getMonster } from '../content';
+import { getDungeon, getItem, getMonster } from '../content';
 import {
   activeMercIds,
   allEncounters,
@@ -121,7 +121,7 @@ export function DungeonScreen() {
   const here = new Set(activeMercIds(game));
   const groupBlock = groupingBlocker(game);
   const canRegroup = !groupBlock && groupsHere(game).length > 0;
-  const restBlock = restBlocker(game);
+  const restBlock = restBlocker(game, getItem);
   const turnNames = game.party.filter((m) => here.has(m.id)).map((m) => m.name);
   // Mercs who fell in a fight that now waits for a rescue.
   const awaitingRescue = new Set(

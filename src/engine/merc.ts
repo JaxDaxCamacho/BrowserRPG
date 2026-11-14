@@ -155,6 +155,8 @@ export interface MercSheet {
   statusResist: number;
   /** Extra damage and mana drained on weapon hits against casters. */
   manaBurn: number;
+  /** Taken off the off-hand weapon's attack penalty. */
+  twinWeapons: number;
 }
 
 type SheetSource = Pick<MercDraft, 'baseStats' | 'raceChoices'> & {
@@ -193,5 +195,6 @@ export function mercSheet(
     bloodrage: gear.bloodrage,
     statusResist: gear.statusResist,
     manaBurn: gear.manaBurn,
+    twinWeapons: gear.twinWeapons,
   };
 }

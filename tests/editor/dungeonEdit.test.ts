@@ -168,7 +168,7 @@ describe('the debrief leads into the first dungeon', () => {
     state = { ...state, screen: 'dialogue', dialogue: { dialogueId: 'debrief', nodeId: 'agreed', result: null } };
     const ctx = { ...dialogueContext, defaultDungeon: () => 'greywater-tower' };
     const after = chooseOption(state, getDialogue('greywater-ford', 'debrief'), 'set-out', ctx);
-    expect(after.dungeon?.dungeonId).toBe('greywater-tower');
+    expect(after.store?.dungeonId).toBe('greywater-tower');
     expect(dialogueContext.defaultDungeon(state)).toBe(greywater.dungeons[0]);
   });
 });

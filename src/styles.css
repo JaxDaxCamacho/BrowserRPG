@@ -3193,3 +3193,173 @@ button.portrait-choice:hover {
   border-left: 3px solid var(--accent);
   background: rgb(201 150 60 / 10%);
 }
+
+/* ---------- framed stat bars (CinderUI style) ---------- */
+
+.sheet-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+  margin: 4px 0;
+}
+
+.stat-bar {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  align-items: center;
+  gap: 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+}
+
+.stat-bar-label {
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+}
+
+.stat-bar-track {
+  position: relative;
+  display: block;
+  height: 20px;
+  /* The CinderUI field frame as the bar's housing. */
+  border: 5px solid transparent;
+  border-image: var(--ui-field) 10 fill / 5px stretch;
+  background: #1a1411;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 25%), inset 0 -2px 0 rgb(0 0 0 / 25%);
+}
+
+.stat-bar-value {
+  position: relative;
+  display: block;
+  text-align: center;
+  line-height: 10px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 90%);
+}
+
+.bar-hp .stat-bar-fill {
+  background: linear-gradient(180deg, #8ccf6a, #4b8a35);
+}
+
+.bar-hp.low .stat-bar-fill {
+  background: linear-gradient(180deg, #e3b450, #a3701f);
+}
+
+.bar-hp.critical .stat-bar-fill {
+  background: linear-gradient(180deg, #e0644c, #9a2c1f);
+}
+
+.bar-mana .stat-bar-fill {
+  background: linear-gradient(180deg, #7aa6e8, #3a64ad);
+}
+
+.bar-adrenaline .stat-bar-fill {
+  background: linear-gradient(180deg, #e8806e, #b0382a);
+}
+
+.bar-souls .stat-bar-fill {
+  background: linear-gradient(180deg, #b48ae8, #6a3ead);
+}
+
+.bar-xp .stat-bar-fill {
+  background: linear-gradient(180deg, #e5c068, #a77f2a);
+}
+
+/* ---------- the store ---------- */
+
+.store-columns {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 2fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .store-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.store-columns h2 {
+  margin: 4px 0 8px;
+  font-size: 1.05rem;
+}
+
+.store-mercs,
+.store-shelf {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.store-merc {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.store-merc.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.store-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
+
+.store-item.sold-out {
+  opacity: 0.5;
+}
+
+.store-icon {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.store-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.store-desc {
+  font-size: 0.75rem;
+}
+
+.store-buy {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.store-price {
+  color: var(--accent);
+  font-weight: bold;
+}

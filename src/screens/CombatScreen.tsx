@@ -234,7 +234,8 @@ function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
               <strong>{attacker}</strong> → {target} <span className="dim">· {roll.label}</span>
             </p>
             <p className="roll-sum">
-              {roll.natural} {signed(roll.modifier)} {STAT_SHORT[roll.stat]} = <strong>{roll.total}</strong> vs Defense {roll.defense}
+              {roll.natural} {signed(roll.modifier)} {STAT_SHORT[roll.stat]}
+              {roll.rollBonus ? ` ${signed(roll.rollBonus)} off hand` : ''} = <strong>{roll.total}</strong> vs Defense {roll.defense}
               {roll.mode !== 'normal' && <span className="dim"> · {roll.mode} (rolled {roll.dice.join(' and ')})</span>}
               {roll.critThreshold < 20 && <span className="dim"> · crits on {roll.critThreshold}+</span>}
               <span className="roll-outcome"> {OUTCOME_LABEL[outcome]}</span>
@@ -736,7 +737,7 @@ export function CombatScreen() {
         (() => {
           const x = combat.combatants.find((k) => k.id === inspecting);
           if (!x) return null;
-          if (x.mercId) return <PartyWindow readOnly initialMercId={x.mercId} onClose={() => setInspecting(null)} />;
+          if (x.mercId) return <PartyWindow readOnly initialMercId={x.mercId} fight={combat.combatants} onClose={() => setInspecting(null)} />;
           return <CombatantDetails x={x} onClose={() => setInspecting(null)} />;
         })()}
     </main>

@@ -1,4 +1,4 @@
-import { getClass, getDialogue, getRace } from '../content';
+import { getClass, getDialogue, getItem, getRace } from '../content';
 import {
   checkMaker,
   currentNode,
@@ -30,6 +30,8 @@ function describeCondition(condition: Condition): string {
       return `Needs a ${getClass(condition.classId).name} in the party`;
     case 'partyHasRace':
       return `Needs a ${getRace(condition.raceId).name} in the party`;
+    case 'partyHasItem':
+      return `Needs a ${getItem(condition.itemId).name}`;
     case 'flag':
       return 'Not available';
   }

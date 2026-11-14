@@ -14,6 +14,7 @@ const SCREEN_LABELS: Record<GameState['screen'], string> = {
   dialogue: 'In conversation',
   dungeon: 'Exploring',
   combat: 'In combat',
+  store: 'At the store',
 };
 
 function describeSave(record: SaveRecord): string {

@@ -9,6 +9,7 @@ import {
   type GameState,
   type Merc,
 } from '../engine';
+import { stockFor } from './storeStock';
 
 /** The full character sheet: race, class, gear and talents. */
 export function sheetOf(merc: Merc) {
@@ -27,6 +28,7 @@ export const dialogueContext: DialogueContext = {
   raceOf: (merc) => getRace(merc.raceId),
   getDungeon,
   defaultDungeon: (state) => (state.adventureId ? getAdventure(state.adventureId).dungeons[0] : undefined),
+  stockFor,
 };
 
 /** Map moves also open dialogues from the current adventure. */
@@ -38,6 +40,7 @@ export function dungeonContext(state: GameState): DungeonContext {
       return getDialogue(state.adventureId, dialogueId);
     },
     monsterName: (monsterId) => getMonster(monsterId).name,
+    getItem,
     endingDialogue: (s) => {
       const adventure = s.adventureId ? getAdventure(s.adventureId) : null;
       return adventure?.ending ? getDialogue(adventure.id, adventure.ending) : null;

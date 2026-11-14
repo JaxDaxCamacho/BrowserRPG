@@ -7,6 +7,7 @@ import { WaitingRoom } from './Coop';
 import { LeaderSelect } from './LeaderSelect';
 import { MainMenu } from './MainMenu';
 import { PartyCreation } from './PartyCreation';
+import { StoreScreen } from './StoreScreen';
 
 /** Shows the screen named by `game.screen`. Routing is game state, not URLs. */
 export function ScreenRouter() {
@@ -33,5 +34,7 @@ export function ScreenRouter() {
       return <DungeonScreen />;
     case 'combat':
       return <CombatScreen />;
+    case 'store':
+      return <StoreScreen />;
   }
 }

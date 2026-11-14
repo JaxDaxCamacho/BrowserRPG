@@ -49,6 +49,23 @@ This resizes the images (and compresses the sounds) into `asset-library/` (git-i
 `weapons/swords/sv-t-01`; anything missing shows a placeholder, so the game still runs
 without the packs. Use `ASSETS_DIR=...` if the packs live somewhere else.
 
+## Windows installer (Tauri)
+
+`Build-Installer.bat` makes an installer friends can run: a normal Windows app (Start menu entry,
+its own window) using the WebView2 runtime built into Windows 10 and 11, with all the art and sound
+inside. It needs, on Windows:
+
+1. Rust, from https://rustup.rs (default options).
+2. The Visual Studio Build Tools with the "Desktop development with C++" workload:
+   https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+Then double-click `Build-Installer.bat`. The first run installs the Tauri tools and compiles for
+several minutes; later runs are quicker. The game is built inside WSL (`npm run build:app`, which also
+copies the asset library in), and the installer lands in `src-tauri\target\release\bundle\nsis\`.
+It installs for the current user, so no administrator rights are needed to install. The installer
+contains the commercial art packs, so share it only with people you are allowed to.
+`npm run icons` remakes the app icons from the d20 art.
+
 ## Online co-op
 
 Up to four players: one hosts, three join. The host opens a game and chooses **Host co-op** (on

@@ -5,6 +5,7 @@ import { COPPER_PER_GOLD, formatCoins } from './currency';
 import { rollDice } from './dice';
 import type { DungeonDefinition } from './dungeon';
 import { enterDungeon } from './dungeon';
+import { openStore, type StockEntry } from './store';
 import { announceRolls, type GameState, type Screen, type ShownRoll } from './gameState';
 import { ensureLiveLeader, knockDown, saveRoll } from './injuries';
 import type { RaceDefinition } from './race';
@@ -24,7 +25,9 @@ export type FlagValue = boolean | number | string;
 export type Condition =
   | { type: 'flag'; flag: string; equals: FlagValue }
   | { type: 'partyHasClass'; classId: string }
-  | { type: 'partyHasRace'; raceId: string };
+  | { type: 'partyHasRace'; raceId: string }
+  /** Someone present carries this item, such as rope. */
+  | { type: 'partyHasItem'; itemId: string };
 
 /** Who an effect lands on: the merc who made the check (or the leader), the leader, or everyone. */
 export type EffectTarget = 'roller' | 'leader' | 'party';
@@ -129,6 +132,8 @@ export interface DialogueContext {
   getDungeon: (dungeonId: string) => DungeonDefinition;
   /** The dungeon an `end: "dungeon"` outcome enters when it names none: the adventure's first. */
   defaultDungeon: (state: GameState) => string | undefined;
+  /** What the store sells before a dungeon. Without it, the party goes straight in. */
+  stockFor?: (state: GameState, dungeonId: string) => StockEntry[];
 }
 
 export function startDialogue(
@@ -170,6 +175,10 @@ export function conditionMet(state: GameState, condition: Condition): boolean {
       return state.party.some((m) => m.classId === condition.classId);
     case 'partyHasRace':
       return state.party.some((m) => m.raceId === condition.raceId);
+    case 'partyHasItem': {
+      const present = state.dialogue?.mercIds;
+      return state.party.some((m) => !m.dead && (!present || present.includes(m.id)) && m.inventory.some((s) => s.itemId === condition.itemId));
+    }
   }
 }
 
@@ -317,7 +326,8 @@ function advance(state: GameState, to: Pick<Outcome, 'goto' | 'end' | 'dungeon'>
   const closed: GameState = { ...state, dialogue: null, screen: to.end ?? 'dungeon' };
   // Ending on the map with no map in progress enters a dungeon: the one named, or the adventure's first.
   const target = to.dungeon ?? (closed.screen === 'dungeon' && !closed.dungeon ? ctx.defaultDungeon(closed) : undefined);
-  if (target) return enterDungeon(closed, ctx.getDungeon(target));
+  // On the way into a dungeon, the party visits the store first.
+  if (target) return ctx.stockFor ? openStore(closed, target, ctx.stockFor(closed, target)) : enterDungeon(closed, ctx.getDungeon(target));
   return closed;
 }
 

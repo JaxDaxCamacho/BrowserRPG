@@ -23,6 +23,9 @@ import { applyStatChanges, statModifier, type StatChanges, type StatName, type S
 
 export type Side = 'party' | 'enemy';
 
+/** Taken off the attack roll of the second blow when fighting with a weapon in each hand. */
+export const OFF_HAND_PENALTY = 3;
+
 /** Defense added by the Defend action until the defender's next turn. */
 export const DEFEND_BONUS = 2;
 /** Agility check the leader makes to flee. */
@@ -107,6 +110,10 @@ export interface Combatant {
   manaBurn: number;
   /** Has spells or a magic attack: a target for mage hunters. */
   caster: boolean;
+  /** A second weapon in the off hand: the basic attack follows up with it, at a penalty to hit. */
+  offHand?: { attack: CombatAttack; critThreshold: number };
+  /** Taken off that penalty (talents). */
+  twinWeapons: number;
   /** Walking dead, for holy magic. */
   undead: boolean;
   /** Called up by an ability: fights for its side on its own, and fades after a number of its turns. */
@@ -179,6 +186,8 @@ export interface AttackRoll {
   free?: boolean;
   /** Flat bonus damage included in `damage` (talents and ability bonuses). */
   bonusDamage: number;
+  /** Added to the roll only, such as the off hand's penalty. */
+  rollBonus?: number;
   /** True for a ranged or magic attack: the screen draws a projectile for it. */
   ranged?: boolean;
 }
@@ -602,6 +611,27 @@ export function reachableTiles(c: CombatState, actor: Combatant, budget = c.move
 
 // ---------- setting up ----------
 
+/** The off-hand weapon as a second attack, if the merc holds one that needs no ammunition. */
+function offHandAttack(merc: MercType, ctx: CombatContext): { attack: CombatAttack; critThreshold: number } | undefined {
+  const id = merc.equipment.offHand;
+  const weapon = id ? ctx.getItem(id) : null;
+  if (!weapon || weapon.kind !== 'weapon' || weapon.ammo) return undefined;
+  const profile = weaponAttack(weapon);
+  return {
+    attack: {
+      name: weapon.name,
+      range: weapon.range,
+      profile,
+      weaponType: weapon.weaponType,
+      animation: weapon.animation ?? defaultAttackAnimation(profile, weapon.style),
+      ...(weapon.icon ? { icon: weapon.icon } : {}),
+      style: weapon.style,
+      ...(weapon.sound ? { sound: weapon.sound } : {}),
+    },
+    critThreshold: raceCritThreshold(ctx.raceOf(merc), weapon.weaponType, profile.critThreshold ?? DEFAULT_CRIT_THRESHOLD),
+  };
+}
+
 function mercAttack(merc: MercType, ctx: CombatContext): { attack: CombatAttack; critThreshold: number; twoHanded: boolean } {
   const weaponId = merc.equipment.mainHand;
   const weapon = weaponId ? ctx.getItem(weaponId) : null;
@@ -656,6 +686,7 @@ function mercCombatant(merc: MercType, pos: Pos, roll: (agility: number) => numb
   const sheet = ctx.sheetOf(merc);
   const race = ctx.raceOf(merc);
   const { attack, critThreshold, twoHanded } = mercAttack(merc, ctx);
+  const offHand = offHandAttack(merc, ctx);
   const abilities = sheet.abilityIds.map((id) => ctx.getAbility(id));
   const potionBuffs: Buff[] = (merc.potionEffects ?? []).map((p) => {
     const item = ctx.getItem(p.itemId);
@@ -693,6 +724,8 @@ function mercCombatant(merc: MercType, pos: Pos, roll: (agility: number) => numb
     manaBurn: sheet.manaBurn,
     caster: abilities.some(isSpell) || attack.profile.kind === 'magic' || attack.profile.kind === 'spiritual',
     undead: false,
+    ...(offHand ? { offHand } : {}),
+    twinWeapons: sheet.twinWeapons,
   };
 }
 
@@ -746,6 +779,7 @@ function monsterCombatant(
     caster:
       monster.abilityIds.some((a) => isSpell(ctx.getAbility(a))) || monster.attack.profile.kind === 'magic' || monster.attack.profile.kind === 'spiritual',
     undead: !!monster.undead,
+    twinWeapons: 0,
   };
 }
 
@@ -988,6 +1022,8 @@ interface Strike {
   style?: DamageStyle;
   /** A weapon blow: mana burn applies. */
   weapon?: boolean;
+  /** Added to the roll only (the off hand's penalty). */
+  rollBonus?: number;
 }
 
 function describeOutcome(outcome: AttackOutcome): string {
@@ -1063,6 +1099,7 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     mode,
     critThreshold: s.critThreshold,
     bonusDamage: (s.bonusDamage ?? 0) + burn,
+    ...(s.rollBonus ? { rollBonus: s.rollBonus } : {}),
   });
   const r = result.value;
   const roll = r.roll.dice.length > 1 ? `${r.roll.dice.join('/')}→${r.roll.natural}` : `${r.roll.natural}`;
@@ -1086,6 +1123,7 @@ function strike(c: CombatState, seed: number, s: Strike): { combat: CombatState;
     extraDamage: r.extraDamage,
     damage: r.damage,
     bonusDamage: r.bonusDamage,
+    ...(s.rollBonus ? { rollBonus: s.rollBonus } : {}),
     ...(s.free ? { free: true } : {}),
     ...(s.profile.kind === 'ranged' || s.profile.kind === 'magic' ? { ranged: true } : {}),
   };
@@ -1276,7 +1314,31 @@ export function attack(state: GameState, targetId: string): GameState {
     ...(actor.attack.sound ? { sound: actor.attack.sound } : {}),
     ...(actor.attack.style ? { style: actor.attack.style } : {}),
   });
-  return finishAction(state, reveal(hit.combat, actor.id), hit.seed);
+  let after = hit.combat;
+  let seed = hit.seed;
+  // A weapon in the off hand follows up on the same target, at a penalty to hit.
+  const off = actor.offHand;
+  const stillThere = combatantById(after, target.id);
+  const me = combatantById(after, actor.id);
+  if (off && isStanding(stillThere) && isStanding(me) && reach(after, off.attack.range, me.pos, stillThere.pos, false).ok) {
+    const second = strike(after, seed, {
+      attacker: me,
+      target: stillThere,
+      profile: off.attack.profile,
+      label: `${off.attack.name} (off hand)`,
+      mode: combineModes(mode, hidden ? 'advantage' : 'normal'),
+      critThreshold: off.critThreshold,
+      animation: off.attack.animation,
+      bonusDamage: weaponDamageBonus(me),
+      weapon: true,
+      rollBonus: -Math.max(0, OFF_HAND_PENALTY - me.twinWeapons),
+      ...(off.attack.sound ? { sound: off.attack.sound } : {}),
+      ...(off.attack.style ? { style: off.attack.style } : {}),
+    });
+    after = second.combat;
+    seed = second.seed;
+  }
+  return finishAction(state, reveal(after, actor.id), seed);
 }
 
 /** Attacking ends invisibility. */

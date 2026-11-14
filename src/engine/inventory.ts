@@ -116,7 +116,8 @@ function mercOf(state: GameState, mercId: string): Merc {
 export function naturalSlot(item: ItemDefinition, merc: Merc): EquipSlot | null {
   switch (item.kind) {
     case 'weapon':
-      return 'mainHand';
+      // A one-handed weapon goes to the off hand when the main hand already holds one: dual wielding.
+      return item.hands === 1 && merc.equipment.mainHand && !merc.equipment.offHand ? 'offHand' : 'mainHand';
     case 'shield':
       return 'offHand';
     case 'armour':

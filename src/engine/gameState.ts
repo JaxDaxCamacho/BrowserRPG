@@ -1,6 +1,7 @@
 import type { DialogueState, FlagValue } from './dialogue';
 import type { DungeonState, EncounterState } from './dungeon';
 import type { Merc } from './merc';
+import type { StoreState } from './store';
 
 /**
  * The whole game in one plain-JSON object. Saving is writing this out;
@@ -17,6 +18,7 @@ export const SCREENS = [
   'dialogue',
   'dungeon',
   'combat',
+  'store',
 ] as const;
 
 export type Screen = (typeof SCREENS)[number];
@@ -47,6 +49,8 @@ export interface GameState {
   encounter: EncounterState | null;
   /** Other fights going on at the same time, while the party is split. */
   otherEncounters?: EncounterState[];
+  /** The store the party is visiting on its way to a dungeon. */
+  store?: StoreState | null;
   /** The dice just rolled, for the dice tray to animate. `seq` goes up with each new batch. */
   rollFeed?: { seq: number; rolls: ShownRoll[] };
 }

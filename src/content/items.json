@@ -520,5 +520,46 @@
       "damageType": "magic",
       "amount": 2
     }
+  },
+  {
+    "id": "rope",
+    "name": "Rope",
+    "icon": "items/hunting/huntingicons-17-t",
+    "description": "Fifty feet of good hemp rope. For climbing, hauling and the like.",
+    "value": 300,
+    "starter": false,
+    "kind": "kit",
+    "use": "rope"
+  },
+  {
+    "id": "trap-kit",
+    "name": "Trap-Disarming Kit",
+    "icon": "items/hunting/huntingicons-33-t",
+    "description": "Picks, wedges and wire cutters. Disarms a trap you have spotted when you walk up to it, with no roll. Used up.",
+    "value": 1500,
+    "starter": false,
+    "kind": "kit",
+    "use": "disarmTrap"
+  },
+  {
+    "id": "camping-kit",
+    "name": "Camping Kit",
+    "icon": "items/barbarian/barbarian-icons-115-t",
+    "description": "A tent, bedrolls and a cook pot. Lets the party make camp a second time on the same dungeon level. Used up.",
+    "value": 2000,
+    "starter": false,
+    "kind": "kit",
+    "use": "camp"
+  },
+  {
+    "id": "rations",
+    "name": "Rations",
+    "icon": "items/hunting/huntingicons-06-t",
+    "description": "Salted meat and hard bread. Eat one outside a fight to heal 6 HP.",
+    "value": 200,
+    "starter": false,
+    "kind": "kit",
+    "use": "food",
+    "heal": 6
   }
 ]

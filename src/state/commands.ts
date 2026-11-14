@@ -6,6 +6,10 @@ import {
   arrangeParty,
   attack,
   breakCamp,
+  buyItem,
+  eatRation,
+  sellItem,
+  setOut,
   canLeave,
   castAbility,
   castVote,
@@ -101,7 +105,12 @@ export type GameCommand =
   | { type: 'flee' }
   | { type: 'endTurn' }
   | { type: 'finishCombat' }
-  | { type: 'retryCombat' };
+  | { type: 'retryCombat' }
+  // The store, and supplies
+  | { type: 'buy'; mercId: string; itemId: string }
+  | { type: 'sell'; mercId: string; index: number }
+  | { type: 'setOut' }
+  | { type: 'eat'; mercId: string; index: number };
 
 export const GEAR_RULES: GearRules = {
   getItem,
@@ -215,6 +224,15 @@ export function runCommand(g: GameState, cmd: GameCommand, voting?: Voting): Gam
       return finishCombat(g, combatContext);
     case 'retryCombat':
       return retryCombat(g, combatContext);
+    case 'buy':
+      return buyItem(g, cmd.mercId, cmd.itemId, getItem);
+    case 'sell':
+      return sellItem(g, cmd.mercId, cmd.index, getItem);
+    case 'setOut':
+      if (!g.store) throw new Error('The store is closed.');
+      return setOut(g, getDungeon(g.store.dungeonId));
+    case 'eat':
+      return eatRation(g, cmd.mercId, cmd.index, getItem, (m) => dialogueContext.maxHpOf(m));
   }
 }
 
@@ -234,6 +252,7 @@ const HOST_ONLY: ReadonlySet<GameCommand['type']> = new Set([
   'arrangeParty',
   'longRest',
   'breakCamp',
+  'setOut',
 ]);
 
 /** Commands about one merc's own things: only that merc's player may send them. */
@@ -246,6 +265,9 @@ function ownMerc(cmd: GameCommand): string | null {
     case 'unequip':
     case 'giveStack':
     case 'splitOff':
+    case 'buy':
+    case 'sell':
+    case 'eat':
       return cmd.mercId;
     default:
       return null;

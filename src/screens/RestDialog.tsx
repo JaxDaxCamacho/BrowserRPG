@@ -13,7 +13,7 @@ export function RestDialog({ onClose }: { onClose: () => void }) {
   const { isHost } = useControl();
   const [cure, setCure] = useState<{ mercId: string; injuryId: string }[]>([]);
   const kits = healingKitsHeld(game, getItem);
-  const blocker = restBlocker(game);
+  const blocker = restBlocker(game, getItem);
   const chosen = (mercId: string, injuryId: string) => cure.some((c) => c.mercId === mercId && c.injuryId === injuryId);
   const injured = game.party.filter((m) => !m.dead && m.injuries.length > 0);
 

@@ -22,5 +22,6 @@ export * from './rest';
 export * from './rng';
 export * from './save';
 export * from './stats';
+export * from './store';
 export * from './talents';
 export * from './world';

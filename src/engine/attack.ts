@@ -132,6 +132,8 @@ export interface AttackInput {
   critThreshold?: number;
   /** Added to the main damage of a graze, hit or crit, before armour. Not doubled on a crit. */
   bonusDamage?: number;
+  /** Added to the attack roll only, not the damage: the off hand's -3, for instance. */
+  rollBonus?: number;
 }
 
 /** Rolls a full attack: the d20, then only the damage dice the outcome needs. */
@@ -141,7 +143,8 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
 
   const d20 = rollD20(seed, mode);
   let next = d20.seed;
-  const outcome = attackOutcome(d20.value.natural, modifier, targetDefense, critThreshold);
+  const rollBonus = input.rollBonus ?? 0;
+  const outcome = attackOutcome(d20.value.natural, modifier + rollBonus, targetDefense, critThreshold);
 
   let grazeRoll = 0;
   let hitRoll = 0;
@@ -166,7 +169,7 @@ export function resolveAttack(seed: number, input: AttackInput): Rolled<AttackRe
     value: {
       roll: d20.value,
       modifier,
-      total: d20.value.natural + modifier,
+      total: d20.value.natural + modifier + rollBonus,
       defense: targetDefense,
       outcome,
       damage: damage + extraDamage,

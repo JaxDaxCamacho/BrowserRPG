@@ -11,6 +11,7 @@ import {
   resolveEncounter,
   setDestination,
   setLeader,
+  setOut,
   startNewGame,
   stepParty,
   validateDungeon,
@@ -264,6 +265,9 @@ describe('the Greywater adventure', () => {
     const debrief = getDialogue('greywater-ford', 'debrief');
     state = { ...state, screen: 'dialogue', dialogue: { dialogueId: 'debrief', nodeId: 'agreed', result: null } };
     state = chooseOption(state, debrief, 'set-out', dialogueContext);
+    // First the store, then out the door.
+    expect(state.screen).toBe('store');
+    state = setOut(state, tower);
     expect(state.screen).toBe('dungeon');
     expect(state.dungeon?.dungeonId).toBe('greywater-tower');
     expect(state.dungeon?.pos).toEqual(tower.start);

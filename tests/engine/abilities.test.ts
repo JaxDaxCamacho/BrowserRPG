@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAbility, getTalentTree, PREMADES, premadeToDraft } from '../../src/content';
+import { getAbility, getItem, getRace, getTalentTree, PREMADES, premadeToDraft } from '../../src/content';
 import {
   abilityBlocker,
   addMerc,
@@ -22,6 +22,7 @@ import {
   startNewGame,
   talentBlocker,
   talentEffects,
+  validateEquipment,
   xpForLevel,
   type Combatant,
   type CombatContext,
@@ -596,5 +597,50 @@ describe('the Ranger and the Warlock', () => {
     const s = setUp(s0, 'merc-1', { 'merc-1': { pos: at(3, 3), resources: pool(9) } });
     const wolf = combatOf(castAbility(s, 'call-wolf', null, ctx)).combatants.find((x) => x.summoned)!;
     expect(wolf).toMatchObject({ side: 'party', monsterId: 'wolf-companion', summoned: { rounds: 6 } });
+  });
+});
+
+// ---------- dual wielding ----------
+
+describe('dual wielding', () => {
+  const armed = (premade: string, mainHand: string, offHand: string, talents: string[] = []) => {
+    const s = party([{ premade, talents }]);
+    return { ...s, party: s.party.map((m) => ({ ...m, equipment: { ...m.equipment, mainHand, offHand } })) };
+  };
+  const rules = { getItem, race: (id: string) => getRace(id) };
+  const problems = (premade: string, mainHand: string, offHand: string) => {
+    const m = armed(premade, mainHand, offHand).party[0]!;
+    return validateEquipment(m.equipment, { race: rules.race(m.raceId), armourProficiency: 'heavy', getItem, startersOnly: false });
+  };
+
+  it('a one-handed weapon fits the off hand; two-handers only for Goliaths', () => {
+    expect(problems('pip-larkspur', 'dagger', 'dagger')).toEqual([]);
+    expect(problems('pip-larkspur', 'dagger', 'greataxe')).toEqual([expect.stringMatching(/only a Goliath/)]);
+    expect(problems('korg-the-unbowed', 'greataxe', 'greataxe')).toEqual([]);
+    expect(problems('pip-larkspur', 'dagger', 'light-crossbow')).toContainEqual(expect.stringMatching(/off hand/));
+  });
+
+  it('the basic attack follows up with the off-hand weapon at -3 to hit', () => {
+    let s = fight(armed('pip-larkspur', 'dagger', 'dagger'));
+    s = setUp(s, 'merc-1', { 'merc-1': { pos: at(3, 3) }, 'bandit-thug-1': { pos: at(4, 3), hp: 999, maxHp: 999 } });
+    const rolls = combatOf(attack(s, 'bandit-thug-1')).events.filter((e) => e.kind === 'attack').map((e) => e.roll!);
+    expect(rolls).toHaveLength(2);
+    expect(rolls[0]!.rollBonus).toBeUndefined();
+    expect(rolls[1]!.rollBonus).toBe(-3);
+    expect(rolls[1]!.label).toBe('Dagger (off hand)');
+  });
+
+  it('Ambidextrous takes the penalty down by 1 a rank', () => {
+    let s = fight(armed('pip-larkspur', 'dagger', 'dagger', ['ambidextrous', 'ambidextrous']));
+    s = setUp(s, 'merc-1', { 'merc-1': { pos: at(3, 3) }, 'bandit-thug-1': { pos: at(4, 3), hp: 999, maxHp: 999 } });
+    const rolls = combatOf(attack(s, 'bandit-thug-1')).events.filter((e) => e.kind === 'attack').map((e) => e.roll!);
+    expect(rolls[1]!.rollBonus).toBe(-1);
+  });
+
+  it('a Goliath swings two two-handers', () => {
+    let s = fight(armed('korg-the-unbowed', 'greataxe', 'warhammer'));
+    s = setUp(s, 'merc-1', { 'merc-1': { pos: at(3, 3) }, 'bandit-thug-1': { pos: at(4, 3), hp: 999, maxHp: 999 } });
+    const labels = combatOf(attack(s, 'bandit-thug-1')).events.filter((e) => e.kind === 'attack').map((e) => e.roll!.label);
+    expect(labels).toEqual(['Greataxe', 'Warhammer (off hand)']);
   });
 });

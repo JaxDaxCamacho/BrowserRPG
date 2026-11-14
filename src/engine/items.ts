@@ -64,7 +64,9 @@ export type ItemEffect =
   /** Hostile conditions last this many fewer turns; cut to nothing, they do not take hold. */
   | { type: 'statusResist'; amount: number }
   /** Weapon hits on a caster deal this much extra damage and drain as much mana. */
-  | { type: 'manaBurn'; amount: number };
+  | { type: 'manaBurn'; amount: number }
+  /** Takes this much off the off-hand weapon's attack penalty. */
+  | { type: 'twinWeapons'; amount: number };
 
 interface ItemBase {
   id: string;
@@ -135,10 +137,22 @@ export interface AmmoItem extends ItemBase {
   extraDamage?: { damageType: DamageType; amount: number };
 }
 
-/** Supplies used outside fights. A healing kit cures one injury during a long rest. */
+/**
+ * Supplies used outside fights:
+ * - healInjury: cures one injury during a long rest
+ * - disarmTrap: disarms a spotted trap the party walks onto, without a roll
+ * - camp: lets the party make camp a second time on one dungeon level
+ * - rope: for climbing and the like; conversations can ask for it
+ * - food: eaten outside fights, heals `heal` HP
+ */
+export const KIT_USES = ['healInjury', 'disarmTrap', 'camp', 'rope', 'food'] as const;
+export type KitUse = (typeof KIT_USES)[number];
+
 export interface KitItem extends ItemBase {
   kind: 'kit';
-  use: 'healInjury';
+  use: KitUse;
+  /** Food only: hit points it restores. */
+  heal?: number;
 }
 
 export type ItemDefinition = WeaponItem | ArmourItem | ShieldItem | TrinketItem | PotionItem | AmmoItem | KitItem;
@@ -152,7 +166,8 @@ export function slotAccepts(slot: EquipSlot, item: ItemDefinition): boolean {
     case 'mainHand':
       return item.kind === 'weapon';
     case 'offHand':
-      return item.kind === 'shield' || (item.kind === 'weapon' && item.hands === 1);
+      // Which weapons a race can hold in the off hand is checked with the rest of the loadout.
+      return item.kind === 'shield' || item.kind === 'weapon';
     case 'body':
     case 'head':
     case 'hands':
@@ -221,6 +236,11 @@ export function validateEquipment(equipment: Equipment, ctx: LoadoutContext): st
   if (main?.kind === 'weapon' && off && handsUsed(ctx.race, main) === 2) {
     problems.push(`The ${main.name} needs both hands, so the off hand must stay empty.`);
   }
+  // A second weapon in the off hand: one-handed, unless a Goliath's grip makes a two-hander one-handed.
+  if (off?.kind === 'weapon') {
+    if (handsUsed(ctx.race, off) === 2) problems.push(`The ${off.name} needs both hands; only a Goliath can carry one in each hand.`);
+    if (off.ammo) problems.push(`The ${off.name} cannot be loaded and shot one-handed from the off hand.`);
+  }
 
   const body = items.body;
   for (const piece of [body, items.head, items.hands, items.feet]) {
@@ -260,6 +280,7 @@ export interface GearTotals {
   bloodrage: number;
   statusResist: number;
   manaBurn: number;
+  twinWeapons: number;
 }
 
 export function emptyTotals(): GearTotals {
@@ -277,6 +298,7 @@ export function emptyTotals(): GearTotals {
     bloodrage: 0,
     statusResist: 0,
     manaBurn: 0,
+    twinWeapons: 0,
   };
 }
 
@@ -320,6 +342,9 @@ export function addEffects(totals: GearTotals, effects: ItemEffect[]) {
         break;
       case 'manaBurn':
         totals.manaBurn += effect.amount;
+        break;
+      case 'twinWeapons':
+        totals.twinWeapons += effect.amount;
         break;
       case 'heal':
         break;

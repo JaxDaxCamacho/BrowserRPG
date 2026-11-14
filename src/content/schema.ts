@@ -8,6 +8,7 @@ import {
   ARMOUR_WEIGHTS,
   DAMAGE_STYLES,
   ENEMY_ARCHETYPES,
+  KIT_USES,
   isValidDice,
   SCREENS,
   STAT_NAMES,
@@ -114,6 +115,7 @@ export const itemEffectSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('bloodrage'), amount: z.number().int().positive() }),
   z.strictObject({ type: z.literal('statusResist'), amount: z.number().int().positive() }),
   z.strictObject({ type: z.literal('manaBurn'), amount: z.number().int().positive() }),
+  z.strictObject({ type: z.literal('twinWeapons'), amount: z.number().int().positive() }),
 ]);
 
 const effects = z.array(itemEffectSchema);
@@ -187,7 +189,8 @@ const ammoItem = z.strictObject({
 const kitItem = z.strictObject({
   ...itemBase,
   kind: z.literal('kit'),
-  use: z.enum(['healInjury']),
+  use: z.enum(KIT_USES),
+  heal: z.number().int().positive().optional(),
 });
 
 /** Body armour must sit in the bands agreed for each weight. */
@@ -340,6 +343,7 @@ const conditionSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('flag'), flag: z.string().min(1), equals: flagValue }),
   z.strictObject({ type: z.literal('partyHasClass'), classId: id }),
   z.strictObject({ type: z.literal('partyHasRace'), raceId: id }),
+  z.strictObject({ type: z.literal('partyHasItem'), itemId: id }),
 ]);
 
 const effectTarget = z.enum(['roller', 'leader', 'party']);

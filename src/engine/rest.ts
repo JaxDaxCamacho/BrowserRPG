@@ -1,5 +1,6 @@
 import type { GameState } from './gameState';
 import type { ItemLookup } from './items';
+import { findSupply, spendOne } from './store';
 
 /**
  * A long rest: the party makes camp, recovers all hit points, gets back up if
@@ -13,10 +14,13 @@ export interface RestPlan {
 }
 
 /** Why the party cannot rest right now, or null if it can. */
-export function restBlocker(state: GameState): string | null {
+export function restBlocker(state: GameState, getItem?: ItemLookup): string | null {
   const d = state.dungeon;
   if (!d || state.screen !== 'dungeon') return 'You can only make camp while exploring.';
-  if (d.rested) return 'You have already made camp on this level.';
+  // A camping kit buys a second camp on the same level.
+  if (d.rested && !(getItem && findSupply(state.party, state.party.map((m) => m.id), 'camp', getItem))) {
+    return 'You have already made camp on this level. A camping kit would let you camp again.';
+  }
   if ((d.otherGroups?.length ?? 0) > 0) return 'Regroup the party before making camp.';
   if (d.path.length > 0) return 'Stop walking first.';
   if (state.party.every((m) => m.dead)) return 'No one is left to rest.';
@@ -61,12 +65,17 @@ function spendKit(state: GameState, patientId: string, getItem: ItemLookup): Gam
 }
 
 export function longRest(state: GameState, plan: RestPlan, getItem: ItemLookup): GameState {
-  const blocker = restBlocker(state);
+  const blocker = restBlocker(state, getItem);
   if (blocker) throw new Error(blocker);
   if (plan.cure.length > healingKitsHeld(state, getItem)) throw new Error('Not enough healing kits.');
 
   let next = state;
   const lines: string[] = ['The party makes camp and rests.'];
+  if (state.dungeon?.rested) {
+    const kit = findSupply(next.party, next.party.map((m) => m.id), 'camp', getItem)!;
+    next = spendOne(next, kit.mercId, kit.stackIndex);
+    lines.push('A camping kit is used up.');
+  }
   for (const { mercId, injuryId } of plan.cure) {
     const merc = next.party.find((m) => m.id === mercId);
     const injury = merc?.injuries.find((i) => i.id === injuryId);

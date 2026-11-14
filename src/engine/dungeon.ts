@@ -3,6 +3,8 @@ import { makeCheck } from './checks';
 import type { CombatState } from './combat';
 import { checkMaker, startDialogue, type DialogueContext, type DialogueDefinition } from './dialogue';
 import { announceRolls, type GameState, type ShownRoll } from './gameState';
+import type { ItemLookup } from './items';
+import { findSupply, spendOne } from './store';
 
 /**
  * Dungeons are square grids stored as rows of characters, so they stay easy to
@@ -471,6 +473,8 @@ export function stopWalking(state: GameState): GameState {
 
 export interface DungeonContext extends DialogueContext {
   getDialogue: (dialogueId: string) => DialogueDefinition;
+  /** For supplies the party carries, such as trap-disarming kits. */
+  getItem?: ItemLookup;
   /** The dialogue played on leaving with the goal done, or null to finish the adventure straight away. */
   endingDialogue: (state: GameState) => DialogueDefinition | null;
   /** Display name of a monster, for messages. */
@@ -550,6 +554,13 @@ export function stepParty(state: GameState, def: DungeonDefinition, ctx: Dungeon
   if (here && !dungeon.resolved.includes(here.id)) {
     if (here.type === 'trap') {
       const spotted = dungeon.spotted.includes(here.id);
+      // A trap-disarming kit makes short work of a trap the party has seen coming.
+      const kit = spotted && ctx.getItem ? findSupply(game.party, activeMercIds(game), 'disarmTrap', ctx.getItem) : null;
+      if (kit) {
+        const who = game.party.find((m) => m.id === kit.mercId)!;
+        halt({ resolved: [...dungeon.resolved, here.id] }, `${who.name} disarms the ${here.name} with a trap kit.`);
+        return spendOne(game, kit.mercId, kit.stackIndex);
+      }
       halt({}, spotted ? `You reach the ${here.name}.` : `You trigger a ${here.name}!`);
       const node = spotted ? (here.disarmNode ?? here.triggerNode) : here.triggerNode;
       return openFeatureDialogue(game, here, node, ctx);

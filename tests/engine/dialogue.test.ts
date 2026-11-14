@@ -185,7 +185,9 @@ describe('the Greywater Ford debrief', () => {
   it('plays from the office to setting out', () => {
     const state = play(1, 'ask-ford', 'to-pay', 'accept', 'set-out');
     expect(state.adventureId).toBe('greywater-ford');
-    expect(state.screen).toBe('dungeon');
+    // Setting out goes by the store first.
+    expect(state.screen).toBe('store');
+    expect(state.store?.dungeonId).toBe('greywater-tower');
     expect(state.dialogue).toBeNull();
     expect(state.flags).toMatchObject({ fee: 100, debriefDone: true });
   });

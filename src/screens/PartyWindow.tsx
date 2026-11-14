@@ -6,7 +6,9 @@ import {
   naturalSlot,
   PACK_HEIGHT,
   PACK_WIDTH,
+  RESOURCES,
   STAT_NAMES,
+  type Combatant,
   statModifier,
   type EquipSlot,
   type Merc,
@@ -21,6 +23,7 @@ import { AssetImage } from './assets';
 import { describeItem } from './MercBuilder';
 import { formatModifier, initials, Token } from './MercCard';
 import { TalentTreeView } from './TalentTreeView';
+import { StatBar } from './StatBar';
 import { XpBar } from './TrainingPanel';
 
 /** Equipment slots laid out around the figure: [slot, label, grid column, grid row]. */
@@ -54,7 +57,18 @@ const CELL = 46;
  * The party's character sheets and gear. `readOnly` is for looking during a
  * fight: the fight works on its own copy of each merc, so gear cannot change mid-fight.
  */
-export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onClose: () => void; initialMercId?: string; readOnly?: boolean }) {
+export function PartyWindow({
+  onClose,
+  initialMercId,
+  readOnly = false,
+  fight,
+}: {
+  onClose: () => void;
+  initialMercId?: string;
+  readOnly?: boolean;
+  /** During a fight: the fighters, so the sheet shows live health and resources. */
+  fight?: Combatant[];
+}) {
   const game = useGameStore((s) => s.game);
   const dispatch = useGameStore((s) => s.dispatch);
   const { isClient, controls } = useControl();
@@ -191,10 +205,22 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
                 {merc.dead ? (
                   <p className="error">Dead</p>
                 ) : (
-                  <p>
-                    HP {hp.current} / {hp.max}
-                    {merc.down && <span className="error"> · down</span>}
-                  </p>
+                  <div className="sheet-bars">
+                    {(() => {
+                      // In a fight, the fight's own numbers are the live ones.
+                      const live = fight?.find((x) => x.mercId === merc.id);
+                      return (
+                        <>
+                          <StatBar kind="hp" current={live ? live.hp : hp.current} max={live ? live.maxHp : hp.max} />
+                          {live &&
+                            RESOURCES.filter((r) => live.resources[r]).map((r) => (
+                              <StatBar key={r} kind={r} current={live.resources[r]!.current} max={live.resources[r]!.max} />
+                            ))}
+                        </>
+                      );
+                    })()}
+                    {merc.down && <span className="error">Down</span>}
+                  </div>
                 )}
               </div>
             </div>
@@ -330,6 +356,11 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
                     style={{ gridColumn: `${s.x + 1} / span ${w}`, gridRow: `${s.y + 1} / span ${h}` }}
                     onClick={() => setPicked(isPicked ? null : { kind: 'pack', index })}
                     onDoubleClick={() => {
+                      // Food is eaten; everything else is equipped.
+                      if (item.kind === 'kit' && item.use === 'food') {
+                        tryApply({ type: 'eat', mercId, index });
+                        return;
+                      }
                       const slot = naturalSlot(item, merc);
                       if (slot) tryApply({ type: 'equipFromPack', mercId, index, slot });
                     }}
@@ -360,7 +391,7 @@ export function PartyWindow({ onClose, initialMercId, readOnly = false }: { onCl
                   </span>
                 </p>
               ) : (
-                <p className="dim note">Click an item to pick it up. Double-click to equip or take off. You can also drag.</p>
+                <p className="dim note">Click an item to pick it up. Double-click to equip or take off, or to eat food. You can also drag.</p>
               )}
             </div>
           </section>

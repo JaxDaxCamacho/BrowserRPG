@@ -20,7 +20,8 @@
                 "amount": 1,
                 "twoHandedOnly": true
               }
-            ]
+            ],
+            "icon": "skills/red/red-33"
           },
           {
             "id": "t-crushing-blow",
@@ -42,7 +43,8 @@
                 "stat": "strength",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-10"
           },
           {
             "id": "t-execution",
@@ -63,7 +65,8 @@
                 "type": "critRange",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-05"
           },
           {
             "id": "righteous-vigour",
@@ -76,7 +79,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-17"
           },
           {
             "id": "t-judgement",
@@ -97,7 +101,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-23"
           }
         ]
       },
@@ -117,7 +122,8 @@
                 "type": "defense",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-11"
           },
           {
             "id": "t-taunt",
@@ -138,7 +144,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/green/green-33"
           },
           {
             "id": "iron-skin",
@@ -152,7 +159,8 @@
                 "armour": "physical",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-24"
           },
           {
             "id": "retribution",
@@ -165,7 +173,8 @@
                 "type": "retaliate",
                 "amount": 2
               }
-            ]
+            ],
+            "icon": "skills/red/red-15"
           },
           {
             "id": "spellguard",
@@ -179,7 +188,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-35"
           },
           {
             "id": "t-shield-wall",
@@ -201,7 +211,8 @@
                 "stat": "toughness",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-18"
           }
         ]
       },
@@ -238,7 +249,8 @@
                 "stat": "agility",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-01"
           },
           {
             "id": "t-opening",
@@ -259,7 +271,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-34"
           },
           {
             "id": "commanding-presence",
@@ -272,7 +285,8 @@
                 "type": "defense",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-44"
           },
           {
             "id": "t-coordinated-assault",
@@ -294,7 +308,8 @@
                 "stat": "strength",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-07"
           }
         ]
       }
@@ -336,6 +351,21 @@
                 "type": "damage",
                 "amount": 1
               }
+            ],
+            "icon": "skills/red/red-09"
+          },
+          {
+            "id": "ambidextrous",
+            "name": "Ambidextrous",
+            "icon": "skills/gray/gray-06",
+            "description": "A blade in each hand: the off-hand blow's -3 to hit shrinks by 1 per rank.",
+            "tier": 1,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "twinWeapons",
+                "amount": 1
+              }
             ]
           },
           {
@@ -357,7 +387,8 @@
                 "type": "critRange",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-17"
           },
           {
             "id": "shadow-step",
@@ -370,7 +401,8 @@
                 "type": "movement",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/green/green-26"
           },
           {
             "id": "t-assassinate",
@@ -392,7 +424,8 @@
                 "stat": "agility",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/green/green-26"
           }
         ]
       },
@@ -428,7 +461,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-03"
           },
           {
             "id": "t-pierce-lung",
@@ -457,7 +491,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-37"
           },
           {
             "id": "t-light-em-up",
@@ -478,7 +513,8 @@
                 "type": "critRange",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-03"
           }
         ]
       },
@@ -514,7 +550,8 @@
                 "type": "movement",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/emerald/emerald-13"
           },
           {
             "id": "nimble",
@@ -527,7 +564,8 @@
                 "type": "defense",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-21"
           },
           {
             "id": "t-song-of-courage",
@@ -557,7 +595,8 @@
                 "stat": "intellect",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-03"
           },
           {
             "id": "t-grand-finale",
@@ -579,7 +618,8 @@
                 "stat": "agility",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/emerald/emerald-04"
           }
         ]
       }
@@ -605,7 +645,8 @@
                 "type": "bloodrage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-21"
           },
           {
             "id": "brute-strength",
@@ -619,7 +660,8 @@
                 "stat": "strength",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-25"
           },
           {
             "id": "t-reckless-swing",
@@ -648,6 +690,21 @@
                 "type": "critRange",
                 "amount": 1
               }
+            ],
+            "icon": "skills/yellow/yellow-31"
+          },
+          {
+            "id": "twin-weapons",
+            "name": "Twin Weapons",
+            "icon": "skills/yellow/yellow-41",
+            "description": "Fight with a weapon in each hand: the off-hand blow's -3 to hit shrinks by 1 per rank.",
+            "tier": 2,
+            "maxRanks": 3,
+            "effects": [
+              {
+                "type": "twinWeapons",
+                "amount": 1
+              }
             ]
           },
           {
@@ -661,7 +718,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-44"
           },
           {
             "id": "t-giant-slayer",
@@ -682,7 +740,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-10"
           }
         ]
       },
@@ -703,7 +762,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-17"
           },
           {
             "id": "t-headbutt",
@@ -724,7 +784,8 @@
                 "type": "statusResist",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-31"
           },
           {
             "id": "mana-burn",
@@ -737,7 +798,8 @@
                 "type": "manaBurn",
                 "amount": 2
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-07"
           },
           {
             "id": "t-spellbreaker",
@@ -758,7 +820,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-17"
           },
           {
             "id": "t-spell-reflection",
@@ -779,7 +842,8 @@
                 "type": "statusResist",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/gray/gray-12"
           },
           {
             "id": "null-hide",
@@ -793,7 +857,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-14"
           }
         ]
       },
@@ -829,7 +894,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-18"
           },
           {
             "id": "t-intimidating-shout",
@@ -859,7 +925,8 @@
                 "stat": "toughness",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-33"
           },
           {
             "id": "t-terrify",
@@ -880,7 +947,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/green/green-33"
           }
         ]
       }
@@ -923,7 +991,8 @@
                 "stat": "intellect",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-14"
           },
           {
             "id": "t-frost-nova",
@@ -953,7 +1022,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-13"
           },
           {
             "id": "t-blizzard",
@@ -974,7 +1044,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-34"
           }
         ]
       },
@@ -1010,7 +1081,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-37"
           },
           {
             "id": "t-holy-smite",
@@ -1047,7 +1119,8 @@
                 "type": "defense",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-11"
           },
           {
             "id": "t-turn-undead",
@@ -1077,7 +1150,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-35"
           }
         ]
       },
@@ -1106,7 +1180,8 @@
                 "stat": "intellect",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-19"
           },
           {
             "id": "hellfire-ward",
@@ -1120,7 +1195,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-17"
           },
           {
             "id": "t-fireball",
@@ -1149,7 +1225,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-44"
           },
           {
             "id": "t-summon-demon",
@@ -1171,7 +1248,8 @@
                 "stat": "intellect",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-03"
           }
         ]
       }
@@ -1214,7 +1292,8 @@
                 "stat": "agility",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-06"
           },
           {
             "id": "t-concussive-shot",
@@ -1243,7 +1322,8 @@
                 "type": "critRange",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-05"
           },
           {
             "id": "t-pin-down",
@@ -1264,7 +1344,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-33"
           }
         ]
       },
@@ -1292,7 +1373,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-17"
           },
           {
             "id": "keen-eye",
@@ -1306,7 +1388,8 @@
                 "stat": "agility",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-01"
           },
           {
             "id": "t-call-hawk",
@@ -1335,7 +1418,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-23"
           },
           {
             "id": "t-call-bear",
@@ -1357,7 +1441,8 @@
                 "stat": "spirit",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-27"
           }
         ]
       },
@@ -1394,7 +1479,8 @@
                 "stat": "spirit",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-26"
           },
           {
             "id": "t-thorn-whip",
@@ -1431,7 +1517,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/green/green-33"
           },
           {
             "id": "t-wrath-of-nature",
@@ -1453,7 +1540,8 @@
                 "stat": "spirit",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/green/green-10"
           }
         ]
       }
@@ -1496,7 +1584,8 @@
                 "stat": "spirit",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-24"
           },
           {
             "id": "t-wailing-guardians",
@@ -1525,7 +1614,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-34"
           },
           {
             "id": "t-call-back-the-fallen",
@@ -1547,7 +1637,8 @@
                 "armour": "magic",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/blue/blue-14"
           }
         ]
       },
@@ -1584,7 +1675,8 @@
                 "stat": "spirit",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-27"
           },
           {
             "id": "t-plague",
@@ -1613,7 +1705,8 @@
                 "type": "maxHp",
                 "amount": 4
               }
-            ]
+            ],
+            "icon": "skills/red/red-37"
           },
           {
             "id": "t-soul-rot",
@@ -1635,7 +1728,8 @@
                 "stat": "spirit",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/violet/violet-26"
           }
         ]
       },
@@ -1672,7 +1766,8 @@
                 "stat": "strength",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-10"
           },
           {
             "id": "t-hexed-blade",
@@ -1701,7 +1796,8 @@
                 "type": "damage",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/red/red-09"
           },
           {
             "id": "t-soulfire-blade",
@@ -1722,7 +1818,8 @@
                 "type": "critRange",
                 "amount": 1
               }
-            ]
+            ],
+            "icon": "skills/yellow/yellow-17"
           }
         ]
       }

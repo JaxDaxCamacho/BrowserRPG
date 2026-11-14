@@ -4,12 +4,13 @@ import {
   effectiveDefense,
   effectiveMovement,
   effectiveStats,
+  RESOURCES,
   STAT_NAMES,
   statModifier,
   type Combatant,
   type StatName,
 } from '../engine';
-import { ResourceMeters } from './ActionBar';
+import { StatBar } from './StatBar';
 import { AssetImage } from './assets';
 import { formatModifier, initials } from './MercCard';
 
@@ -73,13 +74,15 @@ export function CombatantDetails({ x, onClose }: { x: Combatant; onClose: () => 
               {x.undead && ' · Undead'}
               {x.caster && ' · Caster'}
             </p>
-            <p>
-              HP {x.hp} / {x.maxHp}
-              {x.hp === 0 && <span className="error"> · down</span>}
-            </p>
+            {x.hp === 0 && <p className="error">Down</p>}
           </div>
         </header>
-        <ResourceMeters actor={x} />
+        <div className="sheet-bars">
+          <StatBar kind="hp" current={x.hp} max={x.maxHp} />
+          {RESOURCES.filter((r) => x.resources[r]).map((r) => (
+            <StatBar key={r} kind={r} current={x.resources[r]!.current} max={x.resources[r]!.max} />
+          ))}
+        </div>
         <p className="stat-line">
           <span className="stat-chip">
             <span className="dim">Defense</span> {effectiveDefense(x)}
