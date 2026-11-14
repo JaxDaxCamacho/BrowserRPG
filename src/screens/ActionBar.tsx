@@ -8,7 +8,6 @@ import {
   kickTargets,
   obstacleTargets,
   OFF_HAND_PENALTY,
-  RESOURCES,
   talentEffects,
   type AbilityDefinition,
   type Combatant,
@@ -141,30 +140,6 @@ function slotInfo(actor: Combatant, slot: Slot): { name: string; icon?: string; 
   }
 }
 
-/** Mana, adrenaline and souls for a combatant. */
-export function ResourceMeters({ actor }: { actor: Combatant }) {
-  const pools = RESOURCES.filter((r) => actor.resources[r]);
-  if (pools.length === 0) return null;
-  return (
-    <div className="resource-meters">
-      {pools.map((r) => {
-        const pool = actor.resources[r]!;
-        return (
-          <span key={r} className={`resource-meter res-${r}`} title={`${RESOURCE_LABEL[r].name}: ${pool.current} of ${pool.max}`}>
-            <span className="resource-name">{RESOURCE_LABEL[r].short}</span>
-            <span className="resource-bar">
-              <span style={{ width: `${(pool.current / pool.max) * 100}%` }} />
-            </span>
-            <span className="resource-value">
-              {pool.current}/{pool.max}
-            </span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 interface SlotButtonProps {
   combat: CombatState;
   actor: Combatant;
@@ -261,7 +236,6 @@ export function ActionBar({ combat, actor, bar, extras, usable, selected, onUse,
 
   return (
     <div className="action-bar-wrap">
-      <ResourceMeters actor={actor} />
       <div className="action-bar" role="toolbar" aria-label={`${actor.name}'s actions`}>
         {bar.map((slot, i) => (
           <SlotButton
@@ -277,10 +251,10 @@ export function ActionBar({ combat, actor, bar, extras, usable, selected, onUse,
             onCancel={onCancel}
           />
         ))}
-      </div>
-      {extras.length > 0 && (
-        <div className="action-bar extras" role="toolbar" aria-label="Items and other abilities">
-          {extras.map((slot, i) => (
+        {extras.length > 0 && <span className="action-divider" aria-hidden="true" />}
+        {extras.length > 0 && (
+          <span className="action-extras" role="group" aria-label="Items and other abilities">
+            {extras.map((slot, i) => (
             <SlotButton
               key={`extra-${i}`}
               combat={combat}
@@ -292,9 +266,10 @@ export function ActionBar({ combat, actor, bar, extras, usable, selected, onUse,
               onUse={onUse}
               onCancel={onCancel}
             />
-          ))}
-        </div>
-      )}
+            ))}
+          </span>
+        )}
+      </div>
       {usable && (
         <div className="row action-extra">
           <button type="button" disabled={combat.acted} onClick={onFlee}>

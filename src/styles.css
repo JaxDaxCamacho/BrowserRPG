@@ -1502,36 +1502,11 @@ button.option {
   white-space: nowrap;
 }
 
-.initiative {
-  list-style: none;
-  margin: 0 0 0 auto;
-  padding: 0;
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-}
 
-.initiative li {
-  padding: 2px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-}
 
-.initiative li .token {
-  border-width: 2px;
-}
 
-.initiative li.side-enemy .token {
-  border-color: #d0533c;
-}
 
-.initiative li.current {
-  border-color: #fff;
-}
 
-.initiative li.down {
-  opacity: 0.3;
-}
 
 .battlefield {
   min-height: 0;
@@ -3631,10 +3606,6 @@ button.portrait-choice:hover {
   background: linear-gradient(180deg, #e0644c, #9a2c1f);
 }
 
-/* The bigger bar beside the selected merc's actions. */
-.turn-vitals {
-  max-width: 360px;
-}
 
 /* Token reactions, on the portrait only (the numbers and blood stay put): a graze nudges,
    a hit jolts, a crit shakes hard; a miss dodges aside. Hits also flash the portrait red. */
@@ -3861,5 +3832,319 @@ button.portrait-choice:hover {
 
   .flash-text {
     animation-name: rise;
+  }
+}
+
+/* ---------- combat screen layout: turn order, panels, centred action bar ---------- */
+
+/* Equal side columns keep the action bar in the middle of the screen. */
+.combat-footer {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.footer-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.footer-right {
+  align-items: stretch;
+}
+
+.footer-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.footer-center .targeting-hint {
+  min-height: 1.3em;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.footer-center .action-bar-wrap {
+  align-items: center;
+}
+
+.footer-center .action-bar {
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.action-divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 4px;
+  background: var(--border);
+}
+
+.action-extras {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.action-extras .action-slot {
+  width: 44px;
+  height: 44px;
+}
+
+.action-extras .slot-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.footer-center .action-extra {
+  justify-content: center;
+}
+
+.footer-center .outcome {
+  align-items: center;
+  text-align: center;
+}
+
+/* A combatant at a glance (the acting merc, the target). */
+.combatant-panel {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid #7fa8d6;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 25%);
+}
+
+.combatant-panel.side-enemy {
+  border-left-color: #d0533c;
+}
+
+.panel-portrait {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  object-fit: cover;
+}
+
+.combatant-panel.side-enemy .panel-portrait {
+  border-color: #d0533c;
+}
+
+.panel-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panel-body p {
+  margin: 0;
+}
+
+.panel-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-down {
+  color: #ff8a7a;
+  font-weight: bold;
+}
+
+.panel-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.combatant-panel .stat-bar {
+  grid-template-columns: 40px 1fr;
+}
+
+.footer-right .roll-empty {
+  align-self: flex-start;
+}
+
+.panel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.panel-chips .stat-chip {
+  padding: 1px 6px;
+}
+
+.status-chip {
+  border-color: rgb(240 200 112 / 45%);
+}
+
+.panel-line {
+  font-size: 0.82rem;
+}
+
+.panel-moves {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.hit-chance {
+  color: #f0c870;
+}
+
+.panel-empty {
+  margin: 0;
+  padding: 8px 2px;
+  font-size: 0.85rem;
+}
+
+/* Turn order in the top bar. */
+.turn-order {
+  list-style: none;
+  margin: 0 0 0 auto;
+  padding: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.turn-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  cursor: default;
+}
+
+.turn-portrait {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #7fa8d6;
+  object-fit: cover;
+  font-size: 0.7rem;
+}
+
+.turn-entry.side-enemy .turn-portrait {
+  border-color: #d0533c;
+}
+
+.turn-entry.current .turn-portrait {
+  width: 48px;
+  height: 48px;
+  border-color: #f0c040;
+  box-shadow: 0 0 10px rgb(240 192 64 / 60%);
+}
+
+.turn-entry.upcoming {
+  opacity: 0.7;
+}
+
+.turn-entry.down {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.turn-entry.hovered .turn-portrait {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.turn-health {
+  display: block;
+  width: 34px;
+  height: 4px;
+  border-radius: 2px;
+  background: #160f0c;
+  overflow: hidden;
+}
+
+.turn-health span {
+  display: block;
+  height: 100%;
+  background: #6fbf57;
+}
+
+.turn-entry.side-enemy .turn-health span {
+  background: #d9584a;
+}
+
+.turn-divider {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  border-left: 1px dashed var(--border);
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+/* The token hovered here or in the turn order. */
+.combat-token.hovered {
+  border-color: rgb(255 255 255 / 65%);
+}
+
+@media (max-width: 900px) {
+  .combat-footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer-center {
+    order: -1;
+  }
+
+  .footer-center .action-bar {
+    flex-wrap: wrap;
+  }
+}
+
+/* The latest attack roll, docked at the bottom right of the battlefield area, just above the
+   footer. It floats, so it never changes the footer's height or the size of the squares. */
+.combat-main {
+  position: relative;
+}
+
+.roll-dock {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
+  width: min(420px, calc(100% - var(--log-width) - 32px));
+  pointer-events: none;
+  z-index: 6;
+}
+
+.roll-dock .roll-card {
+  background: rgb(20 17 15 / 92%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 55%);
+}
+
+/* The side columns keep one height whether or not a token is hovered, so the footer never jumps. */
+.footer-side {
+  min-height: 132px;
+}
+
+@media (max-width: 900px) {
+  .roll-dock {
+    width: calc(100% - 32px);
+    bottom: auto;
+    top: 10px;
+  }
+
+  .footer-side {
+    min-height: 0;
   }
 }

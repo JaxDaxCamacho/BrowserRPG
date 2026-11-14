@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { getDungeon } from '../content';
+import { getClass, getDungeon } from '../content';
 import {
   abilityTargets,
   activeCombatant,
@@ -12,6 +12,7 @@ import {
   isEngaged,
   obstacleTargets,
   rangePenalty,
+  reach,
   reachableTiles,
   rescuersExist,
   shareXp,
@@ -33,8 +34,10 @@ import { AnimationPreview, AssetImage, useAssetIndex } from './assets';
 import { ActionBar, needsPick, slotsFor } from './ActionBar';
 import { CombatantDetails } from './CombatantDetails';
 import { CombatLog, STAT_SHORT } from './CombatLog';
+import { STATUS_FLAIR } from './combatFlair';
 import { ImpactFX, type ImpactKind } from './ImpactFX';
-import { StatBar } from './StatBar';
+import { CombatantPanel } from './CombatantPanel';
+import { TurnOrder } from './TurnOrder';
 import { PartyWindow } from './PartyWindow';
 import { DieFace } from './Dice';
 import { MuteButton } from './MuteButton';
@@ -124,27 +127,6 @@ function flashesFrom(combat: CombatState, seq: number): Flash[] {
   });
 }
 
-/** How each condition shows on a token. */
-const STATUS_FLAIR: Record<StatusKind, { icon: string; name: string }> = {
-  stunned: { icon: '💫', name: 'Stunned' },
-  taunted: { icon: '😠', name: 'Taunted' },
-  invisible: { icon: '👻', name: 'Invisible' },
-  poisoned: { icon: '☠️', name: 'Poisoned' },
-  bleeding: { icon: '🩸', name: 'Bleeding' },
-  burning: { icon: '🔥', name: 'Burning' },
-  blinded: { icon: '🙈', name: 'Blinded' },
-  oiled: { icon: '🛢️', name: 'Oiled' },
-  evasive: { icon: '💨', name: 'Evasive' },
-  silenced: { icon: '🤐', name: 'Silenced' },
-  feared: { icon: '😱', name: 'Feared' },
-  spellguard: { icon: '🚫', name: 'Spellguard' },
-  reflecting: { icon: '🪞', name: 'Reflecting' },
-  frozen: { icon: '🧊', name: 'Frozen' },
-  warded: { icon: '✨', name: 'Warded' },
-  prone: { icon: '🤕', name: 'Prone' },
-  rooted: { icon: '🌿', name: 'Rooted' },
-  regenerating: { icon: '💚', name: 'Regenerating' },
-};
 
 interface ProjectileSpec {
   key: string;
@@ -307,6 +289,36 @@ function RollReadout({ rolls }: { rolls: ShownRoll[] }) {
   );
 }
 
+/**
+ * What the acting merc's attack (or the ability being aimed) would need against
+ * this target, for the target panel: "Hit on 12+ (45%)". Null for allies.
+ */
+function hitChance(c: CombatState, actor: Combatant, target: Combatant, targeting: Targeting | null): string | null {
+  if (target.side === actor.side || target.hp === 0) return null;
+  let kind: keyof typeof ATTACK_STAT;
+  let name: string;
+  let range: number;
+  if (targeting?.kind === 'ability') {
+    const ability = targeting.ability;
+    const k = ability.weaponAttack ? actor.attack.profile.kind : ability.attack?.kind;
+    if (!k) return null;
+    kind = k;
+    name = ability.name;
+    range = ability.weaponAttack ? actor.attack.range : ability.range;
+  } else if (targeting?.kind === 'kick') {
+    return `Kick: push on ${Math.min(20, Math.max(2, effectiveDefense(target) + 1))}+`;
+  } else {
+    kind = actor.attack.profile.kind;
+    name = actor.attack.name;
+    range = actor.attack.range;
+  }
+  const need = hitOn(actor, target, kind);
+  const pct = Math.round(((21 - need) / 20) * 100);
+  const far = !reach(c, range, actor.pos, target.pos, false).ok;
+  const dis = range > 0 && isEngaged(c, actor) ? ', disadvantage' : '';
+  return `${name}: hit on ${need}+ (${pct}%${dis}), graze otherwise${far ? ' · out of reach' : ''}`;
+}
+
 /** The natural roll the actor needs to hit (not graze) this target, for the targeting hint. Distance counts against ranged attacks. */
 function hitOn(actor: Combatant, target: Combatant, kind: keyof typeof ATTACK_STAT): number {
   const modifier = statModifier(effectiveStats(actor)[ATTACK_STAT[kind]]) - rangePenalty(kind, actor.pos, target.pos);
@@ -331,9 +343,12 @@ interface TokenProps {
   onSelect: () => void;
   /** A right click: two in quick succession open the details. */
   onInspect: () => void;
+  /** Lit up because it is hovered here or in the turn order. */
+  hovered?: boolean;
+  onHover: (on: boolean) => void;
 }
 
-function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aiming, aimed, onPick, onSelect, onInspect }: TokenProps) {
+function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aiming, aimed, onPick, onSelect, onInspect, hovered, onHover }: TokenProps) {
   const down = x.hp === 0;
   // The blow that landed on this token, if one just did: it shakes (or dodges) to match.
   const blow = flashes.find((f) => f.outcome);
@@ -341,8 +356,12 @@ function CombatToken({ x, active, targetable, hint, flashes, frames, viewed, aim
   return (
     <button
       type="button"
-      className={`combat-token side-${x.side}${active ? ' active' : ''}${viewed ? ' viewed' : ''}${aiming ? ' aiming' : ''}${aimed ? ' aimed' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}`}
+      className={`combat-token side-${x.side}${active ? ' active' : ''}${viewed ? ' viewed' : ''}${aiming ? ' aiming' : ''}${aimed ? ' aimed' : ''}${targetable ? ' targetable' : ''}${down ? ' down' : ''}${x.statuses.some((st) => st.kind === 'invisible') ? ' invisible' : ''}${hovered ? ' hovered' : ''}`}
       onClick={() => (targetable ? onPick() : onSelect())}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      onFocus={() => onHover(true)}
+      onBlur={() => onHover(false)}
       onContextMenu={(e) => {
         e.preventDefault();
         onInspect();
@@ -399,6 +418,8 @@ export function CombatScreen() {
   /** The token whose details are open. */
   const [inspecting, setInspecting] = useState<string | null>(null);
   const lastRightClick = useRef<{ id: string; at: number } | null>(null);
+  /** The token under the pointer (on the battlefield or in the turn order): shown in the target panel. */
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const [flashes, setFlashes] = useState<Flash[]>([]);
   const [projectiles, setProjectiles] = useState<ProjectileSpec[]>([]);
   const [rolls, setRolls] = useState<ShownRoll[]>([]);
@@ -572,6 +593,18 @@ export function CombatScreen() {
   const viewedMerc = viewed ? live.mercs.find((m) => m.id === viewed.mercId) : undefined;
   // Health as shown, so the bar drops when the blow lands rather than before the dice.
   const viewedShown = viewed ? combat.combatants.find((x) => x.id === viewed.id) : undefined;
+  /** The left panel: the merc whose actions are shown, or else whoever is acting. */
+  const leftShown = viewedShown ?? (actor ? combat.combatants.find((x) => x.id === actor.id) : undefined);
+  /** The right panel: the hovered token, or else the one being attacked while the dice roll. */
+  const targetId = hoverId ?? (revealing ? [...aim.targets][0] ?? null : null);
+  const targetShown = targetId ? combat.combatants.find((x) => x.id === targetId && x.id !== leftShown?.id) : undefined;
+  const describe = (x: Combatant): string => {
+    if (x.summoned) return 'Summoned';
+    const merc = x.mercId ? live.mercs.find((m) => m.id === x.mercId) : undefined;
+    if (merc) return `Level ${merc.level} ${getClass(merc.classId).name}`;
+    return x.side === 'enemy' ? 'Enemy' : 'Ally';
+  };
+  const chance = targetShown && yourTurn && actor ? hitChance(live, actor, targetShown, targeting) : null;
 
   /** Two right clicks on the same token within a short while open its details. */
   const rightClick = (id: string) => {
@@ -671,17 +704,7 @@ export function CombatScreen() {
             ` · ${game.otherEncounters!.length} other fight${game.otherEncounters!.length === 1 ? '' : 's'} going on`}
         </span>
         <MuteButton />
-        <ol className="initiative" aria-label="Turn order">
-          {combat.order.map((id, i) => {
-            const x = combat.combatants.find((k) => k.id === id)!;
-            if (x.summoned && x.hp === 0) return null;
-            return (
-              <li key={id} className={`side-${x.side}${i === combat.turn ? ' current' : ''}${x.hp === 0 ? ' down' : ''}`} title={`${x.name} (initiative ${x.initiative})`}>
-                <AssetImage id={x.portrait} fallback={initials(x.name)} size={32} className="token" />
-              </li>
-            );
-          })}
-        </ol>
+        <TurnOrder combat={combat} hoverId={hoverId} onHover={setHoverId} />
       </header>
 
       <div className="combat-main">
@@ -739,6 +762,8 @@ export function CombatScreen() {
                       if (x.side === 'party' && !x.summoned && !targeting) setViewId(x.id === actor?.id ? null : x.id);
                     }}
                     onInspect={() => rightClick(x.id)}
+                    hovered={hoverId === x.id}
+                    onHover={(on) => setHoverId((h) => (on ? x.id : h === x.id ? null : h))}
                   />
                 </div>
               ))}
@@ -757,47 +782,60 @@ export function CombatScreen() {
             </div>
           </div>
         </section>
+        {/* The latest roll floats just above the footer, so hovering a token never moves it. */}
+        {rolls.length > 0 && (
+          <div className="roll-dock">
+            <RollReadout rolls={rolls} />
+          </div>
+        )}
       </div>
 
       <footer className="combat-footer">
-        <div className="combat-actions">
+        <div className="footer-side footer-left">
+          {leftShown && (
+            <CombatantPanel x={leftShown} subtitle={describe(leftShown)} className="acting-panel">
+              <p className="panel-line dim">
+                {usable ? (
+                  <>
+                    <strong className="panel-moves">{live.moveLeft}</strong> of {viewed!.movement} moves left · {live.acted ? 'acted' : 'can act'}
+                  </>
+                ) : viewed ? (
+                  <>
+                    Looking at {viewed.name}’s actions{actor ? ` · ${actor.name} is acting` : ''}{' '}
+                    <button type="button" className="link-button" onClick={() => setViewId(null)}>
+                      Back
+                    </button>
+                  </>
+                ) : actor ? (
+                  <>
+                    Acting{playerOf(actor.mercId) && playerOf(actor.mercId) !== 'you' ? ` (played by ${playerOf(actor.mercId)})` : ''}… Click one of your mercs to see their actions.
+                  </>
+                ) : null}
+              </p>
+            </CombatantPanel>
+          )}
+        </div>
+        <div className="footer-center">
           {combat.outcome ? (
             <Outcome combat={combat} onContinue={() => dispatch({ type: 'finishCombat' })}
               onRetry={() => dispatch({ type: 'retryCombat' })}
               {...(game.encounter && rescuersExist(game, game.encounter) && game.dungeon.otherGroups?.length ? { onCarryOn: () => dispatch({ type: 'leaveTheFallen' }) } : {})} onMenu={backToMenu} />
           ) : viewed ? (
             <>
-              <p className="turn-title">
-                <strong>{viewed.name}</strong>
-                <span className="dim">
-                  {usable ? (
-                    <>
-                      {live.moveLeft} of {viewed.movement} moves left · {live.acted ? 'acted' : 'can act'}
-                      {live.moveLeft > 0 && !targeting && ' · click a lit tile to move'}
-                    </>
-                  ) : (
-                    <>Looking at {viewed.name}’s actions · {actor ? `${actor.name} is acting` : ''}</>
-                  )}
-                </span>
-                {!usable && (
-                  <button type="button" className="link-button" onClick={() => setViewId(null)}>
-                    Back
-                  </button>
+              <p className="targeting-hint">
+                {targeting && actor ? (
+                  <>
+                    {targets.size > 0
+                      ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.kind === 'kick' ? 'Kick' : targeting.ability.name}.`
+                      : 'No target in reach.'}{' '}
+                    <span className="dim">Esc to cancel.</span>
+                  </>
+                ) : usable && live.moveLeft > 0 ? (
+                  <span className="dim">Click a lit tile to move, or pick an action.</span>
+                ) : (
+                  <span className="dim">{usable ? 'Pick an action, or end the turn.' : ' '}</span>
                 )}
               </p>
-              {viewedShown && (
-                <div className="turn-vitals">
-                  <StatBar kind="hp" current={viewedShown.hp} max={viewedShown.maxHp} />
-                </div>
-              )}
-              {targeting && actor && (
-                <p className="targeting-hint">
-                  {targets.size > 0
-                    ? `Choose a target for ${targeting.kind === 'attack' ? actor.attack.name : targeting.kind === 'kick' ? 'Kick' : targeting.ability.name}.`
-                    : 'No target in reach.'}{' '}
-                  <span className="dim">Esc to cancel.</span>
-                </p>
-              )}
               <ActionBar
                 combat={live}
                 actor={viewed}
@@ -818,14 +856,18 @@ export function CombatScreen() {
               />
             </>
           ) : (
-            <p className="turn-title dim">
-              {actor
-                ? `${actor.name} is acting${playerOf(actor.mercId) && playerOf(actor.mercId) !== 'you' ? ` (played by ${playerOf(actor.mercId)})` : ''}… Click one of your mercs to see their actions.`
-                : ''}
-            </p>
+            <p className="turn-title dim">{actor ? `${actor.name} is acting…` : ''}</p>
           )}
         </div>
-        <RollReadout rolls={rolls} />
+        <div className="footer-side footer-right">
+          {targetShown ? (
+            <CombatantPanel x={targetShown} subtitle={describe(targetShown)} className="target-panel">
+              {chance && <p className="panel-line hit-chance">{chance}</p>}
+            </CombatantPanel>
+          ) : (
+            <p className="dim panel-empty">Hover over a token to see it here.</p>
+          )}
+        </div>
       </footer>
       {inspecting &&
         (() => {

@@ -149,8 +149,9 @@ For how to run, build and package the game, see the [README](../README.md).
 - [x] **Fix the enemy animation sequence.**
 - [x] **Better effects when characters get attacked.** Sparks on a graze, blood splatter on a hit
   (large on a crit), token reactions, popping damage numbers, draining health bars, falling tokens.
-- [ ] **Combat screen rework.** Show more information (turn order, hit chances, statuses, ranges)
-  with a better layout.
+- [x] **Combat screen rework.** Turn order with health bars and the next-round marker, an acting
+  merc panel, a target panel with hit chances, a centred one-row action bar, the latest roll
+  floating above the footer.
 
 ### Battlefield rules
 - [ ] **Rebalance weapon ranges.** Today: shortbow 8, crossbow, wand, staff and focus 6, melee
